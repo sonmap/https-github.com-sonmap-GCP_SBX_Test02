@@ -1,10 +1,14 @@
+# GCP_SBX_Test02
+
+**[그룹 공유 JupyterHub와 과제 공용 Pod 배포](12.sandbox_shared/README.md)** — Okta GW 로그인, 과제당 5명·1 Pod·1 PVC, 기존 AR 이미지 재사용, Pod 중지·재개, 운영 릴리스 절차입니다.
+
+## Test01 기반 배포 절차
+
 **[Git 최신 설정 동기화·현재 단계 재개](01.docs/reference/git-sync-current-environment.md)** — 로컬 Customer ID를 보존하고, 프로젝트 치환 없이 Private Pool 점검을 실행합니다.
 
 > 신규 프로젝트·과제 전용 GSA 생성은 [sbx03 신규 과제 절차](01.docs/reference/sbx03-new-project-runbook.md)를 우선 적용합니다. 기존 프로젝트 재사용 절차와 구분하세요.
 
 **[현재 실환경: 개별 명령 작업 가이드](01.docs/reference/operator-command-guide.md)** — `gcp-sbx-edp-gke01` 기반 실제 수행 순서·계정 구분·오류 해결·미완료 확인사항. 현재 환경에서는 이 가이드의 값을 우선 사용하세요. 관련 기본값도 현재 환경으로 동기화했습니다.
-
-# GCP_SBX_Test01
 
 > **[서브넷별 IAM](02.sandbox_setup_01_gcloud/02-subnet-iam.md)**: VPC Admin이 네트워크를 준비한 뒤 GKE·ALB VIP 서브넷에 필요한 계정만 사용 권한을 부여합니다. 이후 tf-manager로 내부 ALB를 구성합니다.
 

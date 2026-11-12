@@ -1,0 +1,14 @@
+# Run from an approved build context with Dockerfile.release and requirements.lock.
+steps:
+- name: gcr.io/cloud-builders/docker
+  args:
+  - build
+  - --file=Dockerfile.release
+  - --build-arg=BASE_IMAGE=${_BASE_IMAGE}
+  - --build-arg=NOTEBOOK_UID=${_NOTEBOOK_UID}
+  - --tag=${_CANDIDATE_IMAGE}
+  - .
+images:
+- ${_CANDIDATE_IMAGE}
+substitutions:
+  _NOTEBOOK_UID: '1000'

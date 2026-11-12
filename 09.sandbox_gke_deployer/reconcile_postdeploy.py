@@ -87,14 +87,15 @@ def verify_workload_identity(request, env):
     )
 
 
-def resolve_neg_backends(request, env):
+def resolve_neg_backends(request, env, *, context=None):
     namespace = request["gke"]["namespace"]
     gke_project = request["gke"]["project_id"]
     last_status = None
+    kubectl = ["kubectl"] if context is None else ["kubectl", "--context", context]
 
     for _ in range(30):
         svcnegs = json.loads(run([
-            "kubectl", "get", "svcneg",
+            *kubectl, "get", "svcneg",
             f"--namespace={namespace}", "--output=json",
         ], env=env, quiet=True))
 
@@ -117,7 +118,7 @@ def resolve_neg_backends(request, env):
 
         if synced:
             service = json.loads(run([
-                "kubectl", "get", "service", "proxy-public",
+                *kubectl, "get", "service", "proxy-public",
                 f"--namespace={namespace}", "--output=json",
             ], env=env, quiet=True))
             raw_status = service.get("metadata", {}).get("annotations", {}).get(

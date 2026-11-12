@@ -1,0 +1,10 @@
+ARG BASE_IMAGE
+FROM ${BASE_IMAGE}
+USER root
+COPY requirements.lock /tmp/sandbox-requirements.lock
+RUN python -m pip install --no-cache-dir --require-hashes -r /tmp/sandbox-requirements.lock \
+    && python -m pip check \
+    && command -v jupyterhub-singleuser \
+    && rm /tmp/sandbox-requirements.lock
+ARG NOTEBOOK_UID=1000
+USER ${NOTEBOOK_UID}

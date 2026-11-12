@@ -1,0 +1,26 @@
+{
+  "group": "sandbox-group-01",
+  "domain": "sandbox-group-01.example.com",
+  "okta_issuer": "https://example.okta.com/oauth2/default",
+  "okta_secret": "shared-okta-oauth",
+  "platform_registry": "asia-northeast3-docker.pkg.dev/example-gke/ar-platform",
+  "tasks": {
+    "sbx01": {
+      "members": [
+        "member01@example.com",
+        "member02@example.com",
+        "member03@example.com",
+        "member04@example.com",
+        "member05@example.com"
+      ],
+      "gsa": "gsa-jupyter-sbx01@example-data.iam.gserviceaccount.com",
+      "image": "asia-northeast3-docker.pkg.dev/example-images/notebooks/lguplus-deeplearning@sha256:0000000000000000000000000000000000000000000000000000000000000000",
+      "uid": 1000,
+      "gid": 100,
+      "storage": {
+        "claim": "notebook-home",
+        "sub_path": "sbx01"
+      }
+    }
+  }
+}
