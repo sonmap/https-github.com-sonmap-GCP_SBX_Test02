@@ -7,7 +7,7 @@ Test02의 그룹 공유 배포는 운영자가 승인된 구성 파일로 수행
 | 그룹 | 그룹당 JupyterHub 1개와 Configurable HTTP Proxy 1개, 내부 ALB 호스트 경로 1개, Okta 콜백 1개 |
 | 과제 | Namespace·KSA·GSA 각 1개, Notebook Deployment 1개, PVC 1개, 멤버 5명 |
 | Notebook | 과제당 Pod 1개 안에서 5개 멤버 서버를 각각 별도 컨테이너와 포트로 실행. 합계 요청과 제한은 8 vCPU·64 GiB. 컨테이너별 CPU·메모리 한도를 적용하며 전체 자원을 한 사용자가 사용할 수 있는 방식은 아님 |
-| 데이터 | 모든 멤버가 과제 PVC의 `/home/jupyter`를 공유. 시작 경로는 `/home/jupyter/<GW 이메일>`. 이 디렉터리 구분은 사용자 간 파일 접근 제어 경계가 아님 |
+| 데이터 | 모든 멤버가 과제 PVC의 `/home/jupyter`를 공유. 시작 경로의 기본값은 `/home/jupyter/<GW 이메일>`. 이 디렉터리 구분은 사용자 간 파일 접근 제어 경계가 아님 |
 | 인증 | 그룹별 Okta OIDC를 통해 GW 이메일 확인. Hub가 과제 승인 명단과 named server 요청을 함께 확인 |
 | 이미지 | 과제별 승인된 AR digest를 지정. 기존 Ubuntu VM의 `systemctl`, Docker 종료 훅, 호스트 계정 동기화는 GKE 실행 경로에 의존하지 않음 |
 
@@ -49,7 +49,7 @@ python3 12.sandbox_shared/shared_sandbox.py "$GROUP_CONFIG" alb \
 
 1. 신규 구성에서는 과제별 Filestore 볼륨과 RWX PVC를 준비하고 PV의 reclaim policy를 `Retain`으로 설정합니다. 기존 공유 Filestore를 사용할 경우 과제별 PVC와 전용 디렉터리를 준비하고 `sub_path`로 지정합니다. `sub_path`는 사전에 만들어야 하며, 같은 디렉터리를 여러 과제에 할당하면 안 됩니다. 여러 PVC에서 같은 Filestore 공유를 참조하면 PVC에 표시되는 `100Gi`는 공유 내 디렉터리별 용량 제한을 만들지 않습니다. 실제 공유 총사용량을 운영자가 모니터링합니다.
 2. 동적 생성이 필요하면 `storage.storage_class`에 사전에 검증한 Filestore CSI RWX StorageClass를 지정합니다. 이 모드의 기본 요청값은 `100Gi`이고 선택한 Filestore 티어의 최소 용량을 충족해야 합니다. 기존 PVC를 참조할 때는 `storage_class`를 생략합니다.
-3. 최초 이관 시 VM의 실제 `/home/jupyter` 데이터와 권한을 복사합니다. Pod UID/GID가 이 경로와 멤버 디렉터리에 쓸 수 있는지 확인합니다. 과제별 GSA에 필요한 데이터 IAM을 부여한 뒤 아래와 같이 KSA를 연결합니다. 기존 레거시 Pod를 덮어쓰기 전에 별도 PoC 과제에서 시험합니다.
+3. 최초 이관 시 VM의 실제 `/home/jupyter` 데이터와 권한을 복사합니다. 기존 디렉터리명으로 홈을 열려면 과제의 `home_dirs`에 `{"member01@example.com": "member01"}`처럼 GW 이메일과 기존 디렉터리명을 매핑합니다. 이 설정을 생략하면 해당 사용자의 기존 파일을 `/home/jupyter/<GW 이메일>` 아래로 이관합니다. Pod UID/GID가 이 경로와 멤버 디렉터리에 쓸 수 있는지 확인합니다. 과제별 GSA에 필요한 데이터 IAM을 부여한 뒤 아래와 같이 KSA를 연결합니다. 기존 레거시 Pod를 덮어쓰기 전에 별도 PoC 과제에서 시험합니다.
 
 ```bash
 TASK=sbx01

@@ -38,6 +38,13 @@ def load_group(path):
         require(len(members) == 5 and len(set(members)) == 5
                 and all(len(member) <= 150 and re.fullmatch(ACCOUNT, member) for member in members),
                 f"{name}: specify five unique lowercase Okta email claims")
+        home_dirs = task.get("home_dirs", {})
+        require(set(home_dirs).issubset(members)
+                and all(re.fullmatch(r"[a-zA-Z0-9_][a-zA-Z0-9_.@+-]{0,149}", home)
+                        for home in home_dirs.values()),
+                f"{name}: home_dirs must map approved accounts to relative directory names")
+        require(len({home_dirs.get(member, member) for member in members}) == 5,
+                f"{name}: member home directories must be distinct")
         require(re.fullmatch(IMAGE, task["image"]), f"{name}: an AR image digest is required")
         require(re.fullmatch(r"[a-z][a-z0-9-]{4,28}[a-z0-9]@[a-z][a-z0-9-]{4,28}[a-z0-9]\.iam\.gserviceaccount\.com",
                              task["gsa"]), f"{name}: specify a dedicated task GSA email")
@@ -155,6 +162,7 @@ def task_resources(settings, name):
     ports = []
     for index, member in enumerate(task["members"]):
         slot = f"member-{index}"
+        home_dir = task.get("home_dirs", {}).get(member, member)
         notebook_port, status_port = 8888 + index, 9000 + index
         ports.extend([{"name": f"web-{index}", "port": notebook_port},
                       {"name": f"status-{index}", "port": status_port}])
@@ -167,7 +175,7 @@ def task_resources(settings, name):
         containers.append({
             "name": slot, "image": task["image"], "command": ["python", "/launcher/notebook_slot.py"],
             "workingDir": "/home/jupyter",
-            "env": [{"name": "HOME", "value": f"/home/jupyter/{member}"},
+            "env": [{"name": "HOME", "value": f"/home/jupyter/{home_dir}"},
                     {"name": "NOTEBOOK_PORT", "value": str(notebook_port)}],
             "volumeMounts": [home, {"name": slot, "mountPath": "/var/run/notebook-session", "readOnly": True},
                              {"name": "launcher", "mountPath": "/launcher", "readOnly": True}],

@@ -42,6 +42,22 @@ class SharedSandboxTests(unittest.TestCase):
         self.assertEqual(role["rules"][0]["resourceNames"], secrets)
         self.assertEqual(role["rules"][0]["verbs"], ["patch"])
 
+    def test_existing_member_home_can_keep_its_vm_directory_name(self):
+        task = self.group["tasks"][self.task]
+        task["home_dirs"] = {task["members"][0]: "legacy-user"}
+        with tempfile.TemporaryDirectory() as directory:
+            config = Path(directory) / "group.json"
+            config.write_text(json.dumps(self.group))
+            self.group = sandbox.load_group(config)
+            deployment, = [item for item in self.resources() if item["kind"] == "Deployment"]
+            containers = deployment["spec"]["template"]["spec"]["containers"]
+            self.assertEqual(containers[0]["env"][0]["value"], "/home/jupyter/legacy-user")
+            task = self.group["tasks"][self.task]
+            task["home_dirs"][task["members"][0]] = "../other-task"
+            config.write_text(json.dumps(self.group))
+            with self.assertRaisesRegex(ValueError, "relative directory"):
+                sandbox.load_group(config)
+
     def test_existing_claim_is_not_recreated_and_dynamic_claim_is_created_once(self):
         self.assertFalse(any(item["kind"] == "PersistentVolumeClaim" for item in self.resources()))
         self.group["tasks"][self.task]["storage"]["storage_class"] = "filestore-retain"
