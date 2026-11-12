@@ -1,0 +1,31 @@
+steps:
+  - name: gcr.io/cloud-builders/docker
+    id: build-jupyter-singleuser-standard
+    args:
+      - build
+      - --build-arg
+      - BASE_IMAGE=${_BASE_IMAGE}
+      - --build-arg
+      - IMAGE_VERSION=${_IMAGE_TAG}
+      - -t
+      - ${_IMAGE_REPO}:${_IMAGE_TAG}
+      - .
+
+  - name: gcr.io/cloud-builders/docker
+    id: push-jupyter-singleuser-standard
+    args:
+      - push
+      - ${_IMAGE_REPO}:${_IMAGE_TAG}
+
+images:
+  - ${_IMAGE_REPO}:${_IMAGE_TAG}
+
+substitutions:
+  _BASE_IMAGE: asia-northeast3-docker.pkg.dev/gcp-sbx-edp-gke01/ar-sbxtest01-platform/jupyterhub-k8s-singleuser-sample:4.2.0
+  _IMAGE_REPO: asia-northeast3-docker.pkg.dev/gcp-sbx-edp-gke01/ar-sbxtest01-platform/jupyterhub-k8s-singleuser-standard
+  _IMAGE_TAG: 4.2.0-r2-home
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+
+timeout: 1800s

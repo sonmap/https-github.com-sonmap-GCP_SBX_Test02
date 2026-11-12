@@ -1,0 +1,18 @@
+# Read-only connectivity check, executed by an explicitly specified tf-manager Build.
+# Run after bootstrap-build has published the :bootstrap runner image.
+# Usage and success criteria: 01.docs/01-infra-setup.md
+steps:
+  - name: asia-northeast3-docker.pkg.dev/gcp-sbx-edp-gke01/ar-sbxtest01-platform/sbxtest01-automation-runner:bootstrap
+    entrypoint: bash
+    env:
+      - KUBECONFIG=/workspace/kubeconfig
+    args:
+      - -ceu
+      - |
+        gcloud container clusters get-credentials gke-sbx-main-an3 --project=gcp-sbx-edp-gke01 --location=asia-northeast3 --dns-endpoint
+        kubectl --request-timeout=20s get namespaces
+options:
+  logging: CLOUD_LOGGING_ONLY
+  pool:
+    name: projects/gcp-sbx-edp-gke01/locations/asia-northeast3/workerPools/pool-sbxtest01
+timeout: 300s

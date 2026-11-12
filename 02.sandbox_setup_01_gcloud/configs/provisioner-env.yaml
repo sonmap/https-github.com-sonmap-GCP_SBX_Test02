@@ -1,0 +1,10 @@
+SBX_GKE_PROJECT: gcp-sbx-edp-gke01
+GCP_REGION: asia-northeast3
+REQUEST_BUCKET: gcp-sbx-edp-gke01-sbxtest01-requests
+BUNDLE_BUCKET: gcp-sbx-edp-gke01-sbxtest01-bundles
+GITHUB_REPOSITORY: sonmap/GCP_SBX_Test01
+WORKER_POOL: projects/gcp-sbx-edp-gke01/locations/asia-northeast3/workerPools/pool-sbxtest01
+CLOUD_IDENTITY_CUSTOMER_ID: __SET_CUSTOMER_ID__
+JUPYTER_CHART_URI: oci://asia-northeast3-docker.pkg.dev/gcp-sbx-edp-gke01/ar-sbxtest01-platform/jupyterhub
+JUPYTER_CHART_VERSION: 4.2.0
+GKE_ENDPOINT_MODE: dns

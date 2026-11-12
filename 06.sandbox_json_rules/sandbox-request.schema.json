@@ -1,0 +1,389 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sonmap.net/schemas/sandbox-request.schema.json",
+  "title": "Approved sandbox provisioning request",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "request_id",
+    "approval",
+    "action",
+    "task",
+    "identity",
+    "project",
+    "network",
+    "data",
+    "gke",
+    "source"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "request_id": {
+      "type": "string",
+      "pattern": "^REQ-[A-Z0-9-]{6,64}$"
+    },
+    "approval": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "approval_id",
+        "approved_at"
+      ],
+      "properties": {
+        "status": {
+          "const": "APPROVED"
+        },
+        "approval_id": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 128
+        },
+        "approved_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "action": {
+      "const": "CREATE"
+    },
+    "task": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "display_name",
+        "expires_on"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]{2,19}$"
+        },
+        "display_name": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 80
+        },
+        "expires_on": {
+          "type": "string",
+          "format": "date"
+        }
+      }
+    },
+    "identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "group_email",
+        "members"
+      ],
+      "properties": {
+        "group_email": {
+          "type": "string",
+          "pattern": "^pgrp-gcp-dev-[a-z0-9-]+@sonmap\\.net$"
+        },
+        "members": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 20,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9._%+-]+@sonmap\\.net$"
+          }
+        },
+        "group_resource_name": {
+          "type": "string",
+          "pattern": "^groups/[A-Za-z0-9_-]+$",
+          "description": "Existing group resource to import into the group deployment state; omit for new group."
+        },
+        "membership_resource_names": {
+          "type": "object",
+          "propertyNames": {
+            "pattern": "^[A-Za-z0-9._%+-]+@sonmap\\.net$"
+          },
+          "additionalProperties": {
+            "type": "string",
+            "pattern": "^groups/[A-Za-z0-9_-]+/memberships/[A-Za-z0-9_-]+$"
+          },
+          "description": "Existing requested memberships to import, keyed by email; omit for new members."
+        },
+        "create_jupyter_gsa": {
+          "type": "boolean",
+          "default": false,
+          "description": "Create a dedicated gsa-jupyter-<task> in the task project; required for new projects."
+        }
+      }
+    },
+    "project": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "create_project",
+        "project_id",
+        "project_name"
+      ],
+      "properties": {
+        "create_project": {
+          "type": "boolean"
+        },
+        "project_id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]{4,28}[a-z0-9]$"
+        },
+        "project_name": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 30
+        },
+        "folder_id": {
+          "type": "string",
+          "pattern": "^[0-9]+$"
+        },
+        "billing_account": {
+          "type": "string",
+          "pattern": "^[0-9A-F]{6}-[0-9A-F]{6}-[0-9A-F]{6}$"
+        },
+        "org_id": {
+          "type": "string",
+          "pattern": "^[0-9]+$"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "create_project": {
+                "const": true
+              }
+            },
+            "required": [
+              "create_project"
+            ]
+          },
+          "then": {
+            "required": [
+              "billing_account"
+            ],
+            "oneOf": [
+              {
+                "required": [
+                  "folder_id"
+                ],
+                "not": {
+                  "required": [
+                    "org_id"
+                  ]
+                }
+              },
+              {
+                "required": [
+                  "org_id"
+                ],
+                "not": {
+                  "required": [
+                    "folder_id"
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "network": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "required",
+        "host_project_id",
+        "network_name",
+        "region",
+        "shared_vpc_join"
+      ],
+      "properties": {
+        "required": {
+          "type": "boolean"
+        },
+        "host_project_id": {
+          "const": "gcp-prod-edp-hub-vpchost"
+        },
+        "network_name": {
+          "const": "vpc-prod-edp-hub"
+        },
+        "region": {
+          "const": "asia-northeast3"
+        },
+        "shared_vpc_join": {
+          "type": "boolean"
+        },
+        "subnet_name": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "subnet_cidr": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "private_google_access": {
+          "type": "boolean",
+          "default": true
+        },
+        "create_subnet": {
+          "type": "boolean",
+          "default": true
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "required": {
+                "const": true
+              }
+            },
+            "required": [
+              "required"
+            ]
+          },
+          "then": {
+            "required": [
+              "subnet_name",
+              "subnet_cidr"
+            ],
+            "properties": {
+              "subnet_name": {
+                "type": "string",
+                "minLength": 3
+              },
+              "subnet_cidr": {
+                "type": "string",
+                "pattern": "^[0-9.]+/24$"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "shared_vpc_join": {
+                "const": false
+              }
+            }
+          }
+        }
+      ]
+    },
+    "data": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "bigquery_dataset",
+        "gcs_bucket"
+      ],
+      "properties": {
+        "bigquery_dataset": {
+          "type": "string",
+          "pattern": "^[A-Za-z_][A-Za-z0-9_]{0,1023}$"
+        },
+        "gcs_bucket": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9._-]{1,61}[a-z0-9]$"
+        },
+        "adopt_existing_resources": {
+          "type": "boolean",
+          "default": false,
+          "description": "Adopt the approved pre-existing BigQuery dataset and GCS bucket (central sbx-manager is read-only lookup) into Infrastructure Manager state."
+        },
+        "datalake_datasets": {
+          "type": "array",
+          "maxItems": 10,
+          "uniqueItems": true,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "project_id",
+              "dataset_id"
+            ],
+            "properties": {
+              "project_id": {
+                "const": "pjt-c-admin"
+              },
+              "dataset_id": {
+                "type": "string",
+                "pattern": "^[A-Za-z_][A-Za-z0-9_]{0,1023}$"
+              }
+            }
+          },
+          "description": "Approved datasets: grant task GSA dataViewer; caller must have delegated dataset IAM permission."
+        }
+      }
+    },
+    "gke": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "project_id",
+        "cluster_name",
+        "location",
+        "namespace",
+        "jupyter_domain"
+      ],
+      "properties": {
+        "project_id": {
+          "const": "gcp-sbx-edp-gke01"
+        },
+        "cluster_name": {
+          "const": "gke-sbx-main-an3"
+        },
+        "location": {
+          "const": "asia-northeast3"
+        },
+        "namespace": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]{2,19}$"
+        },
+        "jupyter_domain": {
+          "type": "string",
+          "pattern": "^[a-z0-9.-]+\\.sonmap\\.net$"
+        }
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "release_id",
+        "archive_uri",
+        "generation",
+        "sha256"
+      ],
+      "properties": {
+        "release_id": {
+          "type": "string",
+          "pattern": "^[a-z0-9-]{3,64}$"
+        },
+        "archive_uri": {
+          "type": "string",
+          "pattern": "^gs://[a-z0-9._-]+/.+\\.zip$"
+        },
+        "generation": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    }
+  }
+}

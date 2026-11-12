@@ -1,0 +1,14 @@
+main:
+  params: [args]
+  steps:
+    - invoke:
+        call: http.post
+        args:
+          url: "__PROVISIONER_URL__/provision"
+          auth:
+            type: OIDC
+            audience: "__PROVISIONER_URL__"
+          body: ${args}
+        result: response
+    - done:
+        return: ${response.body}

@@ -1,0 +1,18 @@
+steps:
+- name: gcr.io/cloud-builders/docker
+  args:
+  - build
+  - -t
+  - asia-northeast3-docker.pkg.dev/gcp-sbx-edp-gke01/ar-sbxtest01-platform/sbxtest01-automation-runner:bootstrap
+  - 09.sandbox_gke_deployer
+- name: gcr.io/cloud-builders/docker
+  args:
+  - build
+  - -t
+  - asia-northeast3-docker.pkg.dev/gcp-sbx-edp-gke01/ar-sbxtest01-platform/run-sbxtest01-provisioner:bootstrap
+  - 07.sandbox_request_api
+images:
+- asia-northeast3-docker.pkg.dev/gcp-sbx-edp-gke01/ar-sbxtest01-platform/sbxtest01-automation-runner:bootstrap
+- asia-northeast3-docker.pkg.dev/gcp-sbx-edp-gke01/ar-sbxtest01-platform/run-sbxtest01-provisioner:bootstrap
+options:
+  logging: CLOUD_LOGGING_ONLY

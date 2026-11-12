@@ -1,0 +1,29 @@
+# Mirrors the JupyterHub runtime images required by the private GKE nodes.
+# Run this on fully-managed Cloud Build (no Private Pool): it can reach quay.io.
+steps:
+  - name: "${_AUTOMATION_IMAGE}"
+    id: mirror-jupyterhub-runtime-images
+    entrypoint: bash
+    args:
+      - -ceu
+      - |
+        registry="${_REGION}-docker.pkg.dev"
+        destination="${registry}/${PROJECT_ID}/${_REPOSITORY}"
+        gcloud auth print-access-token |           skopeo login "${registry}" --username oauth2accesstoken --password-stdin
+
+        skopeo copy --all           "docker://quay.io/jupyterhub/k8s-hub:${_HUB_TAG}"           "docker://${destination}/jupyterhub-k8s-hub:${_HUB_TAG}"
+        skopeo copy --all           "docker://quay.io/jupyterhub/configurable-http-proxy:${_CHP_TAG}"           "docker://${destination}/jupyterhub-configurable-http-proxy:${_CHP_TAG}"
+        skopeo copy --all           "docker://quay.io/jupyterhub/k8s-singleuser-sample:${_SINGLEUSER_TAG}"           "docker://${destination}/jupyterhub-k8s-singleuser-sample:${_SINGLEUSER_TAG}"
+
+substitutions:
+  _REGION: asia-northeast3
+  _REPOSITORY: ar-sbxtest01-platform
+  _HUB_TAG: "4.2.0"
+  _CHP_TAG: "4.6.3"
+  _SINGLEUSER_TAG: "4.2.0"
+  _AUTOMATION_IMAGE: asia-northeast3-docker.pkg.dev/gcp-sbx-edp-gke01/ar-sbxtest01-platform/sbxtest01-automation-runner:latest
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+
+timeout: 1800s

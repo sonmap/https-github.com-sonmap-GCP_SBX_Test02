@@ -1,0 +1,63 @@
+{
+  "schema_version": "1.0",
+  "request_id": "REQ-20261107-SBX03-001",
+  "approval": {
+    "status": "PENDING",
+    "approval_id": "",
+    "approved_at": ""
+  },
+  "action": "CREATE",
+  "task": {
+    "name": "sbx03",
+    "display_name": "Sandbox assignment 03",
+    "expires_on": "2026-12-31"
+  },
+  "identity": {
+    "group_email": "pgrp-gcp-dev-sbx03@sonmap.net",
+    "members": [
+      "user01@sonmap.net",
+      "user02@sonmap.net"
+    ],
+    "create_jupyter_gsa": true
+  },
+  "project": {
+    "create_project": true,
+    "project_id": "gcp-sbx-edp-sbx03",
+    "project_name": "Sandbox sbx03",
+    "org_id": "51654893849",
+    "billing_account": "019BE7-53DD39-AF5098"
+  },
+  "network": {
+    "required": false,
+    "create_subnet": false,
+    "host_project_id": "gcp-prod-edp-hub-vpchost",
+    "network_name": "vpc-prod-edp-hub",
+    "region": "asia-northeast3",
+    "shared_vpc_join": false,
+    "private_google_access": true
+  },
+  "data": {
+    "bigquery_dataset": "sbx03_main",
+    "gcs_bucket": "gcp-sbx-edp-sbx03-sbx03-data",
+    "adopt_existing_resources": false,
+    "datalake_datasets": [
+      {
+        "project_id": "pjt-c-admin",
+        "dataset_id": "dlk_sample"
+      }
+    ]
+  },
+  "gke": {
+    "project_id": "gcp-sbx-edp-gke01",
+    "cluster_name": "gke-sbx-main-an3",
+    "location": "asia-northeast3",
+    "namespace": "sbx03",
+    "jupyter_domain": "jupyter-sbx03.sonmap.net"
+  },
+  "source": {
+    "release_id": "replace-after-release",
+    "archive_uri": "gs://gcp-sbx-edp-gke01-sbxtest01-bundles/platform-releases/replace-after-release/sandbox-source.zip",
+    "generation": 1,
+    "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+  }
+}
