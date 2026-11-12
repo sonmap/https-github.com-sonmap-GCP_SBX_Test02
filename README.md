@@ -1,6 +1,6 @@
 # GCP_SBX_Test02
 
-**[그룹 공유 JupyterHub와 과제 공용 Pod 배포](12.sandbox_shared/README.md)** — Okta GW 로그인, 과제당 5명·1 Pod·1 PVC, 기존 AR 이미지 재사용, Pod 중지·재개, 운영 릴리스 절차입니다.
+**[그룹 공유 JupyterHub와 과제 공용 Pod 배포](12.sandbox_shared/README.md)** — JupyterHub 로컬 테스트 계정, 과제당 5명·1 Pod·1 PVC, 기존 AR 이미지 재사용, Pod 중지·재개, 운영 릴리스 절차입니다.
 
 ## Test01 기반 배포 절차
 

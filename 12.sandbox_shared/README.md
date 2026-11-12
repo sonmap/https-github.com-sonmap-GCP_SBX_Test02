@@ -4,37 +4,41 @@ Test02의 그룹 공유 배포는 운영자가 승인된 구성 파일로 수행
 
 | 범위 | 구성 |
 | --- | --- |
-| 그룹 | 그룹당 JupyterHub 1개와 Configurable HTTP Proxy 1개, 내부 ALB 호스트 경로 1개, Okta 콜백 1개 |
+| 그룹 | 그룹당 JupyterHub 1개와 Configurable HTTP Proxy 1개, 내부 ALB 호스트 경로 1개 |
 | 과제 | Namespace·KSA·GSA 각 1개, Notebook Deployment 1개, PVC 1개, 멤버 5명 |
 | Notebook | 과제당 Pod 1개 안에서 5개 멤버 서버를 각각 별도 컨테이너와 포트로 실행. 합계 요청과 제한은 8 vCPU·64 GiB. 컨테이너별 CPU·메모리 한도를 적용하며 전체 자원을 한 사용자가 사용할 수 있는 방식은 아님 |
 | 데이터 | 모든 멤버가 과제 PVC의 `/home/jupyter`를 공유. 시작 경로의 기본값은 `/home/jupyter/<GW 이메일>`. 이 디렉터리 구분은 사용자 간 파일 접근 제어 경계가 아님 |
-| 인증 | 그룹별 Okta OIDC를 통해 GW 이메일 확인. Hub가 과제 승인 명단과 named server 요청을 함께 확인 |
+| 인증 | PoC용 Hub 로컬 로그인. 승인된 GW 이메일을 로그인 ID로 사용하고 별도로 설정한 테스트 비밀번호를 확인합니다. Hub는 named server 요청도 과제 승인 명단과 대조합니다. |
 | 이미지 | 과제별 승인된 AR digest를 지정. 기존 Ubuntu VM의 `systemctl`, Docker 종료 훅, 호스트 계정 동기화는 GKE 실행 경로에 의존하지 않음 |
 
 ## 1. 공통 인프라와 그룹 준비
 
 - VPC·GKE·내부 ALB·DNS·인증서는 기존 Foundation 절차로 준비합니다. 동일 ALB에 그룹 DNS 세 개를 등록하고 인증서가 세 이름을 포함하도록 구성합니다. 사내 DNS에서 각 이름은 내부 ALB VIP를 가리킵니다.
-- Central-1 VM 또는 승인된 인프라 VM에서 기존 [수동 Helm 미러 절차](../02.sandbox_setup_01_gcloud/mirror-jupyter.sh)를 사용해 Helm 차트 4.2.0과 플랫폼 이미지를 AR에 준비합니다. 배포 환경에서 AR, 사설 GKE API, Filestore, Okta 토큰 및 사용자 정보 엔드포인트에 접근할 수 있어야 합니다.
-- 세 그룹마다 [group.example.json](group.example.json)을 복사해 승인된 GW 이메일, 고유 과제명, GSA, AR 이미지 digest, PVC 이름을 입력합니다. 예제의 digest는 자리표시자입니다. 그룹 전체에서 과제명과 GSA가 중복되지 않도록 포털 또는 운영자가 관리합니다.
-- 그룹별 Okta 애플리케이션에 `https://<그룹-DNS>/hub/oauth_callback`을 등록하고 `email` claim에 승인된 GW 이메일을 제공하도록 설정합니다. Okta Secret은 플랫폼 관리자가 준비합니다. Jupyter 사용자는 GKE 관리 권한을 받지 않습니다.
+- Central-1 VM 또는 승인된 인프라 VM에서 기존 [수동 Helm 미러 절차](../02.sandbox_setup_01_gcloud/mirror-jupyter.sh)를 사용해 Helm 차트 4.2.0과 플랫폼 이미지를 AR에 준비합니다. 배포 환경에서 AR, 사설 GKE API, Filestore에 접근할 수 있어야 합니다.
+- 세 그룹마다 [group.example.json](group.example.json)을 복사해 승인된 테스트 계정 이메일, 고유 과제명, GSA, AR 이미지 digest, PVC 이름을 입력합니다. 예제의 digest는 자리표시자입니다. 그룹 전체에서 과제명과 GSA가 중복되지 않도록 포털 또는 운영자가 관리합니다.
+- 그룹별로 승인된 계정의 테스트 비밀번호를 준비합니다. 실제 GW 비밀번호 대신 테스트 전용 비밀번호를 사용하세요. 준비 도구는 비밀번호를 화면에 표시하지 않고 해시만 파일에 기록합니다. 이 파일은 Git에 올리지 않고 Hub 네임스페이스의 Secret으로 등록합니다. Jupyter 사용자는 GKE 관리 권한을 받지 않습니다.
 
 ```bash
 GROUP_CONFIG=/secure/approved-group.json
 GROUP=sandbox-group-01
 CTX=approved-gke-context
-OKTA_SECRET=shared-okta-oauth
+TEST_ACCOUNTS_SECRET=shared-test-accounts
+TEST_ACCOUNT_HASHES=/secure/shared-test-accounts.json
 CHART=oci://asia-northeast3-docker.pkg.dev/PROJECT/AR_REPOSITORY/jupyterhub
 
 kubectl --context "$CTX" create namespace "$GROUP" --dry-run=client -o yaml |
   kubectl --context "$CTX" apply -f -
-kubectl --context "$CTX" -n "$GROUP" create secret generic "$OKTA_SECRET" \
-  --from-file=client_id=/secure/okta-client-id \
-  --from-file=client_secret=/secure/okta-client-secret
+python3 12.sandbox_shared/prepare_test_accounts.py "$GROUP_CONFIG" "$TEST_ACCOUNT_HASHES"
+kubectl --context "$CTX" -n "$GROUP" create secret generic "$TEST_ACCOUNTS_SECRET" \
+  --from-file=accounts.json="$TEST_ACCOUNT_HASHES" --dry-run=client -o yaml |
+  kubectl --context "$CTX" apply --server-side --field-manager=sandbox-test-accounts -f -
 
 python3 12.sandbox_shared/shared_sandbox.py "$GROUP_CONFIG" hub-values > /tmp/sbx-hub-values.json
 helm upgrade --install shared-hub "$CHART" --version 4.2.0 \
   --kube-context "$CTX" --namespace "$GROUP" --values /tmp/sbx-hub-values.json --atomic --timeout 15m
 ```
+
+기존 구성 JSON을 사용 중이면 `okta_issuer`, `okta_secret`을 삭제하고 `test_accounts_secret`을 지정합니다. 이 PoC 모드에서는 Okta 앱, Client ID·Secret, 콜백 등록 없이 내부 ALB 주소에서 JupyterHub 로그인 화면을 열 수 있습니다. 비밀번호를 바꾸려면 준비 명령에 `--rotate <이메일>`을 추가하고 Secret 등록 명령을 다시 실행합니다.
 
 포털 링크 예시는 `https://<그룹-DNS>/hub/spawn/<URL 인코딩한 GW 이메일>/<과제명>`입니다. 한 계정이 여러 과제에 속하면 각각 다른 named server를 사용합니다. 그룹 Hub의 구성 파일과 과제 명단을 같이 갱신합니다. 기존 멤버를 바꾸기 전에는 해당 과제 세션을 종료하고 Pod를 중지한 뒤 변경합니다.
 
@@ -88,6 +92,6 @@ gcloud builds submit "$APPROVED_BUILD_CONTEXT" \
 ## 4. 전환 확인 항목
 
 1. 기존 AR 이미지를 digest로 지정하고 `python`과 `jupyterhub-singleuser`가 배포 UID에서 실행되는지 확인합니다. 이미지의 JupyterHub single-user 패키지 호환성도 확인합니다. 이미지의 VM용 시작 명령은 이 배포에서 재정의합니다.
-2. 승인된 5개 GW 계정으로 동시에 로그인하여 동일한 과제 Pod에 연결되고, 각 홈 디렉터리가 표시되는지 확인합니다. 타 과제의 named server는 거부되어야 합니다.
+2. 승인된 5개 이메일과 각 테스트 비밀번호로 동시에 로그인하여 동일한 과제 Pod에 연결되고, 각 홈 디렉터리가 표시되는지 확인합니다. 타 과제의 named server는 거부되어야 합니다.
 3. 파일을 저장하고 과제 Pod를 중지·재개한 뒤 파일을 다시 엽니다. 재기동 뒤 다시 로그인해 새 세션을 시작하고 커널을 실행합니다.
 4. 배치용 Python 코드와 이미지 digest를 운영 이관한 뒤 Central-1에서 기존 배치 흐름을 수행합니다.

@@ -26,9 +26,8 @@ def load_group(path):
     group = settings["group"]
     require(re.fullmatch(DNS, group), "group must be a DNS label")
     require(re.fullmatch(r"[a-z0-9-]+(?:\.[a-z0-9-]+)+", settings["domain"]), "invalid group DNS")
-    require(re.fullmatch(r"https://[a-z0-9.-]+(?::443)?(?:/oauth2/[a-zA-Z0-9_-]+)?/?",
-                         settings["okta_issuer"]), "invalid HTTPS Okta issuer")
-    require(re.fullmatch(DNS, settings["okta_secret"]), "invalid Okta Secret name")
+    require(re.fullmatch(DNS, settings.get("test_accounts_secret", "shared-test-accounts")),
+            "invalid test-account Secret name")
     require(re.fullmatch(r"[a-z0-9-]+-docker\.pkg\.dev/[a-z0-9-]+/[a-z0-9-]+",
                          settings["platform_registry"]), "invalid platform AR repository")
     require(settings["tasks"], "at least one task is required")
@@ -37,7 +36,7 @@ def load_group(path):
         members = task["members"]
         require(len(members) == 5 and len(set(members)) == 5
                 and all(len(member) <= 150 and re.fullmatch(ACCOUNT, member) for member in members),
-                f"{name}: specify five unique lowercase Okta email claims")
+                f"{name}: specify five unique lowercase test-account emails")
         home_dirs = task.get("home_dirs", {})
         require(set(home_dirs).issubset(members)
                 and all(re.fullmatch(r"[a-zA-Z0-9_][a-zA-Z0-9_.@+-]{0,149}", home)
@@ -78,24 +77,28 @@ def group_values(settings):
     members = {name: task["members"] for name, task in settings["tasks"].items()}
     config = (
         f"SHARED_TASKS = {members!r}\n"
-        f"OKTA_ISSUER = {settings['okta_issuer']!r}\n"
-        f"GROUP_DOMAIN = {settings['domain']!r}\n"
         f"GROUP_NAMESPACE = {settings['group']!r}\n"
         + (HERE / "hub_spawner.py").read_text()
     )
     task_peer = {"namespaceSelector": {"matchLabels": {"sandbox-group": settings["group"]}},
                  "podSelector": {"matchLabels": {"app": "shared-notebook"}}}
-    okta_secret = settings["okta_secret"]
+    test_accounts_secret = settings.get("test_accounts_secret", "shared-test-accounts")
     return {
         "hub": {
             "serviceAccount": {"name": "shared-hub"},
             "image": {"name": f"{registry}/jupyterhub-k8s-hub", "tag": "4.2.0"},
-            "extraEnv": {
-                f"SHARED_OKTA_{key.upper()}": {
-                    "valueFrom": {"secretKeyRef": {"name": okta_secret, "key": key}}
-                } for key in ("client_id", "client_secret")
+            "extraVolumes": [{
+                "name": "test-accounts", "secret": {
+                    "secretName": test_accounts_secret, "items": [{"key": "accounts.json", "path": "accounts.json"}],
+                },
+            }],
+            "extraVolumeMounts": [{
+                "name": "test-accounts", "mountPath": "/etc/jupyterhub/test-accounts", "readOnly": True,
+            }],
+            "extraConfig": {
+                "40-test-passwords": (HERE / "test_passwords.py").read_text(),
+                "50-shared-sandbox": config,
             },
-            "extraConfig": {"50-shared-sandbox": config},
             "networkPolicy": {
                 "ingress": [{"from": [task_peer], "ports": [{"port": 8081}]}],
                 "egress": [{"to": [task_peer], "ports": member_ports(8888) + member_ports(9000)}],

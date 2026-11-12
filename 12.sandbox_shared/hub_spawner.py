@@ -3,13 +3,12 @@ import asyncio
 import base64
 import hashlib
 import json
-import os
+from pathlib import Path
 import uuid
-from urllib.parse import urlparse
 
+from jupyterhub.auth import Authenticator
 from jupyterhub.spawner import Spawner
 from kubernetes_asyncio import client, config
-from oauthenticator.generic import GenericOAuthenticator
 from tornado.httpclient import AsyncHTTPClient, HTTPClientError, HTTPRequest
 
 
@@ -46,7 +45,7 @@ class SharedTaskSpawner(Spawner):
         slot = self.slot()
         port = 8888 + slot
         revision = uuid.uuid4().hex
-        # Select JupyterHub fields only. Hub process variables and Okta secrets
+        # Select JupyterHub fields only. Hub process variables and test-account hashes
         # are never written into notebook session Secrets.
         env = {
             key: value for key, value in self.get_env().items()
@@ -80,24 +79,40 @@ class SharedTaskSpawner(Spawner):
             return 1
 
 
-issuer = OKTA_ISSUER.rstrip("/")
-if not urlparse(issuer).path:
-    issuer += "/oauth2"
+TEST_ACCOUNTS_FILE = Path("/etc/jupyterhub/test-accounts/accounts.json")
+APPROVED_TEST_ACCOUNTS = {member for members in SHARED_TASKS.values() for member in members}
+
+
+class SharedTestAuthenticator(Authenticator):
+    """Authenticate approved PoC accounts against password hashes mounted on the Hub."""
+
+    _hash_slots = asyncio.Semaphore(2)
+
+    async def authenticate(self, handler, data=None):
+        data = data or {}
+        username = self.normalize_username(data.get("username", "").strip())
+        if username not in APPROVED_TEST_ACCOUNTS:
+            return None
+        try:
+            accounts = json.loads(TEST_ACCOUNTS_FILE.read_text())
+            if not isinstance(accounts, dict):
+                raise ValueError("test-account data must be an object")
+        except (OSError, ValueError):
+            self.log.error("Could not load test-account hashes from the mounted Secret")
+            return None
+        async with self._hash_slots:
+            verified = await asyncio.to_thread(
+                verify_password, data.get("password", ""), accounts.get(username)
+            )
+        return username if verified else None
+
+
 c.JupyterHub.spawner_class = SharedTaskSpawner
-c.JupyterHub.authenticator_class = GenericOAuthenticator
+c.JupyterHub.authenticator_class = SharedTestAuthenticator
 c.JupyterHub.allow_named_servers = True
 c.JupyterHub.hub_connect_url = f"http://hub.{GROUP_NAMESPACE}.svc.cluster.local:8081"
 c.Spawner.start_timeout = 300
 c.Spawner.http_timeout = 60
 c.Authenticator.allow_all = False
 c.Authenticator.allow_existing_users = False
-c.Authenticator.allowed_users = {member for members in SHARED_TASKS.values() for member in members}
-c.GenericOAuthenticator.client_id = os.environ["SHARED_OKTA_CLIENT_ID"]
-c.GenericOAuthenticator.client_secret = os.environ["SHARED_OKTA_CLIENT_SECRET"]
-c.GenericOAuthenticator.authorize_url = f"{issuer}/v1/authorize"
-c.GenericOAuthenticator.token_url = f"{issuer}/v1/token"
-c.GenericOAuthenticator.userdata_url = f"{issuer}/v1/userinfo"
-c.GenericOAuthenticator.username_claim = "email"
-c.GenericOAuthenticator.scope = ["openid", "profile", "email"]
-c.GenericOAuthenticator.oauth_callback_url = f"https://{GROUP_DOMAIN}/hub/oauth_callback"
-c.GenericOAuthenticator.enable_pkce = True
+c.Authenticator.allowed_users = APPROVED_TEST_ACCOUNTS

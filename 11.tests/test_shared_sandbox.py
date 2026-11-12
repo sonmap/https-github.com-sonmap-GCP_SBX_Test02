@@ -1,5 +1,6 @@
 import importlib.util
 import json
+import runpy
 from pathlib import Path
 import sys
 import tempfile
@@ -65,14 +66,31 @@ class SharedSandboxTests(unittest.TestCase):
         self.assertEqual(claim["spec"]["resources"]["requests"]["storage"], "100Gi")
         self.assertEqual(claim["spec"]["accessModes"], ["ReadWriteMany"])
 
-    def test_group_uses_okta_secret_refs_and_group_proxy(self):
+    def test_group_uses_local_test_accounts_and_group_proxy(self):
         values = sandbox.group_values(self.group)
-        config = values["hub"]["extraConfig"]["50-shared-sandbox"]
-        compile(config, "group-config", "exec")
-        self.assertIn("GenericOAuthenticator", config)
+        configs = values["hub"]["extraConfig"]
+        for name, source in configs.items():
+            compile(source, name, "exec")
+        config = configs["50-shared-sandbox"]
+        self.assertIn("SharedTestAuthenticator", config)
         self.assertIn(self.group["tasks"][self.task]["members"][0], config)
-        self.assertIn("secretKeyRef", values["hub"]["extraEnv"]["SHARED_OKTA_CLIENT_SECRET"]["valueFrom"])
+        self.assertNotIn("GenericOAuthenticator", config)
+        self.assertNotIn("oauth_callback_url", config)
+        volume, = values["hub"]["extraVolumes"]
+        self.assertEqual(volume["secret"]["secretName"], "shared-test-accounts")
+        self.assertEqual(volume["secret"]["items"][0]["key"], "accounts.json")
         self.assertIn("cloud.google.com/neg", values["proxy"]["service"]["annotations"])
+
+    def test_password_hashes_are_salted_and_reject_wrong_passwords(self):
+        passwords = runpy.run_path(str(FEATURE / "test_passwords.py"))
+        password = "test-only-example-password"
+        first = passwords["hash_password"](password)
+        second = passwords["hash_password"](password)
+        self.assertNotEqual(first, second)
+        self.assertNotIn(password, first)
+        self.assertTrue(passwords["verify_password"](password, first))
+        self.assertFalse(passwords["verify_password"]("incorrect", first))
+        self.assertFalse(passwords["verify_password"](password, "malformed"))
 
     def test_stop_changes_replicas_and_clears_sessions_without_touching_pvc(self):
         with patch.object(sys, "argv", ["tool", str(EXAMPLE), "stop", self.task, "--context", "ctx"]):
