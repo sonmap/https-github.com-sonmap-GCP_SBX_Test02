@@ -10,7 +10,7 @@ CLIENT_SECRET_SECRET="jupyter-oauth-client-secret"
 for secret_name in "${CLIENT_ID_SECRET}" "${CLIENT_SECRET_SECRET}"; do
   if ! gcloud secrets describe "${secret_name}"     --project="${SBX_GKE_PROJECT}" >/dev/null 2>&1; then
     echo "Secret metadata is missing: ${secret_name}" >&2
-    echo "Create Secret metadata using 02.sandbox_setup_01_gcloud/03-foundation.md first." >&2
+    echo "Create Secret metadata using section 3 of 01.docs/01-infra-setup.md first." >&2
     exit 1
   fi
 done

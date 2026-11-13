@@ -8,12 +8,12 @@
 
 ```mermaid
 flowchart TD
-    subgraph MANUAL["02.sandbox_setup_01_gcloud/"]
-      VAR["00-variables.md · 프로젝트와 리전"]
-      ADM["01-admin.md · API·SA·IAM"]
-      NET["02-network.md · Shared VPC와 서브넷"]
-      IAM["02-subnet-iam.md · 서브넷 사용 권한"]
-      FOUND["03-foundation.md · GKE와 배포 기반"]
+    subgraph MANUAL["01.docs/01-infra-setup.md"]
+      VAR["공통 변수 · 프로젝트와 리전"]
+      ADM["API·관리자 권한 · API·SA·IAM"]
+      NET["Shared VPC·네트워크 · Shared VPC와 서브넷"]
+      IAM["서브넷별 IAM · 서브넷 사용 권한"]
+      FOUND["공통 기반 · GKE와 배포 기반"]
       VAR -.-> ADM
       ADM --> NET --> IAM --> FOUND
     end
@@ -31,9 +31,9 @@ flowchart TD
 
 | 파일 | 사용 시점과 결과 |
 |---|---|
-| [00-variables.md](../../02.sandbox_setup_01_gcloud/00-variables.md), [01-admin.md](../../02.sandbox_setup_01_gcloud/01-admin.md) | 관리자가 변수와 계정을 확인하고 API, `tf-manager`·`sbx-manager`, IAM을 준비합니다. |
-| [02-network.md](../../02.sandbox_setup_01_gcloud/02-network.md), [02-subnet-iam.md](../../02.sandbox_setup_01_gcloud/02-subnet-iam.md) | VPC 관리자가 호스트 프로젝트의 네트워크와 서브넷별 권한을 준비합니다. |
-| [03-foundation.md](../../02.sandbox_setup_01_gcloud/03-foundation.md) | 운영자가 개별 `gcloud` 명령으로 공통 버킷·AR·Private Pool·GKE·Cloud Run·Workflow·ALB 기반을 준비합니다. |
+| [공통 변수](../01-infra-setup.md#0-공통-변수), [API·관리자 권한](../01-infra-setup.md#1-api와-관리자-권한) | 관리자가 변수와 계정을 확인하고 API, `tf-manager`·`sbx-manager`, IAM을 준비합니다. |
+| [Shared VPC·네트워크](../01-infra-setup.md#2-shared-vpc와-네트워크), [서브넷별 IAM](../01-infra-setup.md#2-1-서브넷별-iam) | VPC 관리자가 호스트 프로젝트의 네트워크와 서브넷별 권한을 준비합니다. |
+| [공통 기반](../01-infra-setup.md#3-공통-기반) | 운영자가 개별 `gcloud` 명령으로 공통 버킷·AR·Private Pool·GKE·Cloud Run·Workflow·ALB 기반을 준비합니다. |
 | [bootstrap-build.yaml](../../03.cloudbuild/bootstrap-build.yaml), [provisioner-env.yaml](../../07.sandbox_request_api/provisioner-env.yaml), [workflow.template.yaml](../../10.sandbox_deploy_tools/workflow.template.yaml) | 기반 명령이 초기 빌드 설정, Cloud Run 환경, Workflow 템플릿을 각각 읽습니다. |
 | [cloud-identity-group-terraform.md](cloud-identity-group-terraform.md) | Workspace 관리자가 `tf-manager`의 그룹 관리 역할을 승인합니다. |
 | [check-private-gke.yaml](../../03.cloudbuild/check-private-gke.yaml) | 운영자가 `gcloud builds submit --config`에 지정합니다. Private Pool에서 DNS 엔드포인트로 Namespace 목록을 조회합니다. [사용법](cloudbuild-private-gke-vpn-design.md) |
@@ -42,7 +42,7 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    OP["02.sandbox_setup_01_gcloud/04-manual-gcloud.md"]
+    OP["01.docs/01-infra-setup.md"]
     REL["03.cloudbuild/platform-release.yaml"]
     API["07.sandbox_request_api/Dockerfile"]
     RUN["09.sandbox_gke_deployer/Dockerfile"]
@@ -59,7 +59,7 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    OP["02.sandbox_setup_01_gcloud/04-manual-gcloud.md"]
+    OP["01.docs/01-infra-setup.md"]
     CH["infra-son01 · 수동 Helm pull과 push"]
     MI["03.cloudbuild/mirror-jupyterhub-images.yaml"]
     AR["Artifact Registry · Chart와 기본 이미지"]
@@ -79,12 +79,12 @@ flowchart TD
 
 | 파일 | 사용 시점과 결과 |
 |---|---|
-| [04-manual-gcloud.md](../../02.sandbox_setup_01_gcloud/04-manual-gcloud.md) | OAuth Secret 등록, 차트 수동 반입, 릴리스와 이미지 빌드 명령입니다. |
+| [인프라 실행 절차](../01-infra-setup.md#4-oauth-값-등록) | OAuth Secret 등록, 차트 수동 반입, 릴리스와 이미지 빌드 명령입니다. |
 | [platform-release.yaml](../../03.cloudbuild/platform-release.yaml), [publish-sandbox-source.sh](../../10.sandbox_deploy_tools/publish-sandbox-source.sh) | 릴리스 빌드가 API·Runner 이미지를 게시하고 Terraform 소스를 ZIP으로 올린 뒤 Cloud Run을 갱신합니다. |
 | [mirror-jupyterhub-images.yaml](../../03.cloudbuild/mirror-jupyterhub-images.yaml) | 기본 이미지를 내부 Artifact Registry에 복사합니다. |
-| [관리 VM 빌드 명령](../../02.sandbox_setup_01_gcloud/04-manual-gcloud.md#7-notebook-표준-이미지-빌드), [Dockerfile](../../04.Jupiter-setup-image/Dockerfile), [시작 스크립트](../../04.Jupiter-setup-image/start-sandbox-notebook.sh) | 사용자 Pod용 표준 이미지를 빌드합니다. 사용자별 홈을 지원하는 이미지의 시작 스크립트는 마운트 경로를 `HOME`으로 사용합니다. |
+| [관리 VM 빌드 명령](../01-infra-setup.md#7-notebook-표준-이미지-빌드), [Dockerfile](../../04.Jupiter-setup-image/Dockerfile), [시작 스크립트](../../04.Jupiter-setup-image/start-sandbox-notebook.sh) | 사용자 Pod용 표준 이미지를 빌드합니다. 사용자별 홈을 지원하는 이미지의 시작 스크립트는 마운트 경로를 `HOME`으로 사용합니다. |
 
-플랫폼 운영자가 관리 VM에서 [플랫폼 릴리스 게시 명령](../../02.sandbox_setup_01_gcloud/04-manual-gcloud.md#5-플랫폼-릴리스-게시)을 실행합니다.
+플랫폼 운영자가 관리 VM에서 [플랫폼 릴리스 게시 명령](../01-infra-setup.md#5-플랫폼-릴리스-게시)을 실행합니다.
 
 ## 3. 승인 요청 제출 · 운영자에서 자동화로 전환
 
@@ -95,7 +95,7 @@ flowchart TD
     ZIP["GCS · release.json"]
     P["포털 또는 시험 운영자 · 실제 값과 승인 반영"]
     S["GCS · approved 요청 JSON"]
-    OP["02.sandbox_setup_01_gcloud/05-deploy.md · Deploy 명령"]
+    OP["01.docs/02-sandbox-deploy.md · Workflows 배포"]
     WF["Workflows · 템플릿에서 생성한 .local/workflow.yaml"]
     API["07.sandbox_request_api/main.py · 승인 검증과 빌드 제출"]
     V["07.sandbox_request_api/sandbox-request.schema.json · 검증 규격"]
@@ -114,7 +114,7 @@ flowchart TD
 |---|---|
 | [sbx03 요청 템플릿](../../05.sandbox_json/sbx03-request.template.json), [sbx01 요청 예시](../../05.sandbox_json/sbx01-approved-request.json) | 신규 과제와 기존 프로젝트 사용 예시입니다. 제출 전 실제 승인 정보와 릴리스 값을 사용합니다. |
 | [참고 스키마](../../06.sandbox_json_rules/sandbox-request.schema.json), [런타임 스키마](../../07.sandbox_request_api/sandbox-request.schema.json) | 전자는 요청을 작성할 때 참고하는 사본이고, 후자는 API 이미지가 실제 검증에 사용합니다. |
-| [05-deploy.md](../../02.sandbox_setup_01_gcloud/05-deploy.md) | 운영자가 승인 객체를 고정하고 `gcloud workflows run`을 실행합니다. `sbx03` 값은 [신규 과제 절차](sbx03-new-project-runbook.md)를 따릅니다. |
+| [Workflows 배포](../02-sandbox-deploy.md#공통-workflows-배포-명령) | 운영자가 승인 객체를 고정하고 `gcloud workflows run`을 실행합니다. `sbx03` 값은 [신규 과제 절차](sbx03-new-project-runbook.md)를 따릅니다. |
 | [main.py](../../07.sandbox_request_api/main.py) | Cloud Run의 `sbx-manager`가 승인 JSON·릴리스 ZIP을 읽고 단계별 ZIP을 만든 후 Cloud Build를 제출합니다. |
 
 [run-approved-workflow.sh](../../10.sandbox_deploy_tools/run-approved-workflow.sh)는 수동 시험용 보조 도구입니다. 운영 흐름에서는 포털이 승인 JSON을 저장하고 운영자가 위 Deploy 명령을 실행합니다.

@@ -1,6 +1,6 @@
 # 파일별 설명
 
-**실제 작업은 [1차 인프라 구축](../README.md#1차-공통-인프라-준비) → [2차 Sandbox 배포](../02-sandbox-deploy.md) 두 문서를 따라 진행합니다.** 이 페이지는 필요한 파일을 찾을 때만 열어보세요. 아래에서 해당 폴더를 펼치면 **폴더 → 파일명 → 역할 → 수행 순서**를 확인할 수 있습니다.
+**실제 작업은 [1차 인프라 구축](../01-infra-setup.md) → [2차 Sandbox 배포](../02-sandbox-deploy.md) 두 문서를 따라 진행합니다.** 이 페이지는 필요한 파일을 찾을 때만 열어보세요. 아래에서 해당 폴더를 펼치면 **폴더 → 파일명 → 역할 → 수행 순서**를 확인할 수 있습니다.
 
 | 수행 순서 표기 | 읽는 방법 |
 |---|---|
@@ -23,11 +23,12 @@
 </details>
 
 <details>
-<summary>01.docs · 실행 안내와 참고 문서 (20개)</summary>
+<summary>01.docs · 실행 안내와 참고 문서 (21개)</summary>
 
 | 폴더 | 파일명 | 역할 | 수행 순서 |
 |---|---|---|---|
 | `01.docs` | [`README.md`](../README.md) | 실제 수행 단계·실행 계정·완료 기준의 시작 안내 | 시작 · 읽기 |
+| `01.docs` | [`01-infra-setup.md`](../01-infra-setup.md) | 공통 인프라 구축과 이미지 준비 명령 | 1차 · 실행 |
 | `01.docs` | [`02-sandbox-deploy.md`](../02-sandbox-deploy.md) | sbx03 승인 요청 확인·Workflow 제출·검증 명령 | 2차 · 실행 안내 |
 | `01.docs/reference` | [`admin-requests.md`](admin-requests.md) | 관리자별 네트워크·데이터·인증 준비 요청 | 1차 준비 · 필요 시 |
 | `01.docs/reference` | [`architecture-and-operations.md`](architecture-and-operations.md) | 구조·권한 통합 영향·State 전환 | 참고 · 설계 |
@@ -47,22 +48,6 @@
 | `01.docs/reference` | [`sbx03-new-project-runbook.md`](sbx03-new-project-runbook.md) | 신규 과제 생성과 GKE 복구 후 재시험 | 2차 1 · 사전 준비 / 재시험 |
 | `01.docs/reference` | [`tf-manager-project.md`](tf-manager-project.md) | 플랫폼 프로젝트와 배포 서비스 계정의 범위 | 참고 · 계정 설계 |
 | `01.docs/reference` | [`work-order.md`](work-order.md) | 운영 단계와 관련 명령 문서 연결 | 참고 · 작업 순서 |
-
-</details>
-
-<details>
-<summary>02.sandbox_setup_01_gcloud · 운영자가 실행하는 gcloud 명령 (8개)</summary>
-
-| 폴더 | 파일명 | 역할 | 수행 순서 |
-|---|---|---|---|
-| `02.sandbox_setup_01_gcloud` | [`00-variables.md`](../../02.sandbox_setup_01_gcloud/00-variables.md) | 공통 변수·프로젝트 번호 조회 | 1차 1 · 운영자 |
-| `02.sandbox_setup_01_gcloud` | [`01-admin.md`](../../02.sandbox_setup_01_gcloud/01-admin.md) | 1단계 API·두 계정·IAM의 개별 gcloud 명령 | 1차 1 · 관리자 |
-| `02.sandbox_setup_01_gcloud` | [`02-network.md`](../../02.sandbox_setup_01_gcloud/02-network.md) | 2단계 네트워크의 조회/생성 gcloud 명령 | 1차 2 · VPC 관리자 |
-| `02.sandbox_setup_01_gcloud` | [`02-subnet-iam.md`](../../02.sandbox_setup_01_gcloud/02-subnet-iam.md) | Subnet별 계정 사용 권한, VPC Admin 수행 | 1차 2 · VPC 관리자 |
-| `02.sandbox_setup_01_gcloud` | [`03-foundation.md`](../../02.sandbox_setup_01_gcloud/03-foundation.md) | 3단계 공통 기반의 개별 gcloud 명령 | 1차 3 · 운영자 |
-| `02.sandbox_setup_01_gcloud` | [`04-manual-gcloud.md`](../../02.sandbox_setup_01_gcloud/04-manual-gcloud.md) | OAuth Secret 등록과 릴리스·미러링·Notebook 이미지 빌드 명령 | 1차 4·6 · 운영자 |
-| `02.sandbox_setup_01_gcloud` | [`05-deploy.md`](../../02.sandbox_setup_01_gcloud/05-deploy.md) | 승인 객체 버전·해시 확인, Workflow 제출과 결과 확인 | 2차 1~3 · 상세 명령 |
-| `02.sandbox_setup_01_gcloud` | [`06-iam-migration.md`](../../02.sandbox_setup_01_gcloud/06-iam-migration.md) | 기존 Host 광역 바인딩의 검토·정리 명령, 신규 설치 필수 아님 | 필요 시 · 기존 IAM 정리 |
 
 </details>
 

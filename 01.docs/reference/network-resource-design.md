@@ -113,7 +113,7 @@ no-public-egress는 Pool의 공용 인터넷 egress를 제한하는 설정입니
 | 6 | 기존 그룹·Dataset·GCS/state 편입 검토 후 Deploy | 작업자 |
 | 7 | Build·IM·GKE·ALB·로그인·기존 BQ 실제 조회 검증 | 운영자·사용자 |
 
-[실행 순서·명령 링크](work-order.md) / [개별 gcloud](../../02.sandbox_setup_01_gcloud/04-manual-gcloud.md) / [Deploy](../../02.sandbox_setup_01_gcloud/05-deploy.md)
+[실행 순서·명령 링크](work-order.md) / [개별 gcloud](../01-infra-setup.md#4-oauth-값-등록) / [Deploy](../02-sandbox-deploy.md#공통-workflows-배포-명령)
 
 ## 공식 기준
 
@@ -129,4 +129,4 @@ N10·N11·VIP 값은 신규 후보이며 실제 VPC·온프레미스 IPAM 조회
 
 ## 서브넷 사용 계정과 관리 담당
 
-Main GKE Subnet은 tf-manager·GKE 서비스 에이전트·Google APIs 서비스 에이전트에, ALB VIP Subnet은 tf-manager에만 Network User를 부여합니다. 프록시 Subnet·PSA·방화벽은 VPC Admin이 관리하고, tf-manager는 Host에서 Network Viewer를 사용해 조회합니다. [정확한 계정·gcloud 명령](../../02.sandbox_setup_01_gcloud/02-subnet-iam.md)을 따릅니다.
+Main GKE Subnet은 tf-manager·GKE 서비스 에이전트·Google APIs 서비스 에이전트에, ALB VIP Subnet은 tf-manager에만 Network User를 부여합니다. 프록시 Subnet·PSA·방화벽은 VPC Admin이 관리하고, tf-manager는 Host에서 Network Viewer를 사용해 조회합니다. [정확한 계정·gcloud 명령](../01-infra-setup.md#2-1-서브넷별-iam)을 따릅니다.

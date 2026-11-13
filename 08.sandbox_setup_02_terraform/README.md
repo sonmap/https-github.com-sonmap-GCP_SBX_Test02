@@ -2,7 +2,7 @@
 
 > 신규 프로젝트·과제 전용 GSA 생성은 [sbx03 신규 과제 절차](../01.docs/reference/sbx03-new-project-runbook.md)를 우선 적용합니다. 기존 프로젝트 재사용 절차와 구분하세요.
 
-최초 1~3단계는 `02.sandbox_setup_01_gcloud/01-admin.md`·`02-network.md`·`03-foundation.md`의 개별 명령으로 이전했습니다. 여기는 과제별 자원만 남깁니다.
+최초 1~3단계는 [1차 인프라 구축](../01.docs/01-infra-setup.md)의 개별 명령을 사용합니다. 이 폴더는 과제별 자원을 관리합니다.
 
 | Root | 기능 | 실행 계정 |
 |---|---|---|

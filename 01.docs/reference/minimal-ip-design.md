@@ -22,8 +22,8 @@
 
 ## 적용 순서
 
-1. [02-network](../../02.sandbox_setup_01_gcloud/02-network.md)는 Main GKE·PSA·기본 방화벽만 준비합니다.
-2. [03-foundation](../../02.sandbox_setup_01_gcloud/03-foundation.md)의 Cloud Run deploy와 플랫폼 릴리스 update에는 --clear-network가 포함되어 있습니다. 새 서비스는 Direct VPC 없이 구성되고, 기존 서비스는 다음 적용 시 VPC 연결을 해제합니다.
+1. [Shared VPC·네트워크](../01-infra-setup.md#2-shared-vpc와-네트워크)는 Main GKE·PSA·기본 방화벽만 준비합니다.
+2. [공통 기반](../01-infra-setup.md#3-공통-기반)의 Cloud Run deploy와 플랫폼 릴리스 update에는 --clear-network가 포함되어 있습니다. 새 서비스는 Direct VPC 없이 구성되고, 기존 서비스는 다음 적용 시 VPC 연결을 해제합니다.
 3. [승인 요청 샘플](../../05.sandbox_json/sbx01-approved-request.json)은 기존 SBX 프로젝트를 사용하고 과제 Network 단계를 생략합니다. 포털 요청에도 동일한 기준을 반영합니다. 별도 승인 시에만 선택적 20-network 모듈을 사용할 수 있습니다.
 4. API의 요청 검증·GCS 다운로드·Build 시작이 성공하는지 확인한 후 Private Pool·GKE Deploy 및 사용자 접속을 확인합니다.
 5. 이미 만들어진 Cloud Run Subnet·과제 Subnet이 있다면 실제 사용과 이전 Revision 등 의존성을 조회합니다. 다른 사용자가 없다는 확인 후 VPC Admin이 별도 IP 회수 여부를 결정합니다. 이 변경에는 실제 자원 삭제 명령이 없습니다.

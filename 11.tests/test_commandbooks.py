@@ -10,11 +10,20 @@ from pathlib import Path
 import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
-BOOKS = ['00-variables.md', '01-admin.md', '02-network.md', '02-subnet-iam.md', '03-foundation.md']
+INFRA_GUIDE = ROOT / '01.docs/01-infra-setup.md'
+FOUNDATION_SECTIONS = [
+    '0. 공통 변수',
+    '1. API와 관리자 권한',
+    '2. Shared VPC와 네트워크',
+    '2-1. 서브넷별 IAM',
+    '3. 공통 기반',
+]
 
 
-def blocks(name):
-    return re.findall(r'```bash\n(.*?)\n```', (ROOT / '02.sandbox_setup_01_gcloud' / name).read_text(), re.S)
+def blocks(heading):
+    _, section = INFRA_GUIDE.read_text().split(f'\n## {heading}\n', 1)
+    section = section.split('\n## ', 1)[0]
+    return re.findall(r'```bash\n(.*?)\n```', section, re.S)
 
 
 class CommandbookTests(unittest.TestCase):
@@ -37,21 +46,19 @@ class CommandbookTests(unittest.TestCase):
         self.assertEqual(rule, runtime)
         self.assertEqual(rule['properties']['gke']['properties']['project_id']['const'],
                          sample['gke']['project_id'])
-        variables = '\n'.join(blocks('00-variables.md'))
+        variables = '\n'.join(blocks(FOUNDATION_SECTIONS[0]))
         for expected in ['100.64.128.0/19', '10.253.3.0/28',
                          'subnet-prod-sbx-gke-01', 'psa-prod-edp-cloudbuild']:
             self.assertIn(expected, variables)
 
     def test_all_blocks_are_valid_bash_and_no_python_executor(self):
-        self.assertFalse((ROOT / '02.sandbox_setup_01_gcloud/bootstrap.py').exists())
-        self.assertFalse((ROOT / '02.sandbox_setup_01_gcloud/config.example.json').exists())
-        for name in BOOKS:
+        for name in FOUNDATION_SECTIONS:
             for block in blocks(name):
                 self.assertNotRegex(block, r'\bpython[0-9.]*\b|\bterraform\b|\bfor\b|\bwhile\b|\bfunction\b')
                 result = subprocess.run(['bash', '-n'], input=block, text=True, capture_output=True)
                 self.assertEqual(result.returncode, 0, (name, result.stderr))
         # Each actual gcloud operation is individually copyable on one line.
-        for name in BOOKS[1:]:
+        for name in FOUNDATION_SECTIONS[1:]:
             for block in blocks(name):
                 if block.startswith('gcloud '):
                     self.assertEqual(len(block.splitlines()), 1)
@@ -73,7 +80,7 @@ case "$*" in
 esac
 ''')
             stub.chmod(0o755)
-            script = 'set -eu\n' + '\n'.join(block for name in BOOKS for block in blocks(name))
+            script = 'set -eu\n' + '\n'.join(block for name in FOUNDATION_SECTIONS for block in blocks(name))
             env = dict(os.environ, PATH=str(work / 'bin') + os.pathsep + os.environ['PATH'], GCLOUD_TEST_LOG=str(work / 'calls.log'), VPC_ADMIN_ACCOUNT='vpc-admin@sonmap.net')
             env.pop('SHORT_SHA', None)
             env.pop('COMMIT_SHA', None)
@@ -97,7 +104,7 @@ esac
             self.assertTrue(account_calls)
             self.assertTrue(all('--project=gcp-sbx-edp-gke01' in c for c in account_calls))
             self.assertFalse(any('iam.disableCrossProjectServiceAccountUsage' in c for c in calls))
-            self.assertIn('_RELEASE_ID=git-$SHORT_SHA,_COMMIT_SHA=$COMMIT_SHA', (ROOT / '02.sandbox_setup_01_gcloud/03-foundation.md').read_text())
+            self.assertIn('_RELEASE_ID=git-$SHORT_SHA,_COMMIT_SHA=$COMMIT_SHA', '\n'.join(blocks(FOUNDATION_SECTIONS[4])))
             self.assertFalse(any('${' in c for c in calls))
             for call in calls:
                 if call.startswith(('compute ', 'storage ', 'builds ', 'run ', 'workflows ')):
@@ -131,7 +138,7 @@ esac
         build = yaml.safe_load((ROOT / '03.cloudbuild/bootstrap-build.yaml').read_text())
         self.assertEqual(build['options']['logging'], 'CLOUD_LOGGING_ONLY')
         self.assertEqual(len(build['images']), 2)
-        for name in BOOKS:
+        for name in FOUNDATION_SECTIONS:
             for target in re.findall(r'--(?:config|env-vars-file)=([^\s"\']+)', '\n'.join(blocks(name))):
                 self.assertTrue((ROOT / target).is_file(), target)
 
@@ -151,11 +158,11 @@ esac
         self.assertTrue(sample['source']['archive_uri'].startswith('gs://' + env['BUNDLE_BUCKET'] + '/'))
 
     def test_minimal_ip_setup_keeps_private_deployment_without_run_subnet(self):
-        network='\n'.join(blocks('02-network.md'))
+        network='\n'.join(blocks(FOUNDATION_SECTIONS[2]))
         for marker in ['RUN_SUBNET','TASK_SUBNET']:
             self.assertNotIn(marker,network)
         self.assertIn('services vpc-peerings connect',network)
-        foundation='\n'.join(blocks('03-foundation.md'))
+        foundation='\n'.join(blocks(FOUNDATION_SECTIONS[4]))
         run=next(line for line in foundation.splitlines() if line.startswith('gcloud run deploy '))
         self.assertIn('--clear-network',run)
         self.assertNotIn('--subnet=',run)

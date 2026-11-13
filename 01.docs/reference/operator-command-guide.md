@@ -954,7 +954,7 @@ gcloud builds submit 09.sandbox_gke_deployer --project=gcp-sbx-edp-gke01 --regio
 
 **명령 133 — Helm 차트 외부 반입**
 
-[infra-son01에서 Helm 차트 수동 반입](../../02.sandbox_setup_01_gcloud/04-manual-gcloud.md#infra-son01에서-helm-차트-수동-반입)을 실행합니다.
+[infra-son01에서 Helm 차트 수동 반입](../01-infra-setup.md#infra-son01에서-helm-차트-수동-반입)을 실행합니다.
 
 **명령 134 — Hub·Proxy·Notebook 기본 이미지 외부 반입**
 
@@ -964,7 +964,7 @@ gcloud builds submit --no-source --project=gcp-sbx-edp-gke01 --region=asia-north
 
 **명령 135 — 사용자 표준 Notebook 이미지 빌드**
 
-[관리 VM의 Docker 빌드·AR 게시 명령](../../02.sandbox_setup_01_gcloud/04-manual-gcloud.md#7-notebook-표준-이미지-빌드)을 실행합니다.
+[관리 VM의 Docker 빌드·AR 게시 명령](../01-infra-setup.md#7-notebook-표준-이미지-빌드)을 실행합니다.
 
 **명령 136 — API 이미지 빌드**
 
@@ -1274,7 +1274,7 @@ gcloud artifacts docker images describe asia-northeast3-docker.pkg.dev/gcp-sbx-e
 
 태그가 없다면 소스 커밋과 bootstrap 이미지 빌드의 일치를 확인한 뒤, 검증된 digest에 릴리스 태그를 붙이거나 해당 커밋에서 이미지를 재빌드합니다. 본 가이드는 확인되지 않은 bootstrap을 자동 재태깅하지 않습니다. platform-release.yaml은 현재 프로젝트 기본값으로 동기화했지만 기존 Cloud Run 업데이트를 포함하므로 소스·릴리스 값과 실행 영향을 확인한 뒤 실행합니다.
 
-준비 완료 후 [Deploy 절차](../../02.sandbox_setup_01_gcloud/05-deploy.md)의 요청 버전 고정·SHA256 확인·입력 작성 순서를 현재 프로젝트와 son 계정에 맞춰 수행합니다. 실행 프로젝트는 son, 호스트·초기 IAM 작업은 admin으로 명시한 계정을 따릅니다. 포탈이 승인 JSON을 GCS에 저장하고, 작업자가 Deploy를 시작합니다. GCS 이벤트 자동 시작은 향후 작업입니다. Workflow의 ACCEPTED는 접수 성공이며 부모·자식 Build SUCCESS와 로그인·BQ 검증이 최종 완료 기준입니다.
+준비 완료 후 [Deploy 절차](../02-sandbox-deploy.md#공통-workflows-배포-명령)의 요청 버전 고정·SHA256 확인·입력 작성 순서를 현재 프로젝트와 son 계정에 맞춰 수행합니다. 실행 프로젝트는 son, 호스트·초기 IAM 작업은 admin으로 명시한 계정을 따릅니다. 포탈이 승인 JSON을 GCS에 저장하고, 작업자가 Deploy를 시작합니다. GCS 이벤트 자동 시작은 향후 작업입니다. Workflow의 ACCEPTED는 접수 성공이며 부모·자식 Build SUCCESS와 로그인·BQ 검증이 최종 완료 기준입니다.
 
 ## 오류와 재개 위치
 
@@ -1299,8 +1299,8 @@ gcloud artifacts docker images describe asia-northeast3-docker.pkg.dev/gcp-sbx-e
 ## 참고 소스
 
 - [작업 순서](work-order.md)
-- [기반 설정](../../02.sandbox_setup_01_gcloud/03-foundation.md)
-- [미러링·이미지 수동 명령](../../02.sandbox_setup_01_gcloud/04-manual-gcloud.md)
+- [기반 설정](../01-infra-setup.md#3-공통-기반)
+- [미러링·이미지 수동 명령](../01-infra-setup.md#4-oauth-값-등록)
 - [API 코드](../../07.sandbox_request_api/main.py)
 - [요청 예시](../../05.sandbox_json/sbx01-approved-request.json)
 - [Terraform 배포 단계](../../08.sandbox_setup_02_terraform/deployments)

@@ -10,4 +10,4 @@
 | set-jupyter-oauth-secrets.sh | Jupyter OAuth 값을 Secret Manager에 등록 |
 | set-request-release.py | 신청 JSON에 새 릴리스 소스 정보 반영 |
 
-일반 실행 순서는 `01.docs/reference/runbook-two-stage.md`를 따릅니다. 그룹·구성원 관리는 08.sandbox_setup_02_terraform/deployments/05-group의 Terraform으로 수행합니다. 최초 인프라 1~3단계 명령은 이 폴더가 아니라 `02.sandbox_setup_01_gcloud/`에 있습니다.
+일반 실행 순서는 `01.docs/reference/runbook-two-stage.md`를 따릅니다. 그룹·구성원 관리는 08.sandbox_setup_02_terraform/deployments/05-group의 Terraform으로 수행합니다. 최초 인프라 1~3단계 명령은 [1차 인프라 구축](../01.docs/01-infra-setup.md)에 있습니다.

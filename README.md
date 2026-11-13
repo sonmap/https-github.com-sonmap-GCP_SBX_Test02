@@ -2,7 +2,7 @@
 
 **[그룹 공유 JupyterHub와 과제 공용 Pod 배포](12.sandbox_shared/README.md)** — JupyterHub 로컬 테스트 계정, 과제당 5명·1 Pod·1 PVC, 기존 AR 이미지 재사용, Pod 중지·재개, 운영 릴리스 절차입니다.
 
-[관리 VM 표준 Notebook 이미지 빌드](02.sandbox_setup_01_gcloud/04-manual-gcloud.md#7-notebook-표준-이미지-빌드) · [개발자 인터넷 PC → GCS → Notebook 패키지 설치 구성도](04.Jupiter-setup-image/README.md#개발자-추가-패키지-gcs-경유)
+[관리 VM 표준 Notebook 이미지 빌드](01.docs/01-infra-setup.md#7-notebook-표준-이미지-빌드) · [개발자 인터넷 PC → GCS → Notebook 패키지 설치 구성도](04.Jupiter-setup-image/README.md#개발자-추가-패키지-gcs-경유)
 
 ## Test01 기반 배포 절차
 
@@ -12,7 +12,7 @@
 
 **[현재 실환경: 개별 명령 작업 가이드](01.docs/reference/operator-command-guide.md)** — `gcp-sbx-edp-gke01` 기반 실제 수행 순서·계정 구분·오류 해결·미완료 확인사항. 현재 환경에서는 이 가이드의 값을 우선 사용하세요. 관련 기본값도 현재 환경으로 동기화했습니다.
 
-> **[서브넷별 IAM](02.sandbox_setup_01_gcloud/02-subnet-iam.md)**: VPC Admin이 네트워크를 준비한 뒤 GKE·ALB VIP 서브넷에 필요한 계정만 사용 권한을 부여합니다. 이후 tf-manager로 내부 ALB를 구성합니다.
+> **[서브넷별 IAM](01.docs/01-infra-setup.md#2-1-서브넷별-iam)**: VPC Admin이 네트워크를 준비한 뒤 GKE·ALB VIP 서브넷에 필요한 계정만 사용 권한을 부여합니다. 이후 tf-manager로 내부 ALB를 구성합니다.
 
 > **[내부 사설 ALB 설계](01.docs/reference/internal-alb-design.md)**: ALB·VIP는 gcp-sbx-edp-gke01, /27 VIP Subnet과 최소 /26 프록시 Subnet은 Shared VPC Host에 둡니다. 후보 CIDR은 VPC Admin 승인 후 적용합니다.
 
@@ -26,7 +26,7 @@
 
 Terraform·Build 실행 계정은 **tf-manager@gcp-sbx-edp-gke01.iam.gserviceaccount.com**입니다. 두 서비스 계정과 Build·Infrastructure Manager·AR·GCS·Run·Workflow·GKE는 모두 SBX_GKE_PROJECT 하나에 구성합니다. [통합 프로젝트 구성과 사전 준비](01.docs/reference/tf-manager-project.md)을 확인하세요.
 
-> **현재 작업 기준:** 공통 인프라는 작업자가 개별 gcloud 명령으로 구축합니다. 과제는 포털이 GCS에 저장한 승인 JSON을 대상으로 작업자가 [Deploy 명령](02.sandbox_setup_01_gcloud/05-deploy.md)을 실행합니다. GCS 이벤트 자동 시작·포털 결과 자동 전달은 추후 적용하며 현재 필수 구축 단계가 아닙니다. 기존 Deploy 내부의 API·Build·Terraform·GKE 처리 코드는 사용합니다.
+> **현재 작업 기준:** 공통 인프라는 작업자가 개별 gcloud 명령으로 구축합니다. 과제는 포털이 GCS에 저장한 승인 JSON을 대상으로 작업자가 [Deploy 명령](01.docs/02-sandbox-deploy.md#공통-workflows-배포-명령)을 실행합니다. GCS 이벤트 자동 시작·포털 결과 자동 전달은 추후 적용하며 현재 필수 구축 단계가 아닙니다. 기존 Deploy 내부의 API·Build·Terraform·GKE 처리 코드는 사용합니다.
 
 **[작업 순서 Mermaid + 단계별 실행 문서·폴더 링크](01.docs/reference/work-order.md)** — 최초 준비와 운영 자동화 순서를 여기서 확인하세요.
 
@@ -45,14 +45,13 @@ export SBX_PROJECT="pjt-net-hub-base"         # 과제 자원·Query Job
 
 승인 JSON으로 GKE Jupyter Sandbox를 만드는 테스트 저장소입니다. **최초 구축 1~3단계는 Terraform 대신 gcloud**, 사용자 관리 서비스 계정은 **두 개**를 사용합니다.
 
-**처음 실행할 때는 [01.docs 시작 안내](01.docs/README.md)와 [실제 수행 절차](01.docs/reference/runbook-two-stage.md)를 먼저 여세요.** 실행 계정·명령·성공 기준을 단계별로 정리했습니다.
+**공통 인프라 명령은 [1차 인프라 구축](01.docs/01-infra-setup.md)에서 시작합니다.** 실행 계정·명령·성공 기준을 단계별로 정리했습니다.
 
 ## 폴더 번호와 작업 우선순위
 
 | 순서 | 폴더 | 주 작업 |
 |---|---|---|
 | 01 | `01.docs/` | 실행 설명서·구성도 먼저 확인 |
-| 02 | `02.sandbox_setup_01_gcloud/` | 최초 인프라·권한 준비 |
 | 03 | `03.cloudbuild/` | 실행 이미지 빌드·릴리스·기본 컨테이너 이미지 복사 |
 | 04 | `04.Jupiter-setup-image/` | 사용자 Notebook 이미지 준비 |
 | 05 | `05.sandbox_json/` | 과제 신청 JSON 작성 |
@@ -69,20 +68,20 @@ export SBX_PROJECT="pjt-net-hub-base"         # 과제 자원·Query Job
 
 | 단계 | 작업 | 개별 명령어 |
 |---|---|---|
-| 준비 | 공통 변수 설정 | [00-variables.md](02.sandbox_setup_01_gcloud/00-variables.md) |
-| 1 | 관리자 권한·서비스 계정 | [01-admin.md](02.sandbox_setup_01_gcloud/01-admin.md) |
-| 2 | Shared VPC·서브넷·PSA·방화벽 | [02-network.md](02.sandbox_setup_01_gcloud/02-network.md) |
-| 3 | Cloud Run·Cloud Build·GKE·Workflow·ALB | [03-foundation.md](02.sandbox_setup_01_gcloud/03-foundation.md) |
+| 준비 | 공통 변수 설정 | [공통 변수](01.docs/01-infra-setup.md#0-공통-변수) |
+| 1 | 관리자 권한·서비스 계정 | [API·관리자 권한](01.docs/01-infra-setup.md#1-api와-관리자-권한) |
+| 2 | Shared VPC·서브넷·PSA·방화벽 | [Shared VPC·네트워크](01.docs/01-infra-setup.md#2-shared-vpc와-네트워크) |
+| 3 | Cloud Run·Cloud Build·GKE·Workflow·ALB | [공통 기반](01.docs/01-infra-setup.md#3-공통-기반) |
 | 이후 과제별 | 프로젝트·IAM·BigQuery·GCS | Infrastructure Manager의 Terraform |
 
 **1~3단계는 개별 gcloud 명령을 한 줄씩 복사하여 실행합니다.** Python 통합 실행기와 config.json은 제거했습니다. 전체 실행 스크립트·--apply 모드는 없습니다. 조회 결과를 확인하고 없는 자원만 생성합니다.
 
 ```bash
-git clone https://github.com/sonmap/GCP_SBX_Test01.git
-cd GCP_SBX_Test01
+git clone https://github.com/sonmap/https-github.com-sonmap-GCP_SBX_Test02.git
+cd https-github.com-sonmap-GCP_SBX_Test02
 ```
 
-[공통 변수](02.sandbox_setup_01_gcloud/00-variables.md)를 같은 터미널에 설정한 후 1 → 2 → 3 순서로 진행합니다. 최신 Google Cloud CLI와 Bash가 필요합니다. 1~3단계 명령 실행에는 Python·Terraform 설치가 필요하지 않습니다. 배포 설정은 [초기 Cloud Build](03.cloudbuild/bootstrap-build.yaml), [Cloud Run 환경변수](07.sandbox_request_api/provisioner-env.yaml), [Workflows 템플릿](10.sandbox_deploy_tools/workflow.template.yaml)에서 관리합니다. 이후 과제별 자동화의 Python 프로그램은 유지합니다.
+[공통 변수](01.docs/01-infra-setup.md#0-공통-변수)를 같은 터미널에 설정한 후 1 → 2 → 3 순서로 진행합니다. 최신 Google Cloud CLI와 Bash가 필요합니다. 1~3단계 명령 실행에는 Python·Terraform 설치가 필요하지 않습니다. 배포 설정은 [초기 Cloud Build](03.cloudbuild/bootstrap-build.yaml), [Cloud Run 환경변수](07.sandbox_request_api/provisioner-env.yaml), [Workflows 템플릿](10.sandbox_deploy_tools/workflow.template.yaml)에서 관리합니다. 이후 과제별 자동화의 Python 프로그램은 유지합니다.
 
 | 표시 이름 | 실제 서비스 계정 ID | 용도 |
 |---|---|---|
@@ -95,8 +94,8 @@ cd GCP_SBX_Test01
 
 ```mermaid
 flowchart TD
-  A["1 관리자: 01-admin.md"] --> B["2 네트워크: 02-network.md"]
-  B --> C["3 공통 기반: 03-foundation.md"]
+  A["1 관리자 권한"] --> B["2 Shared VPC와 네트워크"]
+  B --> C["3 공통 기반"]
   C --> D["플랫폼 릴리스·이미지 준비"]
   D --> E["승인 JSON → Workflow → Cloud Run"]
   E --> F["IM Terraform: Group 생성"]
@@ -113,4 +112,4 @@ flowchart TD
 원본: `sonmap/Gcp_Managed_GKE_GIT_ETC_09` @ `4f0cae91c6483380b4e2fb2b705a63129db395eb`.
 원본 저장소는 수정하지 않았습니다. 이 저장소의 변경만으로 GCP 자원이 생성되지는 않습니다.
 
-관리자 준비 작업은 [개별 gcloud 실행 문서](02.sandbox_setup_01_gcloud/04-manual-gcloud.md)를 사용합니다. OAuth 등록, 플랫폼 릴리스, 기본 이미지 복사, Notebook 빌드 명령을 제공합니다. Helm 차트는 [infra-son01에서 수동으로 AR에 반입](02.sandbox_setup_01_gcloud/04-manual-gcloud.md#infra-son01에서-helm-차트-수동-반입)합니다. 과제 요청은 포털→GCS가 운영 기준이며, 수동 요청 제출은 연동 시험용입니다. GCS 이벤트 시작과 배포 결과의 포털 전달은 추가 구현 대상입니다.
+관리자 준비 작업은 [개별 gcloud 실행 문서](01.docs/01-infra-setup.md#4-oauth-값-등록)를 사용합니다. OAuth 등록, 플랫폼 릴리스, 기본 이미지 복사, Notebook 빌드 명령을 제공합니다. Helm 차트는 [infra-son01에서 수동으로 AR에 반입](01.docs/01-infra-setup.md#infra-son01에서-helm-차트-수동-반입)합니다. 과제 요청은 포털→GCS가 운영 기준이며, 수동 요청 제출은 연동 시험용입니다. GCS 이벤트 시작과 배포 결과의 포털 전달은 추가 구현 대상입니다.
