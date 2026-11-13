@@ -54,8 +54,7 @@ export SBX_PROJECT="pjt-net-hub-base"         # 과제 자원·Query Job
 | 01 | `01.docs/` | 실행 설명서·구성도 먼저 확인 |
 | 03 | `03.cloudbuild/` | 실행 이미지 빌드·릴리스·기본 컨테이너 이미지 복사 |
 | 04 | `04.Jupiter-setup-image/` | 사용자 Notebook 이미지 준비 |
-| 05 | `05.sandbox_json/` | 과제 신청 JSON 작성 |
-| 06 | `06.sandbox_json_rules/` | 신청 JSON 필수 항목·허용값 검사 |
+| 05 | [`05.sandbox_json/`](05.sandbox_json/README.md) | 과제 요청 작성 규칙과 호출 흐름 |
 | 07 | `07.sandbox_request_api/` | Cloud Run에서 신청 접수·배포 시작 |
 | 08 | `08.sandbox_setup_02_terraform/` | 과제 프로젝트·IAM·Dataset·GCS 구성 |
 | 09 | `09.sandbox_gke_deployer/` | GKE·JupyterHub 설치·ALB 연결 |

@@ -98,7 +98,7 @@ gcloud builds submit . --config=03.cloudbuild/platform-release.yaml --project=gc
 
 ## 3. 요청 준비 (포탈 JSON)
 
-[신규 과제 요청 템플릿](../../05.sandbox_json/sbx03-request.template.json)을 사용합니다. `approval.status=PENDING`, 승인 번호/일시 공란, source 해시 0인 **배포 불가 초안**입니다. 포탈의 실제 승인 정보와 새 릴리스 결과를 넣어야 합니다. 예전 승인 정보나 manual-20261107의 ZIP/해시를 재사용하지 않습니다.
+[요청 작성 규칙](../../05.sandbox_json/README.md)에 따라 승인된 일련번호로 신규 과제 요청을 작성합니다. `project.create_project=true`와 `identity.create_jupyter_gsa=true`를 지정하고 실제 승인 정보와 새 릴리스 결과를 넣습니다. 예전 승인 정보나 manual-20261107의 ZIP/해시를 재사용하지 않습니다.
 
 ```bash
 gcloud storage cat gs://gcp-sbx-edp-gke01-sbxtest01-bundles/platform-releases/sbx03-20261107-v1/release.json --account=son@sonmap.net

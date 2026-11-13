@@ -1160,12 +1160,12 @@ unzip -l /tmp/sandbox-source-20261107.zip
 
 ## 14. 과제 요청 JSON에 확인값 반영
 
-로컬 요청 파일을 만듭니다. 샘플 APPROVED·사용자·유효기간을 실제 승인으로 간주하지 않습니다. 여기서는 업로드·Workflow 실행을 아직 하지 않습니다.
+[요청 작성 규칙](../../05.sandbox_json/README.md)에 따라 실제 과제 값으로 `.local/request-draft.json`을 준비합니다. 사용할 릴리스의 `release.json`을 `.local/release.json`에 내려받은 뒤 실행합니다.
 
 **명령 157 — 확인된 소스 버전을 요청에 반영**
 
 ```bash
-jq '.gke.project_id="gcp-sbx-edp-gke01" | .network.host_project_id="gcp-prod-edp-hub-vpchost" | .network.network_name="vpc-prod-edp-hub" | .source={"release_id":"manual-20261107","archive_uri":"gs://gcp-sbx-edp-gke01-sbxtest01-bundles/platform-releases/manual-20261107/sandbox-source.zip","generation":1793980566647505,"sha256":"dde60a37ae98747469cc97bb62baeeb720e357002d0bd2a0e8aee9c530cb7954"}' 05.sandbox_json/sbx01-approved-request.json > /tmp/sbx01-request.json
+python3 10.sandbox_deploy_tools/set-request-release.py .local/request-draft.json .local/release.json /tmp/sbx01-request.json
 ```
 
 **명령 158 — 대상·승인·사용자 확인**
@@ -1302,7 +1302,7 @@ gcloud artifacts docker images describe asia-northeast3-docker.pkg.dev/gcp-sbx-e
 - [기반 설정](../01-infra-setup.md#3-공통-기반)
 - [미러링·이미지 수동 명령](../01-infra-setup.md#4-oauth-값-등록)
 - [API 코드](../../07.sandbox_request_api/main.py)
-- [요청 예시](../../05.sandbox_json/sbx01-approved-request.json)
+- [요청 작성 규칙](../../05.sandbox_json/README.md)
 - [Terraform 배포 단계](../../08.sandbox_setup_02_terraform/deployments)
 
 기존 소스의 허용값·기본 프로젝트·릴리스 태그와 실제 실행값을 맞추는 검증은 계속 필요합니다. 저장소 기본값·요청 Schema는 현재 환경으로 동기화했습니다. 실제 GCP 자원은 Git 변경만으로 갱신되지 않으며, 기존 API 이미지의 Schema를 반영하려면 아래 재빌드·재배포가 필요합니다.

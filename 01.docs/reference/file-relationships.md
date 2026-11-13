@@ -90,8 +90,7 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    T["05.sandbox_json/sbx03-request.template.json · 요청 초안"]
-    R["06.sandbox_json_rules/sandbox-request.schema.json · 참고 규격"]
+    R["05.sandbox_json/README.md · 작성 규칙 표"]
     ZIP["GCS · release.json"]
     P["포털 또는 시험 운영자 · 실제 값과 승인 반영"]
     S["GCS · approved 요청 JSON"]
@@ -100,7 +99,6 @@ flowchart TD
     API["07.sandbox_request_api/main.py · 승인 검증과 빌드 제출"]
     V["07.sandbox_request_api/sandbox-request.schema.json · 검증 규격"]
 
-    T --> P
     R -.-> P
     ZIP -.-> P
     P --> S
@@ -112,8 +110,8 @@ flowchart TD
 
 | 파일 | 사용 시점과 결과 |
 |---|---|
-| [sbx03 요청 템플릿](../../05.sandbox_json/sbx03-request.template.json), [sbx01 요청 예시](../../05.sandbox_json/sbx01-approved-request.json) | 신규 과제와 기존 프로젝트 사용 예시입니다. 제출 전 실제 승인 정보와 릴리스 값을 사용합니다. |
-| [참고 스키마](../../06.sandbox_json_rules/sandbox-request.schema.json), [런타임 스키마](../../07.sandbox_request_api/sandbox-request.schema.json) | 전자는 요청을 작성할 때 참고하는 사본이고, 후자는 API 이미지가 실제 검증에 사용합니다. |
+| [요청 작성 규칙](../../05.sandbox_json/README.md) | 포털 또는 시험 운영자가 실제 과제·승인·릴리스 값으로 신청서를 작성합니다. |
+| [런타임 스키마](../../07.sandbox_request_api/sandbox-request.schema.json) | API 이미지가 승인 요청 JSON을 검사할 때 읽습니다. |
 | [Workflows 배포](../02-sandbox-deploy.md#공통-workflows-배포-명령) | 운영자가 승인 객체를 고정하고 `gcloud workflows run`을 실행합니다. `sbx03` 값은 [신규 과제 절차](sbx03-new-project-runbook.md)를 따릅니다. |
 | [main.py](../../07.sandbox_request_api/main.py) | Cloud Run의 `sbx-manager`가 승인 JSON·릴리스 ZIP을 읽고 단계별 ZIP을 만든 후 Cloud Build를 제출합니다. |
 

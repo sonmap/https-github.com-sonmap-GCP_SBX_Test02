@@ -77,22 +77,11 @@
 </details>
 
 <details>
-<summary>05.sandbox_json · 과제 요청 예시 (2개)</summary>
+<summary>05.sandbox_json · 과제 요청 작성 규칙 (1개)</summary>
 
 | 폴더 | 파일명 | 역할 | 수행 순서 |
 |---|---|---|---|
-| `05.sandbox_json` | [`sbx01-approved-request.json`](../../05.sandbox_json/sbx01-approved-request.json) | 과제 요청 예시, 새 릴리스 값으로 교체 필요 | 2차 1 · 요청 작성 참고 |
-| `05.sandbox_json` | [`sbx03-request.template.json`](../../05.sandbox_json/sbx03-request.template.json) | 신규 프로젝트 요청 초안. 실제 승인 및 릴리스 값 입력 필요 | 2차 1 · 요청 작성 참고 |
-
-</details>
-
-<details>
-<summary>06.sandbox_json_rules · 요청 작성 규격 (2개)</summary>
-
-| 폴더 | 파일명 | 역할 | 수행 순서 |
-|---|---|---|---|
-| `06.sandbox_json_rules` | [`README.md`](../../06.sandbox_json_rules/README.md) | JSON 입력 규칙과 런타임 규격 사본의 관계 | 2차 1 · 요청 규격 참고 |
-| `06.sandbox_json_rules` | [`sandbox-request.schema.json`](../../06.sandbox_json_rules/sandbox-request.schema.json) | 런타임과 동기화한 참고 요청 규격 | 2차 1 · 요청 규격 참고 |
+| `05.sandbox_json` | [`README.md`](../../05.sandbox_json/README.md) | 필수 항목·조건·요청 호출 흐름 | 2차 1 · 포털 요청 작성 |
 
 </details>
 
@@ -163,11 +152,12 @@
 </details>
 
 <details>
-<summary>11.tests · 개발 검증 (7개)</summary>
+<summary>11.tests · 개발 검증 (8개)</summary>
 
 | 폴더 | 파일명 | 역할 | 수행 순서 |
 |---|---|---|---|
 | `11.tests` | [`README.md`](../../11.tests/README.md) | 검증 흐름·테스트별 역할·실행 명령 | 개발 검증 · 시작 안내 |
+| `11.tests` | [`request_fixtures.py`](../../11.tests/request_fixtures.py) | 로컬 테스트용 합성 요청 | 개발 검증 · 테스트 입력 |
 | `11.tests` | [`test_build_paths.py`](../../11.tests/test_build_paths.py) | 빌드 Context·Docker COPY 경로·삭제 컴포넌트 참조 검사 | 개발 검증 · 필요 시 |
 | `11.tests` | [`test_commandbooks.py`](../../11.tests/test_commandbooks.py) | 명령 Bash 구문·변수 치환·Workflow 치환의 오프라인 검증 | 개발 검증 · 필요 시 |
 | `11.tests` | [`test_internal_alb.py`](../../11.tests/test_internal_alb.py) | Workload Identity 연결과 내부 ALB 백엔드·호스트 경로 검증 | 개발 검증 · 필요 시 |

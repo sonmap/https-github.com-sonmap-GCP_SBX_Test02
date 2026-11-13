@@ -219,22 +219,13 @@ gcloud artifacts docker images list "${REGION}-docker.pkg.dev/${SBX_GKE_PROJECT}
 
 ## 9. 수동 연동 시험 전용 — 실제 과제 신청값과 릴리스 반영
 
-운영 요청은 포털이 작성·승인하여 GCS에 저장합니다. 이 단계와 10단계는 포털 없이 시험할 때만 사용합니다. 현재 GCS 이벤트 시작 및 Build 완료 결과의 포털 전달은 미구현이므로, GCS 저장만으로 운영 자동화가 시작된다고 판단하지 않습니다. 포털은 릴리스 메타데이터도 JSON에 반영해야 합니다. 먼저 현재 예제의 의미를 확인합니다.
-
-| 예제 항목 | 현재 값·실제 의미 |
-|---|---|
-| project.create_project | false: 기존 pjt-net-hub-base 사용 |
-| network.required/create_subnet | false/false: 과제 Network 단계 생략 |
-| data.adopt_existing_resources | true: 기존 sbx01_main Dataset·과제 GCS Bucket 편입 |
-| task/namespace | sbx01 |
-| identity.members | 승인된 user01/user02 예시; 실제 계정으로 변경 |
-| source | placeholder 상태이므로 이번 릴리스 값으로 반드시 교체 |
+운영 요청은 포털이 작성·승인하여 GCS에 저장합니다. 이 단계와 10단계는 포털 없이 시험할 때만 사용합니다. 현재 GCS 이벤트 시작 및 Build 완료 결과의 포털 전달은 미구현이므로, GCS 저장만으로 운영 자동화가 시작된다고 판단하지 않습니다. 포털은 릴리스 메타데이터도 JSON에 반영해야 합니다. [요청 작성 규칙](../../05.sandbox_json/README.md)에 따라 과제별 작업용 신청서를 `.local/request-draft.json`에 준비합니다.
 
 현재 40-data는 과제 Dataset/GCS/Workload Identity를 관리하는 필수 배포 단계입니다. 기존 별도 BQ 프로젝트만 조회하고 과제 Dataset/GCS를 구성하지 않는 모드는 아직 없습니다. 그런 설계가 목적이면 신청 전에 40-data 코드를 별도 변경해야 합니다.
 
 ```bash
 # 이번 릴리스 정보를 반영한 작업용 신청서를 만듭니다.
-python3 10.sandbox_deploy_tools/set-request-release.py 05.sandbox_json/sbx01-approved-request.json .local/release.json .local/request.json
+python3 10.sandbox_deploy_tools/set-request-release.py .local/request-draft.json .local/release.json .local/request.json
 
 # Request ID·사용자·기존 자원·source를 검토합니다.
 jq '{request_id,approval,task,identity,project,network,data,gke,source}' .local/request.json

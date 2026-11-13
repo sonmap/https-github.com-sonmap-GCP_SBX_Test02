@@ -179,7 +179,7 @@ tf-manager 그룹 관리자 역할 준비·DNS·인증서와 기존 BQ 데이터
 
 ### 과제마다 — 배포할 요청 지정
 
-포털이 GCS에 저장한 **승인된** request.json을 사용합니다. 포털 파일은 [요청 Schema](../06.sandbox_json_rules/sandbox-request.schema.json)를 만족하고 source의 릴리스·generation·SHA256이 실제 게시값이어야 합니다. 파일 저장만으로 배포가 시작되지 않습니다.
+포털이 GCS에 저장한 **승인된** request.json을 사용합니다. 포털 파일은 [요청 작성 규칙](../05.sandbox_json/README.md)과 [실행용 스키마](../07.sandbox_request_api/sandbox-request.schema.json)를 만족하고 source의 릴리스·generation·SHA256이 실제 게시값이어야 합니다. 파일 저장만으로 배포가 시작되지 않습니다.
 
 아래 REQUEST_ID와 REQUEST_URI를 실제 포털 파일로 바꿉니다. 실행 계정에는 요청 객체 읽기와 Workflow 호출 권한이 필요합니다. 폴더 이름의 번호는 실행 순서가 아니며 07/08/09에서 프로그램을 직접 실행하지 않습니다.
 

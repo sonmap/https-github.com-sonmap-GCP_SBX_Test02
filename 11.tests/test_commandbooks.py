@@ -9,6 +9,8 @@ from pathlib import Path
 
 import yaml
 
+from request_fixtures import make_request
+
 ROOT = Path(__file__).resolve().parents[1]
 INFRA_GUIDE = ROOT / '01.docs/01-infra-setup.md'
 FOUNDATION_SECTIONS = [
@@ -37,15 +39,13 @@ class CommandbookTests(unittest.TestCase):
         self.assertIn('--project=gcp-sbx-edp-gke01', step['args'][-1])
         self.assertIn('--dns-endpoint', step['args'][-1])
 
-    def test_current_network_defaults_and_request_schemas_agree(self):
-        sample = json.loads((ROOT / '05.sandbox_json/sbx01-approved-request.json').read_text())
+    def test_current_network_defaults_and_runtime_schema_agree(self):
+        sample = make_request()
         self.assertEqual(sample['network']['host_project_id'], 'gcp-prod-edp-hub-vpchost')
         self.assertEqual(sample['network']['network_name'], 'vpc-prod-edp-hub')
-        rule = json.loads((ROOT / '06.sandbox_json_rules/sandbox-request.schema.json').read_text())
-        runtime = json.loads((ROOT / '07.sandbox_request_api/sandbox-request.schema.json').read_text())
-        self.assertEqual(rule, runtime)
-        self.assertEqual(rule['properties']['gke']['properties']['project_id']['const'],
-                         sample['gke']['project_id'])
+        properties = json.loads((ROOT / '07.sandbox_request_api/sandbox-request.schema.json').read_text())['properties']
+        for section, field in [('network', 'host_project_id'), ('network', 'network_name'), ('gke', 'project_id')]:
+            self.assertEqual(properties[section]['properties'][field]['const'], sample[section][field])
         variables = '\n'.join(blocks(FOUNDATION_SECTIONS[0]))
         for expected in ['100.64.128.0/19', '10.253.3.0/28',
                          'subnet-prod-sbx-gke-01', 'psa-prod-edp-cloudbuild']:
@@ -153,7 +153,7 @@ esac
         release = yaml.safe_load((ROOT / '03.cloudbuild/platform-release.yaml').read_text())
         self.assertEqual(release['substitutions']['_SBX_GKE_PROJECT'], project)
         self.assertEqual(release['substitutions']['_BUNDLE_BUCKET'], env['BUNDLE_BUCKET'])
-        sample = json.loads((ROOT / '05.sandbox_json/sbx01-approved-request.json').read_text())
+        sample = make_request()
         self.assertEqual(sample['gke']['project_id'], project)
         self.assertTrue(sample['source']['archive_uri'].startswith('gs://' + env['BUNDLE_BUCKET'] + '/'))
 

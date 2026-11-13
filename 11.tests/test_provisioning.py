@@ -11,6 +11,8 @@ import zipfile
 from pathlib import Path
 from unittest import mock
 
+from request_fixtures import make_request
+
 ROOT=Path(__file__).resolve().parents[1]
 spec=importlib.util.spec_from_file_location('provisioner',ROOT/'07.sandbox_request_api/main.py')
 p=importlib.util.module_from_spec(spec);spec.loader.exec_module(p)
@@ -23,9 +25,7 @@ ENV={'SBX_GKE_PROJECT':'gcp-sbx-edp-gke01','GCP_REGION':'asia-northeast3',
 
 
 def payload():
-    data=json.loads((ROOT/'05.sandbox_json/sbx01-approved-request.json').read_text())
-    data['source']['sha256']='a'*64
-    data['source']['release_id']='git-test123'
+    data=make_request()
     data['network'].update(required=True,shared_vpc_join=False,subnet_name='subnet-sbx01-an3',subnet_cidr='172.31.110.0/24')
     return data
 
@@ -60,15 +60,15 @@ class ProvisioningTests(unittest.TestCase):
 
     @mock.patch.dict(os.environ,ENV)
     def test_new_project_dedicated_gsa_and_parent_validation(self):
-        data=json.loads((ROOT/'05.sandbox_json/sbx03-request.template.json').read_text())
-        # The checked-in template must never be accepted as an approved request.
+        data=make_request(new_project=True)
+        data['approval']['status'] = 'PENDING'
         self.assertTrue(list(p.VALIDATOR.iter_errors(data)))
         data['approval']={'status':'APPROVED','approval_id':'test-approval','approved_at':'2026-11-07T00:00:00Z'}
         data['source']['sha256']='b'*64
         p.VALIDATOR.validate(data)
         p.validate_semantics(data)
         variables=p.stage_variables(data)
-        self.assertEqual(variables['10-project']['org_id'],'51654893849')
+        self.assertEqual(variables['10-project']['org_id'],'123456789012')
         self.assertIsNone(variables['10-project']['folder_id'])
         self.assertTrue(variables['40-data']['create_jupyter_gsa'])
         self.assertEqual(variables['40-data']['identity_project_id'],'gcp-sbx-edp-sbx03')
@@ -84,7 +84,7 @@ class ProvisioningTests(unittest.TestCase):
 
     @mock.patch.dict(os.environ,ENV)
     def test_old_source_cannot_silently_skip_dedicated_gsa(self):
-        data=json.loads((ROOT/'05.sandbox_json/sbx03-request.template.json').read_text())
+        data=make_request(new_project=True)
         bucket=mock.Mock();bucket.name=ENV['BUNDLE_BUCKET'];bucket.blob.side_effect=lambda name:name
         def download(source,destination):
             shutil.copytree(ROOT/'08.sandbox_setup_02_terraform',destination/'08.sandbox_setup_02_terraform')
@@ -118,7 +118,7 @@ class ProvisioningTests(unittest.TestCase):
 
     @mock.patch.dict(os.environ,ENV)
     def test_optional_network_is_not_applied(self):
-        data=json.loads((ROOT/'05.sandbox_json/sbx01-approved-request.json').read_text())
+        data=make_request()
         self.assertFalse(data['network']['required'])
         self.assertFalse(data['network']['shared_vpc_join'])
         p.VALIDATOR.validate(data)
@@ -160,9 +160,11 @@ class ProvisioningTests(unittest.TestCase):
                 _,manifest=p.assemble_bundles(payload(),b'{}')
             self.assertEqual(len(manifest['bundles']),5)
 
-    def test_schema_reference_matches_runtime(self):
-        self.assertEqual(json.loads((ROOT/'06.sandbox_json_rules/sandbox-request.schema.json').read_text()),p.SCHEMA)
-        p.VALIDATOR.validate(payload())
+    def test_runtime_schema_accepts_complete_request_and_rejects_missing_required_fields(self):
+        data = payload()
+        p.VALIDATOR.validate(data)
+        del data['source']
+        self.assertTrue(list(p.VALIDATOR.iter_errors(data)))
 
     @mock.patch.dict(os.environ,ENV)
     def test_group_imports_are_literal_and_validate_membership_parent(self):
