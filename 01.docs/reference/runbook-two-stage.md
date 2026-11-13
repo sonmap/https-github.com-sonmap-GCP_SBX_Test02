@@ -159,7 +159,7 @@ gcloud iam service-accounts describe "${TF_MANAGER}" --project="${SBX_GKE_PROJEC
 
 Workspace 최고 관리자는 이 서비스 계정에 Groups Administrator 역할을 직접 부여합니다. 이 최초 역할 부여는 GCP IAM 역할만으로 대체되지 않습니다. [공식 설정 절차](https://docs.cloud.google.com/identity/docs/how-to/setup#assigning_an_admin_role_to_the_service_account)를 따릅니다.
 
-조직의 실제 Cloud Identity Customer ID(C로 시작하는 값)를 확인하고 `02.sandbox_setup_01_gcloud/configs/provisioner-env.yaml`의 CLOUD_IDENTITY_CUSTOMER_ID에 설정합니다. 기본 __SET_CUSTOMER_ID__는 실행 가능한 값이 아니며 API가 요청을 거절합니다. 설정을 반영한 커밋으로 새 플랫폼 릴리스를 게시합니다. 릴리스는 Cloud Run 환경설정과 API·Runner 이미지를 함께 갱신합니다.
+조직의 실제 Cloud Identity Customer ID(C로 시작하는 값)를 확인하고 `07.sandbox_request_api/provisioner-env.yaml`의 CLOUD_IDENTITY_CUSTOMER_ID에 설정합니다. 기본 __SET_CUSTOMER_ID__는 실행 가능한 값이 아니며 API가 요청을 거절합니다. 설정을 반영한 커밋으로 새 플랫폼 릴리스를 게시합니다. 릴리스는 Cloud Run 환경설정과 API·Runner 이미지를 함께 갱신합니다.
 
 완료 기준: cloudidentity.googleapis.com 활성화, tf-manager의 프로젝트/그룹 관리 권한 준비, 실제 Customer ID 설정. 기존 그룹은 [기존 그룹 편입 절차](cloud-identity-group-terraform.md)를 확인합니다. SA JSON 키와 사용자 위임은 사용하지 않습니다.
 

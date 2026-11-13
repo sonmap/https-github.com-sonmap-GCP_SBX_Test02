@@ -8,7 +8,7 @@ ROOT=Path(__file__).resolve().parents[1]
 
 class BuildPathTests(unittest.TestCase):
     def test_bootstrap_and_release_docker_contexts_exist(self):
-        for name in ['02.sandbox_setup_01_gcloud/configs/bootstrap-build.yaml','03.cloudbuild/platform-release.yaml']:
+        for name in ['03.cloudbuild/bootstrap-build.yaml','03.cloudbuild/platform-release.yaml']:
             config=yaml.safe_load((ROOT/name).read_text())
             for step in config['steps']:
                 args=step.get('args',[])

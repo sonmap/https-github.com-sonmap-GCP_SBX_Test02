@@ -14,7 +14,7 @@ class ReleaseBootstrapTests(unittest.TestCase):
         self.assertEqual(step['entrypoint'], 'bash')
         script = step['args'][-1].replace('$$', '$')
         with tempfile.TemporaryDirectory() as tmp:
-            path = Path(tmp)/'02.sandbox_setup_01_gcloud/configs/provisioner-env.yaml'
+            path = Path(tmp)/'07.sandbox_request_api/provisioner-env.yaml'
             path.parent.mkdir(parents=True)
             for value, expected in [('C03rw3vtp', 0), ('__SET_CUSTOMER_ID__', 1), ('', 1)]:
                 path.write_text('CLOUD_IDENTITY_CUSTOMER_ID: '+value+'\n')

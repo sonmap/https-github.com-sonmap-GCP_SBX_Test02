@@ -82,7 +82,7 @@ git clone https://github.com/sonmap/GCP_SBX_Test01.git
 cd GCP_SBX_Test01
 ```
 
-[공통 변수](02.sandbox_setup_01_gcloud/00-variables.md)를 같은 터미널에 설정한 후 1 → 2 → 3 순서로 진행합니다. 최신 Google Cloud CLI와 Bash가 필요합니다. 1~3단계 명령 실행에는 Python·Terraform 설치가 필요하지 않습니다. Cloud Build/Run/Workflows용 YAML은 [`02.sandbox_setup_01_gcloud/configs/`](02.sandbox_setup_01_gcloud/configs)에 있습니다. 이후 과제별 자동화의 Python 프로그램은 유지합니다.
+[공통 변수](02.sandbox_setup_01_gcloud/00-variables.md)를 같은 터미널에 설정한 후 1 → 2 → 3 순서로 진행합니다. 최신 Google Cloud CLI와 Bash가 필요합니다. 1~3단계 명령 실행에는 Python·Terraform 설치가 필요하지 않습니다. 배포 설정은 [초기 Cloud Build](03.cloudbuild/bootstrap-build.yaml), [Cloud Run 환경변수](07.sandbox_request_api/provisioner-env.yaml), [Workflows 템플릿](10.sandbox_deploy_tools/workflow.template.yaml)에서 관리합니다. 이후 과제별 자동화의 Python 프로그램은 유지합니다.
 
 | 표시 이름 | 실제 서비스 계정 ID | 용도 |
 |---|---|---|

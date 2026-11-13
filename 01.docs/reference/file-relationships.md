@@ -17,7 +17,7 @@ flowchart TD
       VAR -.-> ADM
       ADM --> NET --> IAM --> FOUND
     end
-    subgraph CONF["02.sandbox_setup_01_gcloud/configs/"]
+    subgraph CONF["Cloud Build · Cloud Run · Workflows 설정"]
       BOOT["bootstrap-build.yaml · 초기 이미지"]
       ENV["provisioner-env.yaml · Cloud Run 환경"]
       WF["workflow.template.yaml · Workflows OIDC"]
@@ -34,7 +34,7 @@ flowchart TD
 | [00-variables.md](../../02.sandbox_setup_01_gcloud/00-variables.md), [01-admin.md](../../02.sandbox_setup_01_gcloud/01-admin.md) | 관리자가 변수와 계정을 확인하고 API, `tf-manager`·`sbx-manager`, IAM을 준비합니다. |
 | [02-network.md](../../02.sandbox_setup_01_gcloud/02-network.md), [02-subnet-iam.md](../../02.sandbox_setup_01_gcloud/02-subnet-iam.md) | VPC 관리자가 호스트 프로젝트의 네트워크와 서브넷별 권한을 준비합니다. |
 | [03-foundation.md](../../02.sandbox_setup_01_gcloud/03-foundation.md) | 운영자가 개별 `gcloud` 명령으로 공통 버킷·AR·Private Pool·GKE·Cloud Run·Workflow·ALB 기반을 준비합니다. |
-| [bootstrap-build.yaml](../../02.sandbox_setup_01_gcloud/configs/bootstrap-build.yaml), [provisioner-env.yaml](../../02.sandbox_setup_01_gcloud/configs/provisioner-env.yaml), [workflow.template.yaml](../../02.sandbox_setup_01_gcloud/configs/workflow.template.yaml) | 기반 명령이 초기 빌드 설정, Cloud Run 환경, Workflow 템플릿을 각각 읽습니다. |
+| [bootstrap-build.yaml](../../03.cloudbuild/bootstrap-build.yaml), [provisioner-env.yaml](../../07.sandbox_request_api/provisioner-env.yaml), [workflow.template.yaml](../../10.sandbox_deploy_tools/workflow.template.yaml) | 기반 명령이 초기 빌드 설정, Cloud Run 환경, Workflow 템플릿을 각각 읽습니다. |
 | [cloud-identity-group-terraform.md](cloud-identity-group-terraform.md) | Workspace 관리자가 `tf-manager`의 그룹 관리 역할을 승인합니다. |
 | [check-private-gke.yaml](../../03.cloudbuild/check-private-gke.yaml) | 운영자가 `gcloud builds submit --config`에 지정합니다. Private Pool에서 DNS 엔드포인트로 Namespace 목록을 조회합니다. [사용법](cloudbuild-private-gke-vpn-design.md) |
 
@@ -96,7 +96,7 @@ flowchart TD
     P["포털 또는 시험 운영자 · 실제 값과 승인 반영"]
     S["GCS · approved 요청 JSON"]
     OP["02.sandbox_setup_01_gcloud/05-deploy.md · Deploy 명령"]
-    WF["Workflows · 배포된 workflow.template.yaml"]
+    WF["Workflows · 템플릿에서 생성한 .local/workflow.yaml"]
     API["07.sandbox_request_api/main.py · 승인 검증과 빌드 제출"]
     V["07.sandbox_request_api/sandbox-request.schema.json · 검증 규격"]
 

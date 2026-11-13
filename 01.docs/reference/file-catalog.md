@@ -1,6 +1,6 @@
 # 파일별 설명
 
-**실제 작업은 [1차 인프라 구축](../01-infra-setup.md) → [2차 Sandbox 배포](../02-sandbox-deploy.md) 두 문서를 따라 진행합니다.** 이 페이지는 필요한 파일을 찾을 때만 열어보세요. 아래에서 해당 폴더를 펼치면 **폴더 → 파일명 → 역할 → 수행 순서**를 확인할 수 있습니다.
+**실제 작업은 [1차 인프라 구축](../README.md#1차-공통-인프라-준비) → [2차 Sandbox 배포](../02-sandbox-deploy.md) 두 문서를 따라 진행합니다.** 이 페이지는 필요한 파일을 찾을 때만 열어보세요. 아래에서 해당 폴더를 펼치면 **폴더 → 파일명 → 역할 → 수행 순서**를 확인할 수 있습니다.
 
 | 수행 순서 표기 | 읽는 방법 |
 |---|---|
@@ -23,12 +23,11 @@
 </details>
 
 <details>
-<summary>01.docs · 실행 안내와 참고 문서 (21개)</summary>
+<summary>01.docs · 실행 안내와 참고 문서 (20개)</summary>
 
 | 폴더 | 파일명 | 역할 | 수행 순서 |
 |---|---|---|---|
 | `01.docs` | [`README.md`](../README.md) | 실제 수행 단계·실행 계정·완료 기준의 시작 안내 | 시작 · 읽기 |
-| `01.docs` | [`01-infra-setup.md`](../01-infra-setup.md) | 1차 인프라 작업 순서와 접속 점검 명령 | 1차 · 실행 안내 |
 | `01.docs` | [`02-sandbox-deploy.md`](../02-sandbox-deploy.md) | sbx03 승인 요청 확인·Workflow 제출·검증 명령 | 2차 · 실행 안내 |
 | `01.docs/reference` | [`admin-requests.md`](admin-requests.md) | 관리자별 네트워크·데이터·인증 준비 요청 | 1차 준비 · 필요 시 |
 | `01.docs/reference` | [`architecture-and-operations.md`](architecture-and-operations.md) | 구조·권한 통합 영향·State 전환 | 참고 · 설계 |
@@ -52,7 +51,7 @@
 </details>
 
 <details>
-<summary>02.sandbox_setup_01_gcloud · 운영자가 실행하는 gcloud 명령 (11개)</summary>
+<summary>02.sandbox_setup_01_gcloud · 운영자가 실행하는 gcloud 명령 (8개)</summary>
 
 | 폴더 | 파일명 | 역할 | 수행 순서 |
 |---|---|---|---|
@@ -64,9 +63,6 @@
 | `02.sandbox_setup_01_gcloud` | [`04-manual-gcloud.md`](../../02.sandbox_setup_01_gcloud/04-manual-gcloud.md) | OAuth Secret 등록과 릴리스·미러링·Notebook 이미지 빌드 명령 | 1차 4·6 · 운영자 |
 | `02.sandbox_setup_01_gcloud` | [`05-deploy.md`](../../02.sandbox_setup_01_gcloud/05-deploy.md) | 승인 객체 버전·해시 확인, Workflow 제출과 결과 확인 | 2차 1~3 · 상세 명령 |
 | `02.sandbox_setup_01_gcloud` | [`06-iam-migration.md`](../../02.sandbox_setup_01_gcloud/06-iam-migration.md) | 기존 Host 광역 바인딩의 검토·정리 명령, 신규 설치 필수 아님 | 필요 시 · 기존 IAM 정리 |
-| `02.sandbox_setup_01_gcloud/configs` | [`bootstrap-build.yaml`](../../02.sandbox_setup_01_gcloud/configs/bootstrap-build.yaml) | 초기 두 실행 이미지 Build 입력 | 1차 3 · Build 설정 |
-| `02.sandbox_setup_01_gcloud/configs` | [`provisioner-env.yaml`](../../02.sandbox_setup_01_gcloud/configs/provisioner-env.yaml) | Cloud Run 환경변수 입력 | 1차 3·6 · Cloud Run 입력 |
-| `02.sandbox_setup_01_gcloud/configs` | [`workflow.template.yaml`](../../02.sandbox_setup_01_gcloud/configs/workflow.template.yaml) | Workflows OIDC 호출 템플릿, URL만 치환 | 1차 3 · Workflow 입력 |
 
 </details>
 
@@ -78,6 +74,7 @@
 | `03.cloudbuild` | [`check-private-gke.yaml`](../../03.cloudbuild/check-private-gke.yaml) | Private Pool에서 DNS 엔드포인트를 통해 Namespace 조회 | 1차 5 · Build 설정 |
 | `03.cloudbuild` | [`mirror-jupyterhub-images.yaml`](../../03.cloudbuild/mirror-jupyterhub-images.yaml) | JupyterHub 이미지 내부 미러링 | 1차 6 · Build 설정 |
 | `03.cloudbuild` | [`platform-release.yaml`](../../03.cloudbuild/platform-release.yaml) | Runner/Provisioner 빌드·소스 ZIP 게시·Cloud Run 갱신 | 1차 6 · Build 설정 |
+| `03.cloudbuild` | [`bootstrap-build.yaml`](../../03.cloudbuild/bootstrap-build.yaml) | 초기 두 실행 이미지 Build 입력 | 1차 3 · Build 설정 |
 
 </details>
 
@@ -115,7 +112,7 @@
 </details>
 
 <details>
-<summary>07.sandbox_request_api · Cloud Run 요청 처리 (5개)</summary>
+<summary>07.sandbox_request_api · Cloud Run 요청 처리 (6개)</summary>
 
 | 폴더 | 파일명 | 역할 | 수행 순서 |
 |---|---|---|---|
@@ -124,6 +121,7 @@
 | `07.sandbox_request_api` | [`main.py`](../../07.sandbox_request_api/main.py) | 승인 JSON 검증·배포 ZIP 생성·동적 Build 생성 | 2차 2 · Cloud Run 자동 |
 | `07.sandbox_request_api` | [`requirements.txt`](../../07.sandbox_request_api/requirements.txt) | Python 라이브러리 의존성 | 1차 3·6 · 빌드 입력 |
 | `07.sandbox_request_api` | [`sandbox-request.schema.json`](../../07.sandbox_request_api/sandbox-request.schema.json) | 실제 런타임 요청 규격 | 2차 2 · Cloud Run 자동 |
+| `07.sandbox_request_api` | [`provisioner-env.yaml`](../../07.sandbox_request_api/provisioner-env.yaml) | Cloud Run 환경변수 입력 | 1차 3·6 · Cloud Run 입력 |
 
 </details>
 
@@ -165,7 +163,7 @@
 </details>
 
 <details>
-<summary>10.sandbox_deploy_tools · 배포 보조 도구 (6개)</summary>
+<summary>10.sandbox_deploy_tools · 배포 보조 도구 (7개)</summary>
 
 | 폴더 | 파일명 | 역할 | 수행 순서 |
 |---|---|---|---|
@@ -175,6 +173,7 @@
 | `10.sandbox_deploy_tools` | [`run-approved-workflow.sh`](../../10.sandbox_deploy_tools/run-approved-workflow.sh) | 승인 요청 업로드·Generation/해시·Workflow 실행 | 2차 1~2 · 수동 시험용 보조 |
 | `10.sandbox_deploy_tools` | [`set-jupyter-oauth-secrets.sh`](../../10.sandbox_deploy_tools/set-jupyter-oauth-secrets.sh) | OAuth 비밀값을 Secret Manager 버전에 등록 | 1차 4 · 선택 보조 |
 | `10.sandbox_deploy_tools` | [`set-request-release.py`](../../10.sandbox_deploy_tools/set-request-release.py) | 새 release.json 값으로 요청 source 갱신 | 2차 1 · 선택 보조 |
+| `10.sandbox_deploy_tools` | [`workflow.template.yaml`](../../10.sandbox_deploy_tools/workflow.template.yaml) | Workflows OIDC 호출 템플릿, URL만 치환 | 1차 3 · Workflow 입력 |
 
 </details>
 

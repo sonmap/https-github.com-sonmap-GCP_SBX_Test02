@@ -5,7 +5,7 @@ steps:
     args:
       - -ceu
       - |
-        value="$$(awk '/^CLOUD_IDENTITY_CUSTOMER_ID:/ {print $$2; exit}' 02.sandbox_setup_01_gcloud/configs/provisioner-env.yaml)"
+        value="$$(awk '/^CLOUD_IDENTITY_CUSTOMER_ID:/ {print $$2; exit}' 07.sandbox_request_api/provisioner-env.yaml)"
         if [[ ! "$$value" =~ ^C[A-Za-z0-9]+$ ]]; then
           echo "Set actual CLOUD_IDENTITY_CUSTOMER_ID in provisioner-env.yaml before release" >&2
           exit 1
@@ -106,7 +106,7 @@ steps:
           --project="${_SBX_GKE_PROJECT}" \
           --region="${_REGION}" \
           --image="${_PROVISIONER_IMAGE_REPO}:${_RELEASE_ID}" \
-          --env-vars-file=02.sandbox_setup_01_gcloud/configs/provisioner-env.yaml \
+          --env-vars-file=07.sandbox_request_api/provisioner-env.yaml \
           --clear-network \
           --quiet
 

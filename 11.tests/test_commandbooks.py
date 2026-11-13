@@ -60,7 +60,9 @@ class CommandbookTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             work = Path(tmp)
             (work / 'bin').mkdir()
-            shutil.copytree(ROOT / '02.sandbox_setup_01_gcloud/configs', work / '02.sandbox_setup_01_gcloud/configs')
+            workflow = Path('10.sandbox_deploy_tools/workflow.template.yaml')
+            (work / workflow.parent).mkdir()
+            shutil.copyfile(ROOT / workflow, work / workflow)
             stub = work / 'bin/gcloud'
             stub.write_text('''#!/bin/sh
 printf '%s\\n' "$*" >> "$GCLOUD_TEST_LOG"
@@ -122,12 +124,11 @@ esac
             self.assertTrue(any('--role=roles/container.hostServiceAgentUser ' in c for c in host_grants))
 
     def test_static_configs_match_runtime_targets_and_reference_files_exist(self):
-        configs = ROOT / '02.sandbox_setup_01_gcloud/configs'
-        env = yaml.safe_load((configs / 'provisioner-env.yaml').read_text())
+        env = yaml.safe_load((ROOT / '07.sandbox_request_api/provisioner-env.yaml').read_text())
         self.assertEqual(env['SBX_GKE_PROJECT'], 'gcp-sbx-edp-gke01')
         self.assertEqual(env['GKE_ENDPOINT_MODE'], 'dns')
         self.assertEqual(env['SBX_GKE_PROJECT'], 'gcp-sbx-edp-gke01')
-        build = yaml.safe_load((configs / 'bootstrap-build.yaml').read_text())
+        build = yaml.safe_load((ROOT / '03.cloudbuild/bootstrap-build.yaml').read_text())
         self.assertEqual(build['options']['logging'], 'CLOUD_LOGGING_ONLY')
         self.assertEqual(len(build['images']), 2)
         for name in BOOKS:
@@ -135,8 +136,7 @@ esac
                 self.assertTrue((ROOT / target).is_file(), target)
 
     def test_unified_platform_endpoints(self):
-        configs = ROOT / '02.sandbox_setup_01_gcloud/configs'
-        env = yaml.safe_load((configs / 'provisioner-env.yaml').read_text())
+        env = yaml.safe_load((ROOT / '07.sandbox_request_api/provisioner-env.yaml').read_text())
         project = env['SBX_GKE_PROJECT']
         self.assertEqual(project, 'gcp-sbx-edp-gke01')
         self.assertEqual(env['REQUEST_BUCKET'], project + '-sbxtest01-requests')

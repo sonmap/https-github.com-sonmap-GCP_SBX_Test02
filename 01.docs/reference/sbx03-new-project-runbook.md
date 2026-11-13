@@ -86,7 +86,7 @@ git pull --ff-only
 Customer ID는 더 이상 예시 문자열을 넣지 않고 확인된 실제 값을 사용합니다. DNS 모드는 현재 성공한 연결 방식입니다. DNS 모드 성공만으로 통신회사 사설망 경로 준수까지 입증되는 것은 아닙니다.
 
 ```bash
-sed -i 's/^CLOUD_IDENTITY_CUSTOMER_ID:.*/CLOUD_IDENTITY_CUSTOMER_ID: C03rw3vtp/' 02.sandbox_setup_01_gcloud/configs/provisioner-env.yaml
+sed -i 's/^CLOUD_IDENTITY_CUSTOMER_ID:.*/CLOUD_IDENTITY_CUSTOMER_ID: C03rw3vtp/' 07.sandbox_request_api/provisioner-env.yaml
 ```
 
 새 릴리스 이름은 이번 코드 전용 `sbx03-20261107-v1`입니다. 이 태그가 이미 있다면 덮어쓰지 말고 v2 등 새 이름을 사용합니다.

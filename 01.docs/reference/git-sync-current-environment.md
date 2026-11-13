@@ -23,7 +23,7 @@ cd "$HOME/GCP_SBX_Test01"
 ```
 
 ```bash
-cp -p 02.sandbox_setup_01_gcloud/configs/provisioner-env.yaml "$HOME/provisioner-env.before-sbx-sync.yaml"
+cp -p 07.sandbox_request_api/provisioner-env.yaml "$HOME/provisioner-env.before-sbx-sync.yaml"
 ```
 
 ```bash
@@ -59,11 +59,11 @@ awk '/^CLOUD_IDENTITY_CUSTOMER_ID:/ {print}' "$HOME/provisioner-env.before-sbx-s
 아래 `실제_CUSTOMER_ID`를 백업의 C... 값으로 바꾼 뒤 실행합니다. 기존 프로젝트·버킷·Pool 경로를 백업 파일 전체에서 복원하지 않습니다.
 
 ```bash
-sed -i 's/__SET_CUSTOMER_ID__/실제_CUSTOMER_ID/' 02.sandbox_setup_01_gcloud/configs/provisioner-env.yaml
+sed -i 's/__SET_CUSTOMER_ID__/실제_CUSTOMER_ID/' 07.sandbox_request_api/provisioner-env.yaml
 ```
 
 ```bash
-cat 02.sandbox_setup_01_gcloud/configs/provisioner-env.yaml
+cat 07.sandbox_request_api/provisioner-env.yaml
 ```
 
 ## 4. 현재 단계 — Private Pool에서 GKE API 조회
@@ -103,7 +103,7 @@ gcloud builds submit 07.sandbox_request_api --project=gcp-sbx-edp-gke01 --region
 **배포: son@sonmap.net / Run 실행: sbx-manager — 위 Build SUCCESS 후**
 
 ```bash
-gcloud run services update run-sbxtest01-provisioner --project=gcp-sbx-edp-gke01 --region=asia-northeast3 --account=son@sonmap.net --image=asia-northeast3-docker.pkg.dev/gcp-sbx-edp-gke01/ar-sbxtest01-platform/run-sbxtest01-provisioner:env-sync-20261107 --env-vars-file=02.sandbox_setup_01_gcloud/configs/provisioner-env.yaml
+gcloud run services update run-sbxtest01-provisioner --project=gcp-sbx-edp-gke01 --region=asia-northeast3 --account=son@sonmap.net --image=asia-northeast3-docker.pkg.dev/gcp-sbx-edp-gke01/ar-sbxtest01-platform/run-sbxtest01-provisioner:env-sync-20261107 --env-vars-file=07.sandbox_request_api/provisioner-env.yaml
 ```
 
 **확인: son@sonmap.net**

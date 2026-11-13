@@ -1023,7 +1023,7 @@ flowchart TD
 **명령 140 — 동기화된 환경 파일 확인 — 로컬**
 
 ```bash
-cat 02.sandbox_setup_01_gcloud/configs/provisioner-env.yaml
+cat 07.sandbox_request_api/provisioner-env.yaml
 ```
 
 **명령 141 — Customer ID 조회 — admin**
@@ -1037,13 +1037,13 @@ gcloud organizations list --account=admin@sonmap.net --format="table(displayName
 **명령 142 — 실제 Customer ID 반영 — 로컬**
 
 ```bash
-sed -i 's/__SET_CUSTOMER_ID__/실제_CUSTOMER_ID/' 02.sandbox_setup_01_gcloud/configs/provisioner-env.yaml
+sed -i 's/__SET_CUSTOMER_ID__/실제_CUSTOMER_ID/' 07.sandbox_request_api/provisioner-env.yaml
 ```
 
 **명령 143 — 배포 전 설정 확인**
 
 ```bash
-cat 02.sandbox_setup_01_gcloud/configs/provisioner-env.yaml
+cat 07.sandbox_request_api/provisioner-env.yaml
 ```
 
 REQUEST_BUCKET·BUNDLE_BUCKET·WORKER_POOL·JUPYTER_CHART_URI가 새 프로젝트인지 확인합니다. Secret 값은 이 파일에 넣지 않습니다. 아래 서비스는 IAM 인증 필수, ingress all, VPC 연결 없음이 현재 설계입니다. 기존 서비스에 이전 VPC 연결이 남아 있다면 별도 확인·해제합니다.
@@ -1051,7 +1051,7 @@ REQUEST_BUCKET·BUNDLE_BUCKET·WORKER_POOL·JUPYTER_CHART_URI가 새 프로젝�
 **명령 144 — API 배포**
 
 ```bash
-gcloud run deploy run-sbxtest01-provisioner --project=gcp-sbx-edp-gke01 --region=asia-northeast3 --account=son@sonmap.net --image=asia-northeast3-docker.pkg.dev/gcp-sbx-edp-gke01/ar-sbxtest01-platform/run-sbxtest01-provisioner:bootstrap --service-account=sbx-manager@gcp-sbx-edp-gke01.iam.gserviceaccount.com --env-vars-file=02.sandbox_setup_01_gcloud/configs/provisioner-env.yaml --no-allow-unauthenticated --ingress=all --timeout=300s --max-instances=2
+gcloud run deploy run-sbxtest01-provisioner --project=gcp-sbx-edp-gke01 --region=asia-northeast3 --account=son@sonmap.net --image=asia-northeast3-docker.pkg.dev/gcp-sbx-edp-gke01/ar-sbxtest01-platform/run-sbxtest01-provisioner:bootstrap --service-account=sbx-manager@gcp-sbx-edp-gke01.iam.gserviceaccount.com --env-vars-file=07.sandbox_request_api/provisioner-env.yaml --no-allow-unauthenticated --ingress=all --timeout=300s --max-instances=2
 ```
 
 **명령 145 — 현재 URL·배포 상태 확인**
@@ -1077,7 +1077,7 @@ gcloud run services add-iam-policy-binding run-sbxtest01-provisioner --project=g
 **명령 147 — 실제 Run URL을 템플릿에 반영 — 로컬**
 
 ```bash
-sed 's|__PROVISIONER_URL__|https://run-sbxtest01-provisioner-869916265282.asia-northeast3.run.app|g' 02.sandbox_setup_01_gcloud/configs/workflow.template.yaml > /tmp/workflow-sbxtest01.yaml
+sed 's|__PROVISIONER_URL__|https://run-sbxtest01-provisioner-869916265282.asia-northeast3.run.app|g' 10.sandbox_deploy_tools/workflow.template.yaml > /tmp/workflow-sbxtest01.yaml
 ```
 
 **명령 148 — Workflow 배포**
