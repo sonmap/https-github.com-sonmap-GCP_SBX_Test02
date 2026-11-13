@@ -707,39 +707,7 @@ export AUTOMATION_IMAGE="${REGION}-docker.pkg.dev/${SBX_GKE_PROJECT}/ar-sbxtest0
 gcloud builds submit --no-source --project="${SBX_GKE_PROJECT}" --region="${REGION}" --account="${GKE_PRJ_ACCOUNT}" --impersonate-service-account="${TF_MANAGER}" --service-account="${TF_MANAGER_RESOURCE}" --config=03.cloudbuild/mirror-jupyterhub-images.yaml --substitutions="_AUTOMATION_IMAGE=${AUTOMATION_IMAGE}"
 ```
 
-**기본 이미지 복사 Build가 성공하면 표준 Notebook 이미지를 빌드합니다.**
-
-**[프로젝트소유 관리계정] · `son@sonmap.net`**
-
-```bash
-export SBX_GKE_PROJECT="gcp-sbx-edp-gke01"
-# 저장소 루트 GCP_SBX_Test01에서 실행합니다.
-export GKE_PRJ_ACCOUNT="son@sonmap.net"
-export REGION="asia-northeast3"
-export TF_MANAGER="tf-manager@${SBX_GKE_PROJECT}.iam.gserviceaccount.com"
-export TF_MANAGER_RESOURCE="projects/${SBX_GKE_PROJECT}/serviceAccounts/${TF_MANAGER}"
-export BUILD_STAGING_BUCKET="${SBX_GKE_PROJECT}-sbxtest01-build-source"
-unset CLOUDSDK_AUTH_IMPERSONATE_SERVICE_ACCOUNT
-
-export IMAGE_REPO="${REGION}-docker.pkg.dev/${SBX_GKE_PROJECT}/ar-sbxtest01-platform/jupyterhub-k8s-singleuser-standard"
-export IMAGE_TAG="4.2.0-r2-home"
-export BASE_IMAGE="${REGION}-docker.pkg.dev/${SBX_GKE_PROJECT}/ar-sbxtest01-platform/jupyterhub-k8s-singleuser-sample:4.2.0"
-
-# 버킷 location이 asia-northeast3인지 확인합니다. 다르면 중단합니다.
-gcloud storage buckets describe "gs://${BUILD_STAGING_BUCKET}" --project="${SBX_GKE_PROJECT}" --account="${GKE_PRJ_ACCOUNT}" --impersonate-service-account="${TF_MANAGER}" --format='value(location)'
-
-# Build 실행 계정의 소스 읽기 권한을 준비합니다.
-gcloud storage buckets add-iam-policy-binding "gs://${BUILD_STAGING_BUCKET}" --member="serviceAccount:${TF_MANAGER}" --role=roles/storage.objectViewer --account="${GKE_PRJ_ACCOUNT}" --impersonate-service-account="${TF_MANAGER}"
-
-# Notebook 이미지를 빌드합니다. 성공한 뒤 이미지 조회로 확인합니다.
-gcloud builds submit 04.Jupiter-setup-image --project="${SBX_GKE_PROJECT}" --region="${REGION}" --account="${GKE_PRJ_ACCOUNT}" --impersonate-service-account="${TF_MANAGER}" --service-account="${TF_MANAGER_RESOURCE}" --gcs-source-staging-dir="gs://${BUILD_STAGING_BUCKET}/jupyter-source" --config=04.Jupiter-setup-image/cloudbuild.yaml --substitutions="_BASE_IMAGE=${BASE_IMAGE},_IMAGE_REPO=${IMAGE_REPO},_IMAGE_TAG=${IMAGE_TAG}"
-```
-
-**[프로젝트소유 관리계정] · `son@sonmap.net`**
-
-```bash
-gcloud artifacts docker images describe "${IMAGE_REPO}:${IMAGE_TAG}" --project="${SBX_GKE_PROJECT}" --account="${GKE_PRJ_ACCOUNT}" --impersonate-service-account="${TF_MANAGER}"
-```
+**기본 이미지가 내부 AR에 준비되면** `infra-son01`에서 [Notebook 표준 이미지 빌드·게시](../02.sandbox_setup_01_gcloud/04-manual-gcloud.md#7-notebook-표준-이미지-빌드)를 실행합니다. 개발자 추가 패키지는 [GCS 경유 절차](../04.Jupiter-setup-image/README.md#개발자-추가-패키지-gcs-경유)를 사용합니다.
 
 </details>
 

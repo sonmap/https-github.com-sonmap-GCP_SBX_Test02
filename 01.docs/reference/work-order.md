@@ -28,7 +28,7 @@ flowchart TD
     X --> F
     F -->|성공| G["6. 플랫폼 릴리스 게시"]
     G --> H["7. 관리 VM 차트 반입·기본 이미지 복사"]
-    H --> I["8. Notebook 이미지 빌드"]
+    H --> I["8. 관리 VM에서 Notebook 이미지 빌드·게시"]
     I --> J["9. 작업자가 과제 Deploy 명령 실행"]
 ```
 
@@ -43,7 +43,7 @@ flowchart TD
 | 5 | 운영자: Private Pool에서 GKE API 조회 | [접속 점검 명령](runbook-two-stage.md#5-private-pool에서-gke-사설-api-연결-확인), [점검 YAML](../../03.cloudbuild/check-private-gke.yaml) | [01.docs](../) | 점검 Build SUCCESS |
 | 6 | 운영자: API·배포 도구 이미지와 Terraform 소스 게시 | [플랫폼 릴리스 명령](../../02.sandbox_setup_01_gcloud/04-manual-gcloud.md#5-플랫폼-릴리스-게시) | [03.cloudbuild](../../03.cloudbuild) | Build SUCCESS·release.json 생성 |
 | 7 | 운영자: 관리 VM에서 차트 반입, 기본 이미지 복사 | [차트 수동 명령](../../02.sandbox_setup_01_gcloud/04-manual-gcloud.md#infra-son01에서-helm-차트-수동-반입) | [기본 이미지 복사](../../03.cloudbuild/mirror-jupyterhub-images.yaml) | AR 차트 조회와 기본 이미지 Build SUCCESS |
-| 8 | 운영자: Notebook 표준 이미지 빌드 | [Notebook 빌드 명령](../../02.sandbox_setup_01_gcloud/04-manual-gcloud.md#7-notebook-표준-이미지-빌드) | [04.Notebook 이미지](../../04.Jupiter-setup-image) | 이미지 조회 성공 |
+| 8 | 운영자: 관리 VM에서 Notebook 표준 이미지 빌드·게시 | [Notebook 빌드 명령](../../02.sandbox_setup_01_gcloud/04-manual-gcloud.md#7-notebook-표준-이미지-빌드) | [04.Notebook 이미지](../../04.Jupiter-setup-image) | 이미지 조회 성공 |
 | 9 | 운영자: GCS의 승인 JSON을 지정해 Deploy 시작·결과 확인 | [Deploy 실행 명령](../../02.sandbox_setup_01_gcloud/05-deploy.md) | [02.gcloud](../../02.sandbox_setup_01_gcloud), [07.API](../../07.sandbox_request_api) | 부모·자식 Build SUCCESS·사용자 접속 확인 |
 
 3단계의 HTTPS Proxy 구성 전에 인증서가 필요합니다. 인증서가 없다면 해당 명령을 보류하고 4단계 담당자 준비 후 완료합니다. Private Pool의 GKE 사설 경로는 PSA 생성만으로 완성되지 않으며, 5단계 통과가 필수입니다.

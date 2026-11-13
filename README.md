@@ -2,6 +2,8 @@
 
 **[그룹 공유 JupyterHub와 과제 공용 Pod 배포](12.sandbox_shared/README.md)** — JupyterHub 로컬 테스트 계정, 과제당 5명·1 Pod·1 PVC, 기존 AR 이미지 재사용, Pod 중지·재개, 운영 릴리스 절차입니다.
 
+[관리 VM 표준 Notebook 이미지 빌드](02.sandbox_setup_01_gcloud/04-manual-gcloud.md#7-notebook-표준-이미지-빌드) · [개발자 인터넷 PC → GCS → Notebook 패키지 설치 구성도](04.Jupiter-setup-image/README.md#개발자-추가-패키지-gcs-경유)
+
 ## Test01 기반 배포 절차
 
 **[Git 최신 설정 동기화·현재 단계 재개](01.docs/reference/git-sync-current-environment.md)** — 로컬 Customer ID를 보존하고, 프로젝트 치환 없이 Private Pool 점검을 실행합니다.

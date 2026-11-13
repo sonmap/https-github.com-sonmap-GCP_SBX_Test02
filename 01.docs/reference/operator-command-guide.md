@@ -944,7 +944,7 @@ gcloud container clusters update gke-sbx-main-an3 --project=gcp-sbx-edp-gke01 --
 
 ## 10. 배포 도구·Helm 차트·런타임·Notebook 이미지
 
-모든 Build 제출 계정: **son@sonmap.net**. 빌드 내부 계정: **tf-manager**. 실행 위치: 저장소 루트. 이미지 빌드·복사는 기본 Build 풀을 사용합니다. Helm 차트 반입은 관리 VM에서 수동으로 실행합니다.
+모든 Build 제출 계정: **son@sonmap.net**. 빌드 내부 계정: **tf-manager**. 실행 위치: 저장소 루트. 배포 도구·API 빌드와 기본 이미지 복사는 기본 Build 풀을 사용합니다. Helm 차트 반입과 표준 Notebook 이미지 빌드·게시는 관리 VM에서 수동으로 실행합니다.
 
 **명령 132 — 배포 도구 이미지 빌드**
 
@@ -964,9 +964,7 @@ gcloud builds submit --no-source --project=gcp-sbx-edp-gke01 --region=asia-north
 
 **명령 135 — 사용자 표준 Notebook 이미지 빌드**
 
-```bash
-gcloud builds submit 04.Jupiter-setup-image --project=gcp-sbx-edp-gke01 --region=asia-northeast3 --account=son@sonmap.net --service-account=projects/gcp-sbx-edp-gke01/serviceAccounts/tf-manager@gcp-sbx-edp-gke01.iam.gserviceaccount.com --gcs-source-staging-dir=gs://gcp-sbx-edp-gke01-sbxtest01-build-source/jupyter-source --config=04.Jupiter-setup-image/cloudbuild.yaml --substitutions=_BASE_IMAGE=asia-northeast3-docker.pkg.dev/gcp-sbx-edp-gke01/ar-sbxtest01-platform/jupyterhub-k8s-singleuser-sample:4.2.0,_IMAGE_REPO=asia-northeast3-docker.pkg.dev/gcp-sbx-edp-gke01/ar-sbxtest01-platform/jupyterhub-k8s-singleuser-standard,_IMAGE_TAG=4.2.0-r1-test
-```
+[관리 VM의 Docker 빌드·AR 게시 명령](../../02.sandbox_setup_01_gcloud/04-manual-gcloud.md#7-notebook-표준-이미지-빌드)을 실행합니다.
 
 **명령 136 — API 이미지 빌드**
 

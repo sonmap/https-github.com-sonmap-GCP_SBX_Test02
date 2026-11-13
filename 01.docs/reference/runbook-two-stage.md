@@ -215,24 +215,7 @@ gcloud artifacts docker images list "${REGION}-docker.pkg.dev/${SBX_GKE_PROJECT}
 
 ## 8. 사용자 Notebook 표준 이미지 빌드
 
-```bash
-export IMAGE_REPO="${REGION}-docker.pkg.dev/${SBX_GKE_PROJECT}/ar-sbxtest01-platform/jupyterhub-k8s-singleuser-standard"
-export IMAGE_TAG="4.2.0-r1-test"
-export BASE_IMAGE="${REGION}-docker.pkg.dev/${SBX_GKE_PROJECT}/ar-sbxtest01-platform/jupyterhub-k8s-singleuser-sample:4.2.0"
-
-# 버킷 location이 asia-northeast3인지 확인합니다. 다르면 중단합니다.
-gcloud storage buckets describe "gs://${BUILD_STAGING_BUCKET}" --project="${SBX_GKE_PROJECT}" --account="${ADMIN_ACCOUNT}" --impersonate-service-account="${TF_MANAGER}" --format='value(location)'
-
-# Build 실행 계정의 소스 읽기 권한을 준비합니다.
-gcloud storage buckets add-iam-policy-binding "gs://${BUILD_STAGING_BUCKET}" --member="serviceAccount:${TF_MANAGER}" --role=roles/storage.objectViewer --account="${ADMIN_ACCOUNT}" --impersonate-service-account="${TF_MANAGER}"
-
-# Notebook 이미지를 빌드합니다. 성공한 뒤 이미지 조회로 확인합니다.
-gcloud builds submit 04.Jupiter-setup-image --project="${SBX_GKE_PROJECT}" --region="${REGION}" --account="${ADMIN_ACCOUNT}" --impersonate-service-account="${TF_MANAGER}" --service-account="${TF_MANAGER_RESOURCE}" --gcs-source-staging-dir="gs://${BUILD_STAGING_BUCKET}/jupyter-source" --config=04.Jupiter-setup-image/cloudbuild.yaml --substitutions="_BASE_IMAGE=${BASE_IMAGE},_IMAGE_REPO=${IMAGE_REPO},_IMAGE_TAG=${IMAGE_TAG}"
-
-gcloud artifacts docker images describe "${REGION}-docker.pkg.dev/${SBX_GKE_PROJECT}/ar-sbxtest01-platform/jupyterhub-k8s-singleuser-standard:4.2.0-r1-test" --project="${SBX_GKE_PROJECT}" --account="${ADMIN_ACCOUNT}" --impersonate-service-account="${TF_MANAGER}"
-```
-
-완료 기준: Build SUCCESS이고 이미지 describe가 성공합니다. 이 이미지는 이후 새 사용자 Notebook Pod에 설정됩니다. 기존 사용자 PVC는 삭제하지 않습니다.
+관리 VM `infra-son01`에서 [표준 이미지 빌드·게시 명령](../../02.sandbox_setup_01_gcloud/04-manual-gcloud.md#7-notebook-표준-이미지-빌드)을 실행합니다. 내부 AR에서 이미지 digest가 조회되면 완료입니다. 개발자 추가 패키지는 [GCS 경유 절차](../../04.Jupiter-setup-image/README.md#개발자-추가-패키지-gcs-경유)로 설치합니다.
 
 ## 9. 수동 연동 시험 전용 — 실제 과제 신청값과 릴리스 반영
 

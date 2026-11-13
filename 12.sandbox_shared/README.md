@@ -11,6 +11,8 @@ Test02의 그룹 공유 배포는 운영자가 승인된 구성 파일로 수행
 | 인증 | PoC용 Hub 로컬 로그인. 승인된 GW 이메일을 로그인 ID로 사용하고 별도로 설정한 테스트 비밀번호를 확인합니다. Hub는 named server 요청도 과제 승인 명단과 대조합니다. |
 | 이미지 | 과제별 승인된 AR digest를 지정. 기존 Ubuntu VM의 `systemctl`, Docker 종료 훅, 호스트 계정 동기화는 GKE 실행 경로에 의존하지 않음 |
 
+표준 이미지 빌드와 개발자 추가 패키지 설치 흐름은 [Mermaid와 GCS 반입 명령](../04.Jupiter-setup-image/README.md#개발자-추가-패키지-gcs-경유)을 참고합니다.
+
 ## 1. 공통 인프라와 그룹 준비
 
 - VPC·GKE·내부 ALB·DNS·인증서는 기존 Foundation 절차로 준비합니다. 동일 ALB에 그룹 DNS 세 개를 등록하고 인증서가 세 이름을 포함하도록 구성합니다. 사내 DNS에서 각 이름은 내부 ALB VIP를 가리킵니다.

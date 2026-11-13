@@ -11,3 +11,5 @@ __pycache__/
 .local/
 *.pem
 *.key
+
+/04.Jupiter-setup-image/wheelhouse/

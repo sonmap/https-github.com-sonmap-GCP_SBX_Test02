@@ -66,7 +66,7 @@ flowchart TD
     OP --> CH --> AR
     OP --> MI --> AR
     subgraph NB["04.Jupiter-setup-image/"]
-      CB["cloudbuild.yaml · Notebook 빌드 설정"]
+      CB["infra-son01 · 수동 Docker 빌드"]
       DF["Dockerfile · 라이브러리와 시작 스크립트"]
       SH["start-sandbox-notebook.sh · 사용자별 HOME"]
       CB --> DF
@@ -82,9 +82,9 @@ flowchart TD
 | [04-manual-gcloud.md](../../02.sandbox_setup_01_gcloud/04-manual-gcloud.md) | OAuth Secret 등록, 차트 수동 반입, 릴리스와 이미지 빌드 명령입니다. |
 | [platform-release.yaml](../../03.cloudbuild/platform-release.yaml), [publish-sandbox-source.sh](../../10.sandbox_deploy_tools/publish-sandbox-source.sh) | 릴리스 빌드가 API·Runner 이미지를 게시하고 Terraform 소스를 ZIP으로 올린 뒤 Cloud Run을 갱신합니다. |
 | [mirror-jupyterhub-images.yaml](../../03.cloudbuild/mirror-jupyterhub-images.yaml) | 기본 이미지를 내부 Artifact Registry에 복사합니다. |
-| [Notebook cloudbuild.yaml](../../04.Jupiter-setup-image/cloudbuild.yaml), [Dockerfile](../../04.Jupiter-setup-image/Dockerfile), [시작 스크립트](../../04.Jupiter-setup-image/start-sandbox-notebook.sh) | 사용자 Pod용 표준 이미지를 빌드합니다. 사용자별 홈을 지원하는 이미지의 시작 스크립트는 마운트 경로를 `HOME`으로 사용합니다. |
+| [관리 VM 빌드 명령](../../02.sandbox_setup_01_gcloud/04-manual-gcloud.md#7-notebook-표준-이미지-빌드), [Dockerfile](../../04.Jupiter-setup-image/Dockerfile), [시작 스크립트](../../04.Jupiter-setup-image/start-sandbox-notebook.sh) | 사용자 Pod용 표준 이미지를 빌드합니다. 사용자별 홈을 지원하는 이미지의 시작 스크립트는 마운트 경로를 `HOME`으로 사용합니다. |
 
-`release.sh`, `mirror-jupyter.sh`, `build-gcloud.sh`는 보조 실행 파일입니다. 위 문서의 개별 명령을 사용했다면 같은 빌드를 중복 제출할 필요가 없습니다.
+`release.sh`와 `mirror-jupyter.sh`는 기존 릴리스 및 기본 이미지 복사용 보조 실행 파일입니다. Notebook 표준 이미지는 관리 VM의 개별 명령을 사용합니다.
 
 ## 3. 승인 요청 제출 · 운영자에서 자동화로 전환
 

@@ -146,35 +146,49 @@ gcloud builds submit --no-source --project="${SBX_GKE_PROJECT}" --region="${REGI
 
 ## 7. Notebook 표준 이미지 빌드
 
-```bash
-export SBX_GKE_PROJECT="gcp-sbx-edp-gke01"
-# 저장소 루트 GCP_SBX_Test01에서 실행합니다.
-export ADMIN_ACCOUNT="son@sonmap.net"
-export REGION="asia-northeast3"
-export TF_MANAGER="tf-manager@${SBX_GKE_PROJECT}.iam.gserviceaccount.com"
-export TF_MANAGER_RESOURCE="projects/${SBX_GKE_PROJECT}/serviceAccounts/${TF_MANAGER}"
-export BUILD_STAGING_BUCKET="${SBX_GKE_PROJECT}-sbxtest01-build-source"
-unset CLOUDSDK_AUTH_IMPERSONATE_SERVICE_ACCOUNT
-
-export IMAGE_REPO="${REGION}-docker.pkg.dev/${SBX_GKE_PROJECT}/ar-sbxtest01-platform/jupyterhub-k8s-singleuser-standard"
-export IMAGE_TAG="4.2.0-r2-home"
-export BASE_IMAGE="${REGION}-docker.pkg.dev/${SBX_GKE_PROJECT}/ar-sbxtest01-platform/jupyterhub-k8s-singleuser-sample:4.2.0"
-
-# 버킷 location이 asia-northeast3인지 확인합니다. 다르면 중단합니다.
-gcloud storage buckets describe "gs://${BUILD_STAGING_BUCKET}" --project="${SBX_GKE_PROJECT}" --account="${ADMIN_ACCOUNT}" --impersonate-service-account="${TF_MANAGER}" --format='value(location)'
-
-# Build 실행 계정의 소스 읽기 권한을 준비합니다.
-gcloud storage buckets add-iam-policy-binding "gs://${BUILD_STAGING_BUCKET}" --member="serviceAccount:${TF_MANAGER}" --role=roles/storage.objectViewer --account="${ADMIN_ACCOUNT}" --impersonate-service-account="${TF_MANAGER}"
-
-# Notebook 이미지를 빌드합니다. 성공한 뒤 이미지 조회로 확인합니다.
-gcloud builds submit 04.Jupiter-setup-image --project="${SBX_GKE_PROJECT}" --region="${REGION}" --account="${ADMIN_ACCOUNT}" --impersonate-service-account="${TF_MANAGER}" --service-account="${TF_MANAGER_RESOURCE}" --gcs-source-staging-dir="gs://${BUILD_STAGING_BUCKET}/jupyter-source" --config=04.Jupiter-setup-image/cloudbuild.yaml --substitutions="_BASE_IMAGE=${BASE_IMAGE},_IMAGE_REPO=${IMAGE_REPO},_IMAGE_TAG=${IMAGE_TAG}"
-```
-
-Build SUCCESS 후 아래 이미지 조회가 성공해야 합니다.
+운영자는 승인된 관리 VM `infra-son01`의 Test02 저장소 루트에서 Docker BuildKit으로 표준 이미지를 빌드하고 내부 AR에 게시합니다. 표준 이미지는 공통 APT 도구와 Google Cloud CLI, Python 라이브러리, Notebook 시작 스크립트를 포함합니다. Docker 빌드 환경에서 OS APT 저장소, Google Cloud APT 저장소와 내부 AR에 접근할 수 있어야 합니다. VM에서 접근이 허용된 APT 경로를 사용하고, VM 호스트와 Docker 빌드 환경의 접속 여부를 각각 확인합니다.
 
 ```bash
-gcloud artifacts docker images describe "${IMAGE_REPO}:${IMAGE_TAG}" --project="${SBX_GKE_PROJECT}" --account="${ADMIN_ACCOUNT}" --impersonate-service-account="${TF_MANAGER}"
+AR_HOST=asia-northeast3-docker.pkg.dev
+AR_REPO="$AR_HOST/gcp-sbx-edp-gke01/ar-sbxtest01-platform"
+AR_ACCOUNT=son@sonmap.net
+BASE_IMAGE="$AR_REPO/jupyterhub-k8s-singleuser-sample:4.2.0"
+IMAGE_TAG=4.2.0-r2-home
+IMAGE="$AR_REPO/jupyterhub-k8s-singleuser-standard:$IMAGE_TAG"
+TARGET_PLATFORM=linux/amd64
+NOTEBOOK_PIP_MODE=index
 ```
+
+`TARGET_PLATFORM`은 GKE 대상 노드에 맞춥니다. 예제 태그가 이미 게시되어 있으면 기존 이미지를 사용하거나, 변경 버전에 새로운 승인 태그를 지정합니다. 기존 과제별 배포에서 새 태그를 사용할 경우 사용자 홈 설정도 함께 적용합니다. [이미지 적용 절차](../04.Jupiter-setup-image/README.md)
+
+**1. Docker를 내부 AR에 인증하고 베이스 이미지를 확인합니다.**
+
+```bash
+( set -o pipefail; gcloud auth print-access-token --account="$AR_ACCOUNT" | docker login "$AR_HOST" --username oauth2accesstoken --password-stdin )
+docker pull --platform="$TARGET_PLATFORM" "$BASE_IMAGE"
+```
+
+**2. Python 패키지 설치 경로를 선택합니다.**
+
+- `index`는 Docker 빌드 안에서 필요한 Python 패키지와 의존성을 모두 받을 수 있을 때 사용합니다.
+- 일부만 받을 수 있으면 [표준 이미지 wheel 반입 절차](../04.Jupiter-setup-image/README.md#표준-이미지-wheel-반입)를 따라 완전한 wheel 모음을 `04.Jupiter-setup-image/wheelhouse/`에 준비하고 아래 설정을 적용합니다. Dockerfile은 이 모드에서 Python 인덱스에 접속하지 않습니다. APT 설치에는 승인된 APT 접근 경로가 계속 필요합니다.
+
+```bash
+NOTEBOOK_PIP_MODE=wheelhouse
+```
+
+**3. VM에서 빌드하고 확인 후 AR에 올립니다.**
+
+```bash
+DOCKER_BUILDKIT=1 docker build --platform="$TARGET_PLATFORM" --build-arg "BASE_IMAGE=$BASE_IMAGE" --build-arg "IMAGE_VERSION=$IMAGE_TAG" --build-arg "NOTEBOOK_PIP_MODE=$NOTEBOOK_PIP_MODE" --tag "$IMAGE" 04.Jupiter-setup-image
+docker run --rm --platform="$TARGET_PLATFORM" --entrypoint python "$IMAGE" -c 'import pandas, pyarrow, db_dtypes; from google.cloud import bigquery, storage'
+docker run --rm --platform="$TARGET_PLATFORM" --entrypoint sh "$IMAGE" -c 'command -v jupyterhub-singleuser && gcloud version'
+docker push "$IMAGE"
+docker pull --platform="$TARGET_PLATFORM" "$IMAGE"
+docker image inspect "$IMAGE" --format='{{range .RepoDigests}}{{println .}}{{end}}' | grep -F "${IMAGE%:*}@sha256:"
+```
+
+각 명령이 성공한 뒤 다음 명령을 실행합니다. 그룹 공유 PoC는 마지막 명령의 `이미지@sha256:…` 값을 승인 과제 JSON의 `image`에 넣고 배포합니다. 개발 중 추가 패키지는 [개발자 인터넷 PC → GCS → Notebook Pod 절차](../04.Jupiter-setup-image/README.md#개발자-추가-패키지-gcs-경유)를 사용합니다.
 
 ## 운영 자동화 경계
 
