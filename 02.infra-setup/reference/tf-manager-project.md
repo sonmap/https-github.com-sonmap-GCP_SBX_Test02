@@ -16,13 +16,13 @@ GKE와 자동화 자원을 **SBX_GKE_PROJECT=gcp-sbx-edp-gke01**에 함께 구�
 
 ## 작업 순서
 
-1. [공통 변수](infra-setup-commend.md#0-공통-변수)에서 SBX_GKE_PROJECT=gcp-sbx-edp-gke01을 설정합니다.
-2. [API·관리자 권한](infra-setup-commend.md#1-api와-관리자-권한)의 개별 gcloud 명령으로 API와 두 서비스 계정·권한을 준비합니다. 자동화와 서비스 계정 소속이 같으므로 프로젝트 간 SA 사용을 위한 조직 정책 예외 명령은 제거했습니다.
-3. VPC Admin이 [Shared VPC·네트워크](infra-setup-commend.md#2-shared-vpc와-네트워크)에서 gcp-sbx-edp-gke01의 Shared VPC 연결·Subnet·PSA·방화벽을 준비합니다. GKE와 자동화가 같은 프로젝트이므로 같은 연결·권한은 중복 실행하지 않습니다.
-4. VPC Admin이 [서브넷별 IAM](infra-setup-commend.md#2-1-서브넷별-iam)을 적용한 후 [공통 기반](infra-setup-commend.md#3-공통-기반)에서 버킷·AR·Private Pool·Run·Workflow 등 공통 기반을 준비합니다. 기존 GKE는 조회해 설정이 맞으면 생성을 건너뜁니다.
+1. [공통 변수](../infra-setup-commend.md#0-공통-변수)에서 SBX_GKE_PROJECT=gcp-sbx-edp-gke01을 설정합니다.
+2. [API·관리자 권한](../infra-setup-commend.md#1-api와-관리자-권한)의 개별 gcloud 명령으로 API와 두 서비스 계정·권한을 준비합니다. 자동화와 서비스 계정 소속이 같으므로 프로젝트 간 SA 사용을 위한 조직 정책 예외 명령은 제거했습니다.
+3. VPC Admin이 [Shared VPC·네트워크](../infra-setup-commend.md#2-shared-vpc와-네트워크)에서 gcp-sbx-edp-gke01의 Shared VPC 연결·Subnet·PSA·방화벽을 준비합니다. GKE와 자동화가 같은 프로젝트이므로 같은 연결·권한은 중복 실행하지 않습니다.
+4. VPC Admin이 [서브넷별 IAM](../infra-setup-commend.md#2-1-서브넷별-iam)을 적용한 후 [공통 기반](../infra-setup-commend.md#3-공통-기반)에서 버킷·AR·Private Pool·Run·Workflow 등 공통 기반을 준비합니다. 기존 GKE는 조회해 설정이 맞으면 생성을 건너뜁니다.
 5. 실제 Customer ID를 provisioner-env.yaml에 설정합니다. tf-manager의 Cloud Identity 그룹 관리자 역할을 확인하고, 새 Secret Manager에 Jupyter OAuth 값을 등록합니다. 인증서·DNS는 별도 진행합니다.
-6. [인프라 실행 절차](infra-setup-commend.md#4-oauth-값-등록)의 명령으로 플랫폼 릴리스·기본 이미지 미러링·Notebook 이미지 빌드를 수행합니다. [Private Pool 접속 점검](cloudbuild-private-gke-vpn-design.md)을 통과해야 합니다.
-7. 포털 JSON에 새 버킷·이미지와 새 release.json의 소스 주소·generation·SHA256을 반영한 뒤 [Deploy](../03.sandbox_deploy/03.1.request/legacy-deploy.md#공통-workflows-배포-명령)를 수행합니다.
+6. [인프라 실행 절차](../infra-setup-commend.md#4-oauth-값-등록)의 명령으로 플랫폼 릴리스·기본 이미지 미러링·Notebook 이미지 빌드를 수행합니다. [Private Pool 접속 점검](cloudbuild-private-gke-vpn-design.md)을 통과해야 합니다.
+7. 포털 JSON에 새 버킷·이미지와 새 release.json의 소스 주소·generation·SHA256을 반영한 뒤 [Deploy](../../03.sandbox_deploy/03.1.request/legacy-deploy.md#공통-workflows-배포-명령)를 수행합니다.
 
 ## 기존 운영 자원이 있는 경우
 

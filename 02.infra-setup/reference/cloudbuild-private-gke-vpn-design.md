@@ -23,7 +23,7 @@ Namespace 목록만 조회하는 점검입니다. 운영 VM의 kubeconfig와 Kub
 
 ```bash
 gcloud builds submit --no-source \
-  --config=02.infra-setup/check-private-gke.yaml \
+  --config=02.infra-setup/reference/check-private-gke.yaml \
   --project=gcp-sbx-edp-gke01 --region=asia-northeast3 \
   --account=son@sonmap.net \
   --service-account=projects/gcp-sbx-edp-gke01/serviceAccounts/tf-manager@gcp-sbx-edp-gke01.iam.gserviceaccount.com

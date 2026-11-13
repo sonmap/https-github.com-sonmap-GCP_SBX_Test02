@@ -79,13 +79,13 @@ gcloud builds worker-pools describe pool-sbxtest01 --project=gcp-sbx-edp-gke01 -
 **로컬 설정 확인**
 
 ```bash
-cat 02.infra-setup/check-private-gke.yaml
+cat 02.infra-setup/reference/check-private-gke.yaml
 ```
 
 **제출 계정: son@sonmap.net / 빌드 실행: tf-manager / 실행 풀: pool-sbxtest01**
 
 ```bash
-gcloud builds submit --no-source --project=gcp-sbx-edp-gke01 --region=asia-northeast3 --account=son@sonmap.net --service-account=projects/gcp-sbx-edp-gke01/serviceAccounts/tf-manager@gcp-sbx-edp-gke01.iam.gserviceaccount.com --config=02.infra-setup/check-private-gke.yaml
+gcloud builds submit --no-source --project=gcp-sbx-edp-gke01 --region=asia-northeast3 --account=son@sonmap.net --service-account=projects/gcp-sbx-edp-gke01/serviceAccounts/tf-manager@gcp-sbx-edp-gke01.iam.gserviceaccount.com --config=02.infra-setup/reference/check-private-gke.yaml
 ```
 
 Pool이 RUNNING이고 이 Build가 SUCCESS여야 합니다. 조회만 수행하며 Pod를 생성하지 않습니다. 관리 VM의 kubectl 성공을 Pool 접속 성공으로 대신하지 않습니다. 최신 커밋이 바뀌어도 이번 점검은 기존 runner:bootstrap을 사용하므로 이미지를 먼저 전부 다시 만들 필요는 없습니다.

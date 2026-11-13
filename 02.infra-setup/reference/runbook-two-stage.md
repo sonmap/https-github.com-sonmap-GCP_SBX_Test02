@@ -1,6 +1,6 @@
 # 실제 수행 절차 — 관리 VM에서 Notebook 접속까지
 
-> **현재 작업 기준:** 공통 인프라는 작업자가 개별 gcloud 명령으로 구축합니다. 과제는 포털이 GCS에 저장한 승인 JSON을 대상으로 작업자가 [Deploy 명령](../03.sandbox_deploy/03.1.request/legacy-deploy.md#공통-workflows-배포-명령)을 실행합니다. GCS 이벤트 자동 시작·포털 결과 자동 전달은 추후 적용하며 현재 필수 구축 단계가 아닙니다. 기존 Deploy 내부의 API·Build·Terraform·GKE 처리 코드는 사용합니다.
+> **현재 작업 기준:** 공통 인프라는 작업자가 개별 gcloud 명령으로 구축합니다. 과제는 포털이 GCS에 저장한 승인 JSON을 대상으로 작업자가 [Deploy 명령](../../03.sandbox_deploy/03.1.request/legacy-deploy.md#공통-workflows-배포-명령)을 실행합니다. GCS 이벤트 자동 시작·포털 결과 자동 전달은 추후 적용하며 현재 필수 구축 단계가 아닙니다. 기존 Deploy 내부의 API·Build·Terraform·GKE 처리 코드는 사용합니다.
 
 현재 저장소의 파일과 프로그램 동작을 기준으로 작성했습니다. 아래 명령은 **Test02 저장소 루트에서** 실행합니다. 각 코드 블록의 주석과 완료 기준을 확인하며 진행합니다. 문서의 명령은 작성·검사한 것이며 실제 GCP에 실행한 기록은 아닙니다.
 
@@ -48,13 +48,13 @@ gcloud projects describe "${SBX_GKE_PROJECT}" --account="${ADMIN_ACCOUNT}" --for
 mkdir -p .local
 ```
 
-완료 기준: 도구가 실행되고 관리자 계정이 인증되어 있으며 통합 프로젝트 gcp-sbx-edp-gke01이 조회됩니다. 새 터미널에서는 위 변수를 다시 설정합니다. 실제 계정·CIDR을 바꿀 경우 [1차 인프라 구축](infra-setup-commend.md)의 변수 선언, YAML 및 JSON Schema에 고정된 대상도 함께 맞춰야 합니다.
+완료 기준: 도구가 실행되고 관리자 계정이 인증되어 있으며 통합 프로젝트 gcp-sbx-edp-gke01이 조회됩니다. 새 터미널에서는 위 변수를 다시 설정합니다. 실제 계정·CIDR을 바꿀 경우 [1차 인프라 구축](../infra-setup-commend.md)의 변수 선언, YAML 및 JSON Schema에 고정된 대상도 함께 맞춰야 합니다.
 
 ## 1. 관리자 API·서비스 계정·IAM 준비
 
 수행자: 대상 Project/Folder IAM과 필요한 Billing 범위를 관리할 수 있는 기존 관리자.
 
-[API·관리자 권한](infra-setup-commend.md#1-api와-관리자-권한)의 **변수 선언부터** 실행합니다. API 활성화 → 서비스 에이전트 → sbx-manager/tf-manager → 각 프로젝트·Folder IAM 순서입니다. SA 조회가 성공하면 해당 create 명령은 건너뜁니다. Billing 권한은 새 프로젝트를 생성할 때만 선택합니다.
+[API·관리자 권한](../infra-setup-commend.md#1-api와-관리자-권한)의 **변수 선언부터** 실행합니다. API 활성화 → 서비스 에이전트 → sbx-manager/tf-manager → 각 프로젝트·Folder IAM 순서입니다. SA 조회가 성공하면 해당 create 명령은 건너뜁니다. Billing 권한은 새 프로젝트를 생성할 때만 선택합니다.
 
 ```bash
 # 관리자 문서를 적용한 뒤 두 계정을 조회합니다.
@@ -71,7 +71,7 @@ gcloud services list --enabled --project="${SBX_GKE_PROJECT}" --account="${ADMIN
 
 실행 계정: 실제 VPC Admin. Host 네트워크·방화벽·PSA 관리 권한이 있는 계정으로 수행합니다.
 
-[Shared VPC·네트워크](infra-setup-commend.md#2-shared-vpc와-네트워크)의 변수를 확인한 뒤, 각 조회 결과를 보고 필요한 생성/갱신 명령만 실행합니다. 기존 Main GKE 대역과 Private Pool PSA만 기본 대상으로 유지합니다. Cloud Run 전용·과제별 서브넷은 생성하지 않습니다.
+[Shared VPC·네트워크](../infra-setup-commend.md#2-shared-vpc와-네트워크)의 변수를 확인한 뒤, 각 조회 결과를 보고 필요한 생성/갱신 명령만 실행합니다. 기존 Main GKE 대역과 Private Pool PSA만 기본 대상으로 유지합니다. Cloud Run 전용·과제별 서브넷은 생성하지 않습니다.
 
 ```bash
 export SBX_GKE_PROJECT="gcp-sbx-edp-gke01"
@@ -86,11 +86,11 @@ gcloud compute firewall-rules describe fw-sbxtest01-alb-hc --project="${VPC_HOST
 
 ## 2-1. 서브넷별 사용 권한 부여
 
-VPC Admin이 [서브넷별 IAM](infra-setup-commend.md#2-1-서브넷별-iam)를 수행합니다. Main GKE Subnet에는 tf-manager·GKE 서비스 에이전트·Google APIs 서비스 에이전트, ALB VIP Subnet에는 tf-manager의 Network User를 부여합니다. Pod Secondary와 프록시 전용 대역에는 별도 사용자 바인딩을 넣지 않습니다. 기존 광역 권한 정리는 새 바인딩·실제 동작 확인 후 별도 수행합니다.
+VPC Admin이 [서브넷별 IAM](../infra-setup-commend.md#2-1-서브넷별-iam)를 수행합니다. Main GKE Subnet에는 tf-manager·GKE 서비스 에이전트·Google APIs 서비스 에이전트, ALB VIP Subnet에는 tf-manager의 Network User를 부여합니다. Pod Secondary와 프록시 전용 대역에는 별도 사용자 바인딩을 넣지 않습니다. 기존 광역 권한 정리는 새 바인딩·실제 동작 확인 후 별도 수행합니다.
 
 ## 3. 공통 실행 기반 구축
 
-실행 계정: tf-manager. 단 Private Pool 초기 구성 절은 VPC_ADMIN_ACCOUNT로 수행합니다. 2-1단계 완료 후 [공통 기반](infra-setup-commend.md#3-공통-기반)를 열어 다음 순서로 명령을 실행합니다.
+실행 계정: tf-manager. 단 Private Pool 초기 구성 절은 VPC_ADMIN_ACCOUNT로 수행합니다. 2-1단계 완료 후 [공통 기반](../infra-setup-commend.md#3-공통-기반)를 열어 다음 순서로 명령을 실행합니다.
 
 | 문서 안 순서 | 실제 작업 |
 |---|---|
@@ -168,7 +168,7 @@ Workspace 최고 관리자는 이 서비스 계정에 Groups Administrator 역�
 실행 계정: tf-manager Build. 3단계가 만든 bootstrap 이미지를 사용해 Namespace 목록만 조회합니다. [점검 YAML 사용법](cloudbuild-private-gke-vpn-design.md)에 따라 DNS 엔드포인트에서 조회합니다.
 
 ```bash
-gcloud builds submit --no-source --config=02.infra-setup/check-private-gke.yaml --project="${SBX_GKE_PROJECT}" --region="${REGION}" --service-account="${TF_MANAGER_RESOURCE}" --account="${ADMIN_ACCOUNT}" --impersonate-service-account="${TF_MANAGER}"
+gcloud builds submit --no-source --config=02.infra-setup/reference/check-private-gke.yaml --project="${SBX_GKE_PROJECT}" --region="${REGION}" --service-account="${TF_MANAGER_RESOURCE}" --account="${ADMIN_ACCOUNT}" --impersonate-service-account="${TF_MANAGER}"
 ```
 
 완료 기준: Build가 SUCCESS이고 로그에 Namespace 목록이 나옵니다. 실패하면 [사설 접속 점검 문서](cloudbuild-private-gke-vpn-design.md)에서 인증 실패와 라우팅 실패를 구분합니다. **이 확인이 통과하기 전에는 과제 신청을 제출하지 않습니다.** 이 결과는 DNS 엔드포인트 조회 성공을 확인합니다. Control Plane 사설 IP 경로는 별도로 점검합니다.
@@ -200,7 +200,7 @@ jq '{release_id,git_commit,archive_uri,generation,sha256,runner_image,provisione
 
 ## 7. Chart와 기본 이미지 미러링
 
-먼저 [infra-son01에서 Helm 차트 수동 반입](infra-setup-commend.md#infra-son01에서-helm-차트-수동-반입)을 완료합니다. 아래 명령은 tf-manager Build로 기본 이미지를 복사합니다.
+먼저 [infra-son01에서 Helm 차트 수동 반입](../infra-setup-commend.md#infra-son01에서-helm-차트-수동-반입)을 완료합니다. 아래 명령은 tf-manager Build로 기본 이미지를 복사합니다.
 
 ```bash
 export AUTOMATION_IMAGE="${REGION}-docker.pkg.dev/${SBX_GKE_PROJECT}/ar-sbxtest01-platform/sbxtest01-automation-runner:bootstrap"
@@ -215,17 +215,17 @@ gcloud artifacts docker images list "${REGION}-docker.pkg.dev/${SBX_GKE_PROJECT}
 
 ## 8. 사용자 Notebook 표준 이미지 빌드
 
-관리 VM `infra-son01`에서 [표준 이미지 빌드·게시 명령](infra-setup-commend.md#7-notebook-표준-이미지-빌드)을 실행합니다. 내부 AR에서 이미지 digest가 조회되면 완료입니다. 개발자 추가 패키지는 [GCS 경유 절차](../03.sandbox_deploy/03.3.gke/notebook-image/README.md#개발자-추가-패키지-gcs-경유)로 설치합니다.
+관리 VM `infra-son01`에서 [표준 이미지 빌드·게시 명령](../infra-setup-commend.md#7-notebook-표준-이미지-빌드)을 실행합니다. 내부 AR에서 이미지 digest가 조회되면 완료입니다. 개발자 추가 패키지는 [GCS 경유 절차](../../03.sandbox_deploy/03.3.gke/notebook-image/README.md#개발자-추가-패키지-gcs-경유)로 설치합니다.
 
 ## 9. 수동 연동 시험 전용 — 실제 과제 신청값과 릴리스 반영
 
-운영 요청은 포털이 작성·승인하여 GCS에 저장합니다. 이 단계와 10단계는 포털 없이 시험할 때만 사용합니다. 현재 GCS 이벤트 시작 및 Build 완료 결과의 포털 전달은 미구현이므로, GCS 저장만으로 운영 자동화가 시작된다고 판단하지 않습니다. 포털은 릴리스 메타데이터도 JSON에 반영해야 합니다. [요청 작성 규칙](../03.sandbox_deploy/03.1.request/request-format/README.md)에 따라 과제별 작업용 신청서를 `.local/request-draft.json`에 준비합니다.
+운영 요청은 포털이 작성·승인하여 GCS에 저장합니다. 이 단계와 10단계는 포털 없이 시험할 때만 사용합니다. 현재 GCS 이벤트 시작 및 Build 완료 결과의 포털 전달은 미구현이므로, GCS 저장만으로 운영 자동화가 시작된다고 판단하지 않습니다. 포털은 릴리스 메타데이터도 JSON에 반영해야 합니다. [요청 작성 규칙](../../03.sandbox_deploy/03.1.request/request-format/README.md)에 따라 과제별 작업용 신청서를 `.local/request-draft.json`에 준비합니다.
 
 현재 40-data는 과제 Dataset/GCS/Workload Identity를 관리하는 필수 배포 단계입니다. 기존 별도 BQ 프로젝트만 조회하고 과제 Dataset/GCS를 구성하지 않는 모드는 아직 없습니다. 그런 설계가 목적이면 신청 전에 40-data 코드를 별도 변경해야 합니다.
 
 ```bash
 # 이번 릴리스 정보를 반영한 작업용 신청서를 만듭니다.
-python3 02.infra-setup/set-request-release.py .local/request-draft.json .local/release.json .local/request.json
+python3 02.infra-setup/reference/set-request-release.py .local/request-draft.json .local/release.json .local/request.json
 
 # Request ID·사용자·기존 자원·source를 검토합니다.
 jq '{request_id,approval,task,identity,project,network,data,gke,source}' .local/request.json

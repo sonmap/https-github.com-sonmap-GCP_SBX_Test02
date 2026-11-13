@@ -98,7 +98,7 @@ gcloud builds submit . --config=03.sandbox_deploy/03.3.gke/cloudbuild/platform-r
 
 ## 3. 요청 준비 (포탈 JSON)
 
-[요청 작성 규칙](../03.sandbox_deploy/03.1.request/request-format/README.md)에 따라 승인된 일련번호로 신규 과제 요청을 작성합니다. `project.create_project=true`와 `identity.create_jupyter_gsa=true`를 지정하고 실제 승인 정보와 새 릴리스 결과를 넣습니다. 예전 승인 정보나 manual-20261107의 ZIP/해시를 재사용하지 않습니다.
+[요청 작성 규칙](../../03.sandbox_deploy/03.1.request/request-format/README.md)에 따라 승인된 일련번호로 신규 과제 요청을 작성합니다. `project.create_project=true`와 `identity.create_jupyter_gsa=true`를 지정하고 실제 승인 정보와 새 릴리스 결과를 넣습니다. 예전 승인 정보나 manual-20261107의 ZIP/해시를 재사용하지 않습니다.
 
 ```bash
 gcloud storage cat gs://gcp-sbx-edp-gke01-sbxtest01-bundles/platform-releases/sbx03-20261107-v1/release.json --account=son@sonmap.net
@@ -163,7 +163,7 @@ CLOUDSDK_CORE_ACCOUNT=son@sonmap.net kubectl --kubeconfig="$HOME/.kube/config-sb
 
 ### 6.2 GKE 복구와 Private Pool 점검
 
-[공통 기반 18번의 Autopilot 생성 명령](infra-setup-commend.md#3-공통-기반)으로 `gcp-sbx-edp-gke01` / `asia-northeast3`의 `gke-sbx-main-an3`을 다시 만듭니다. 기존 Shared VPC `vpc-prod-edp-hub`, 노드 서브넷 `subnet-prod-sbx-gke-01`, Pod 보조 대역 `subnet-prod-sbx-pod-01`을 사용합니다.
+[공통 기반 18번의 Autopilot 생성 명령](../infra-setup-commend.md#3-공통-기반)으로 `gcp-sbx-edp-gke01` / `asia-northeast3`의 `gke-sbx-main-an3`을 다시 만듭니다. 기존 Shared VPC `vpc-prod-edp-hub`, 노드 서브넷 `subnet-prod-sbx-gke-01`, Pod 보조 대역 `subnet-prod-sbx-pod-01`을 사용합니다.
 
 생성이 끝나면 관리 VM에서 DNS 엔드포인트를 설정하고 kubeconfig를 다시 받습니다.
 
@@ -285,7 +285,7 @@ CLOUDSDK_CORE_ACCOUNT=son@sonmap.net kubectl --kubeconfig="$HOME/.kube/config-sb
 
 ### 6.6 사용자별 홈과 BigQuery 최종 확인
 
-[Notebook 이미지 빌드 및 Helm 적용](../03.sandbox_deploy/03.3.gke/notebook-image/README.md)에서 `4.2.0-r2-home`을 적용합니다. 시험 중 Docker 빌더가 `COPY --chmod`를 지원하지 않아 Dockerfile을 `COPY`와 `RUN chmod`로 나눴습니다. 수정 후 빌드가 완료됐고, 기존 `sbx03` Helm 업데이트는 `REVISION: 2`, `STATUS: deployed`로 확인했습니다. 이전 runner 릴리스로 다시 배포하면 현재 Helm 값과 Notebook 이미지 태그를 확인하고 필요하면 홈 설정을 다시 적용합니다.
+[Notebook 이미지 빌드 및 Helm 적용](../../03.sandbox_deploy/03.3.gke/notebook-image/README.md)에서 `4.2.0-r2-home`을 적용합니다. 시험 중 Docker 빌더가 `COPY --chmod`를 지원하지 않아 Dockerfile을 `COPY`와 `RUN chmod`로 나눴습니다. 수정 후 빌드가 완료됐고, 기존 `sbx03` Helm 업데이트는 `REVISION: 2`, `STATUS: deployed`로 확인했습니다. 이전 runner 릴리스로 다시 배포하면 현재 Helm 값과 Notebook 이미지 태그를 확인하고 필요하면 홈 설정을 다시 적용합니다.
 
 ```mermaid
 flowchart TD

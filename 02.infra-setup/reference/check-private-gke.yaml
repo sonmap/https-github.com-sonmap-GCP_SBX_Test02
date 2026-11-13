@@ -1,6 +1,6 @@
 # Read-only connectivity check, executed by an explicitly specified tf-manager Build.
 # Run after bootstrap-build has published the :bootstrap runner image.
-# Usage and success criteria: 02.infra-setup/cloudbuild-private-gke-vpn-design.md
+# Usage and success criteria: 02.infra-setup/reference/cloudbuild-private-gke-vpn-design.md
 steps:
   - name: asia-northeast3-docker.pkg.dev/gcp-sbx-edp-gke01/ar-sbxtest01-platform/sbxtest01-automation-runner:bootstrap
     entrypoint: bash

@@ -47,13 +47,13 @@ VPC Admin은 BigQuery 조회 권한의 요청 창구입니다. 네트워크 관�
 - 로그인 대상 예시: https://jupyter-sbx01.sonmap.net
 - Callback URL 예시: https://jupyter-sbx01.sonmap.net/hub/oauth_callback
 - 발급값은 Secret Manager의 jupyter-oauth-client-id / jupyter-oauth-client-secret에 등록합니다.
-- [등록 명령](infra-setup-commend.md#4-oauth-값-등록)을 사용합니다.
+- [등록 명령](../infra-setup-commend.md#4-oauth-값-등록)을 사용합니다.
 
 그룹 관리자 역할 부여에는 tf-manager의 Unique ID를 사용하며, Jupyter OAuth Client ID/Secret은 사용자 로그인용입니다. 두 가지는 서로 다른 설정이며 인증서·DNS 준비를 대신하지 않습니다.
 
 ## 작업 순서
 
-VPC Admin 요청과 인증서·DNS 별도 준비를 먼저 착수합니다. 작업자는 인프라 gcloud 명령을 수행하고, 해당 외부 준비가 완료된 뒤 Private Pool 접속·사용자 인증을 확인합니다. 이후 [Deploy 명령](../03.sandbox_deploy/03.1.request/legacy-deploy.md#공통-workflows-배포-명령)을 실행합니다.
+VPC Admin 요청과 인증서·DNS 별도 준비를 먼저 착수합니다. 작업자는 인프라 gcloud 명령을 수행하고, 해당 외부 준비가 완료된 뒤 Private Pool 접속·사용자 인증을 확인합니다. 이후 [Deploy 명령](../../03.sandbox_deploy/03.1.request/legacy-deploy.md#공통-workflows-배포-명령)을 실행합니다.
 
 ## VPC Admin 요청 3 — 내부 ALB
 
@@ -61,4 +61,4 @@ VIP용 172.31.96.0/27과 VIP 실제 할당 VIP는 중복 확인 전 후보입니
 
 ## VPC Admin 요청 4 — 서브넷 IAM·Pool 초기 준비
 
-[Shared VPC·네트워크](infra-setup-commend.md#2-shared-vpc와-네트워크)로 생성·재사용 범위를 확정한 뒤 [서브넷별 IAM](infra-setup-commend.md#2-1-서브넷별-iam)의 네 개 바인딩을 적용합니다. 프록시 전용 Subnet의 사용자 Network User는 만들지 않습니다. Host Service Agent User는 프로젝트 범위로 유지합니다. 03-foundation의 Private Pool 초기 생성 절은 VPC_ADMIN_ACCOUNT로 수행하며 배포 계정 tf-manager는 준비된 Pool을 사용합니다. VPC Admin은 Host 네트워크·방화벽·PSA·Shared VPC·Subnet IAM 관리 권한을 사전에 보유해야 하며, 해당 권한을 tf-manager에 일괄 위임하지 않습니다.
+[Shared VPC·네트워크](../infra-setup-commend.md#2-shared-vpc와-네트워크)로 생성·재사용 범위를 확정한 뒤 [서브넷별 IAM](../infra-setup-commend.md#2-1-서브넷별-iam)의 네 개 바인딩을 적용합니다. 프록시 전용 Subnet의 사용자 Network User는 만들지 않습니다. Host Service Agent User는 프로젝트 범위로 유지합니다. 03-foundation의 Private Pool 초기 생성 절은 VPC_ADMIN_ACCOUNT로 수행하며 배포 계정 tf-manager는 준비된 Pool을 사용합니다. VPC Admin은 Host 네트워크·방화벽·PSA·Shared VPC·Subnet IAM 관리 권한을 사전에 보유해야 하며, 해당 권한을 tf-manager에 일괄 위임하지 않습니다.
