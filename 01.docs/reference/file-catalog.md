@@ -84,14 +84,12 @@
 </details>
 
 <details>
-<summary>04.Jupiter-setup-image · Notebook 이미지와 시작 설정 (7개)</summary>
+<summary>04.Jupiter-setup-image · Notebook 이미지와 시작 설정 (5개)</summary>
 
 | 폴더 | 파일명 | 역할 | 수행 순서 |
 |---|---|---|---|
 | `04.Jupiter-setup-image` | [`Dockerfile`](../../04.Jupiter-setup-image/Dockerfile) | Notebook 표준 이미지에 라이브러리와 시작 스크립트 추가 | 1차 6 · Notebook 이미지 빌드 |
 | `04.Jupiter-setup-image` | [`README.md`](../../04.Jupiter-setup-image/README.md) | 해당 기능 설명서 | 1차 6 · 빌드 안내 / 2차 3 · 재적용 |
-| `04.Jupiter-setup-image` | [`build-gcloud.sh`](../../04.Jupiter-setup-image/build-gcloud.sh) | 기존 Cloud Build 호환용 | 이전 실행 경로 |
-| `04.Jupiter-setup-image` | [`cloudbuild.yaml`](../../04.Jupiter-setup-image/cloudbuild.yaml) | 기존 Cloud Build 호환 설정 | 이전 실행 경로 |
 | `04.Jupiter-setup-image` | [`requirements.txt`](../../04.Jupiter-setup-image/requirements.txt) | 표준 이미지의 공통 Python 패키지 | 관리 VM 빌드 |
 | `04.Jupiter-setup-image` | [`.dockerignore`](../../04.Jupiter-setup-image/.dockerignore) | 빌드 입력을 Dockerfile·설치 목록·시작 스크립트·wheel로 제한 | 관리 VM 빌드 |
 | `04.Jupiter-setup-image` | [`start-sandbox-notebook.sh`](../../04.Jupiter-setup-image/start-sandbox-notebook.sh) | 사용자별 마운트 경로를 HOME으로 설정하고 Notebook 서버 시작 | 2차 3 · Notebook 시작 시 자동 |
