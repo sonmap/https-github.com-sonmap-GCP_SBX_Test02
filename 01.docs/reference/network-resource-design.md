@@ -53,7 +53,8 @@ Private Pool의 peered-network-ip-range도 N5의 10.250.0.0/24를 참조합니�
 | 자원 | 이름 / 기준 | 프로젝트 | Subnet 필요 여부 | 실행·관리 |
 |---|---|---|---|---|
 | GKE Autopilot | gke-sbx-main-an3 | gcp-sbx-edp-gke01 | N1·N2, N3 제어 영역 설정 | 공통 기반 최초 구성·기존 재사용 |
-| Cloud Build 기본 Pool | 이미지 빌드·릴리스·외부 Chart/이미지 미러링 | gcp-sbx-edp-gke01 | 사용자 Subnet 불필요 | tf-manager, 작업자가 빌드 명령 실행 |
+| 관리 VM `infra-son01` | 외부 Helm 차트 수동 다운로드·AR 업로드 | 기존 관리 VM | 관리망 및 HTTPS 접근 | 승인 운영자 |
+| Cloud Build 기본 Pool | 이미지 빌드·릴리스·기본 컨테이너 이미지 복사 | gcp-sbx-edp-gke01 | 사용자 Subnet 불필요 | tf-manager, 작업자가 빌드 명령 실행 |
 | Cloud Build Private Pool | pool-sbxtest01 | gcp-sbx-edp-gke01 | N5 PSA 연결 사용, 일반 Subnet 생성 아님 | e2-standard-4 / disk 100GB / no-public-egress |
 | Infrastructure Manager | 과제별 group/project/network/project-iam/data Deployment | gcp-sbx-edp-gke01 | 자체 전용 Subnet 없음, 현재 Terraform 실행에 Private Pool 사용 | tf-manager |
 | Cloud Run | run-sbxtest01-provisioner | gcp-sbx-edp-gke01 | 전용 Subnet 없음 | sbx-manager, 요청 검증·Build 시작 |

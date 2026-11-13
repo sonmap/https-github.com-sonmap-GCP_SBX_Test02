@@ -27,7 +27,7 @@ flowchart TD
     F -->|실패| X["권한·라우팅 수정"]
     X --> F
     F -->|성공| G["6. 플랫폼 릴리스 게시"]
-    G --> H["7. Chart·기본 이미지 미러링"]
+    G --> H["7. 관리 VM 차트 반입·기본 이미지 복사"]
     H --> I["8. Notebook 이미지 빌드"]
     I --> J["9. 작업자가 과제 Deploy 명령 실행"]
 ```
@@ -42,7 +42,7 @@ flowchart TD
 | 4 | Workspace·OAuth 담당자 인증 준비 / VPC Admin 사설 경로·BQ 권한 요청 / 인증서·DNS 별도 진행 | [OAuth 등록 명령](../../02.sandbox_setup_01_gcloud/04-manual-gcloud.md#4-oauth-값-등록), [그룹 관리자 역할 직접 부여](runbook-two-stage.md#4-2-cloud-identity-그룹-관리자-역할), [인증·도메인 안내](jupyterhub-internal-alb-oauth-runbook.md) | [01.docs](../), [02.gcloud](../../02.sandbox_setup_01_gcloud) | OAuth Secret ENABLED·tf-manager 그룹 관리자 역할 부여·도메인/인증서 준비 |
 | 5 | 운영자: Private Pool에서 GKE API 조회 | [접속 점검 명령](runbook-two-stage.md#5-private-pool에서-gke-사설-api-연결-확인), [점검 YAML](../../03.cloudbuild/check-private-gke.yaml) | [01.docs](../) | 점검 Build SUCCESS |
 | 6 | 운영자: API·배포 도구 이미지와 Terraform 소스 게시 | [플랫폼 릴리스 명령](../../02.sandbox_setup_01_gcloud/04-manual-gcloud.md#5-플랫폼-릴리스-게시) | [03.cloudbuild](../../03.cloudbuild) | Build SUCCESS·release.json 생성 |
-| 7 | 운영자: Chart·기본 이미지를 내부 AR로 복사 | [미러링 명령](../../02.sandbox_setup_01_gcloud/04-manual-gcloud.md#6-chart와-기본-이미지-미러링) | [03.cloudbuild](../../03.cloudbuild) | AR 차트 조회와 기본 이미지 Build SUCCESS |
+| 7 | 운영자: 관리 VM에서 차트 반입, 기본 이미지 복사 | [차트 수동 명령](../../02.sandbox_setup_01_gcloud/04-manual-gcloud.md#infra-son01에서-helm-차트-수동-반입) | [기본 이미지 복사](../../03.cloudbuild/mirror-jupyterhub-images.yaml) | AR 차트 조회와 기본 이미지 Build SUCCESS |
 | 8 | 운영자: Notebook 표준 이미지 빌드 | [Notebook 빌드 명령](../../02.sandbox_setup_01_gcloud/04-manual-gcloud.md#7-notebook-표준-이미지-빌드) | [04.Notebook 이미지](../../04.Jupiter-setup-image) | 이미지 조회 성공 |
 | 9 | 운영자: GCS의 승인 JSON을 지정해 Deploy 시작·결과 확인 | [Deploy 실행 명령](../../02.sandbox_setup_01_gcloud/05-deploy.md) | [02.gcloud](../../02.sandbox_setup_01_gcloud), [07.API](../../07.sandbox_request_api) | 부모·자식 Build SUCCESS·사용자 접속 확인 |
 

@@ -51,7 +51,7 @@ export SBX_PROJECT="pjt-net-hub-base"         # 과제 자원·Query Job
 |---|---|---|
 | 01 | `01.docs/` | 실행 설명서·구성도 먼저 확인 |
 | 02 | `02.sandbox_setup_01_gcloud/` | 최초 인프라·권한 준비 |
-| 03 | `03.cloudbuild/` | 실행 이미지 빌드·릴리스·미러링 준비 |
+| 03 | `03.cloudbuild/` | 실행 이미지 빌드·릴리스·기본 컨테이너 이미지 복사 |
 | 04 | `04.Jupiter-setup-image/` | 사용자 Notebook 이미지 준비 |
 | 05 | `05.sandbox_json/` | 과제 신청 JSON 작성 |
 | 06 | `06.sandbox_json_rules/` | 신청 JSON 필수 항목·허용값 검사 |
@@ -111,4 +111,4 @@ flowchart TD
 원본: `sonmap/Gcp_Managed_GKE_GIT_ETC_09` @ `4f0cae91c6483380b4e2fb2b705a63129db395eb`.
 원본 저장소는 수정하지 않았습니다. 이 저장소의 변경만으로 GCP 자원이 생성되지는 않습니다.
 
-관리자 준비 작업은 [개별 gcloud 실행 문서](02.sandbox_setup_01_gcloud/04-manual-gcloud.md)를 사용합니다. shell 실행 없이 OAuth 등록·릴리스·미러링·Notebook 빌드를 수행합니다. 과제 요청은 포털→GCS가 운영 기준이며, 수동 요청 제출은 연동 시험용입니다. GCS 이벤트 시작과 배포 결과의 포털 전달은 추가 구현 대상입니다.
+관리자 준비 작업은 [개별 gcloud 실행 문서](02.sandbox_setup_01_gcloud/04-manual-gcloud.md)를 사용합니다. OAuth 등록, 플랫폼 릴리스, 기본 이미지 복사, Notebook 빌드 명령을 제공합니다. Helm 차트는 [infra-son01에서 수동으로 AR에 반입](02.sandbox_setup_01_gcloud/04-manual-gcloud.md#infra-son01에서-helm-차트-수동-반입)합니다. 과제 요청은 포털→GCS가 운영 기준이며, 수동 요청 제출은 연동 시험용입니다. GCS 이벤트 시작과 배포 결과의 포털 전달은 추가 구현 대상입니다.

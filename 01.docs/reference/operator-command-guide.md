@@ -944,7 +944,7 @@ gcloud container clusters update gke-sbx-main-an3 --project=gcp-sbx-edp-gke01 --
 
 ## 10. 배포 도구·Helm 차트·런타임·Notebook 이미지
 
-모든 Build 제출 계정: **son@sonmap.net**. 빌드 내부 계정: **tf-manager**. 실행 위치: 저장소 루트. 외부 다운로드가 필요한 이 단계는 기본 Build 풀을 사용하며 Private Pool을 지정하지 않습니다.
+모든 Build 제출 계정: **son@sonmap.net**. 빌드 내부 계정: **tf-manager**. 실행 위치: 저장소 루트. 이미지 빌드·복사는 기본 Build 풀을 사용합니다. Helm 차트 반입은 관리 VM에서 수동으로 실행합니다.
 
 **명령 132 — 배포 도구 이미지 빌드**
 

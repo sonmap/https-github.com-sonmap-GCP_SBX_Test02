@@ -69,75 +69,60 @@ Build SUCCESS 후 bundles 버킷의 platform-releases/${RELEASE_ID}/release.json
 
 ## 6. Chart와 기본 이미지 미러링
 
-**기존 · Cloud Build에서 차트 반입**
-
-```mermaid
-sequenceDiagram
-    participant O as 운영자
-    participant B as Cloud Build
-    participant H as 공개 Helm 저장소
-    participant A as Artifact Registry
-    O->>B: gcloud builds submit
-    B->>H: helm repo add 및 helm pull
-    H-->>B: JupyterHub 차트
-    B->>A: helm push
-```
-
-**변경 · infra-son01에서 차트 반입**
-
-```mermaid
-sequenceDiagram
-    participant O as 운영자
-    participant V as 인프라 VM infra-son01
-    participant H as 공개 Helm 저장소
-    participant A as Artifact Registry
-    O->>V: Bash에서 수동 실행
-    V->>H: helm pull
-    H-->>V: jupyterhub-4.2.0.tgz
-    V->>A: helm registry login 및 helm push
-    V->>A: helm show chart로 버전 확인
-```
-
 ### infra-son01에서 Helm 차트 수동 반입
 
-`infra-son01`에 로그인한 뒤 같은 Bash 창에서 실행합니다. VM에서 외부 Helm 저장소의 HTTPS 주소와 대상 AR에 접속할 수 있어야 합니다. Helm과 gcloud가 필요합니다. `AR_ACCOUNT`에는 대상 저장소의 읽기·쓰기 권한을 가진 gcloud 로그인 계정을 사용합니다. 아래 대상은 현재 배포가 읽는 Sandbox AR입니다. Edge AR을 사용하려면 업로드 대상과 배포 환경의 `JUPYTER_CHART_URI`를 같은 저장소로 맞춥니다.
+승인된 관리 VM `infra-son01`에 로그인한 뒤, 같은 Bash 창에서 다음 명령을 순서대로 실행합니다. VM에는 Helm 3과 gcloud가 필요하며, 공식 Helm 저장소와 AR에 HTTPS로 접근할 수 있어야 합니다. AR은 Docker 형식 저장소를 사용합니다. `AR_ACCOUNT`는 대상 저장소에서 읽기·업로드 권한이 있는 gcloud 계정으로 지정합니다. 차트 반입은 관리 VM에서 완료하므로 GKE 접속과 Cloud Build 제출이 필요 없습니다.
 
-**1. 외부 차트 다운로드**
+```mermaid
+sequenceDiagram
+    participant V as 관리 VM infra-son01
+    participant H as 공식 JupyterHub Helm 저장소
+    participant A as 내부 Artifact Registry
+    V->>A: AR 로그인 및 4.2.0 등록 여부 확인
+    alt 차트 버전 미등록
+        V->>H: helm pull jupyterhub 4.2.0
+        H-->>V: jupyterhub-4.2.0.tgz
+        V->>A: helm push
+    end
+    V->>A: helm show chart로 등록 확인
+```
+
+**1. 대상 설정 및 AR 로그인**
 
 ```bash
 CHART_VERSION=4.2.0
-CHART_DIR="$(mktemp -d)"
-
-helm pull jupyterhub --repo https://hub.jupyter.org/helm-chart/ \
-  --version "$CHART_VERSION" --destination "$CHART_DIR" &&
-  helm show chart "$CHART_DIR/jupyterhub-${CHART_VERSION}.tgz"
-```
-
-`name: jupyterhub`와 `version: 4.2.0`을 확인합니다.
-
-**2. AR 인증과 기존 차트 확인**
-
-```bash
+CHART_SOURCE=https://hub.jupyter.org/helm-chart/
 AR_HOST=asia-northeast3-docker.pkg.dev
 AR_REPO="oci://${AR_HOST}/gcp-sbx-edp-gke01/ar-sbxtest01-platform"
+JUPYTER_CHART_URI="${AR_REPO}/jupyterhub"
 AR_ACCOUNT=son@sonmap.net
 
-(
-  set -o pipefail
-  gcloud auth print-access-token --account="$AR_ACCOUNT" |
-    helm registry login "$AR_HOST" --username oauth2accesstoken --password-stdin
-) &&
-  helm show chart "$AR_REPO/jupyterhub" --version "$CHART_VERSION"
+( set -o pipefail; gcloud auth print-access-token --account="$AR_ACCOUNT" | helm registry login "$AR_HOST" --username oauth2accesstoken --password-stdin )
 ```
 
-해당 버전이 조회되면 그대로 사용합니다. 인증·통신 오류가 나면 원인을 확인합니다. **해당 버전이 없다고 확인된 경우에만** 아래 명령으로 올립니다.
-
-**3. 업로드와 조회**
+로그인이 성공한 뒤 대상 차트 버전을 조회합니다.
 
 ```bash
-helm push "$CHART_DIR/jupyterhub-${CHART_VERSION}.tgz" "$AR_REPO" &&
-  helm show chart "$AR_REPO/jupyterhub" --version "$CHART_VERSION"
+helm show chart "$JUPYTER_CHART_URI" --version "$CHART_VERSION"
 ```
+
+`name: jupyterhub`와 `version: 4.2.0`이 보이면 게시된 버전을 사용합니다. 해당 버전이 등록되어 있지 않다고 확인한 경우 2단계로 진행합니다. 인증·권한·네트워크 오류는 먼저 해결합니다.
+
+**2. 공식 Helm 저장소에서 패키지 다운로드**
+
+```bash
+CHART_DIR="$(mktemp -d)" && CHART_PACKAGE="$CHART_DIR/jupyterhub-${CHART_VERSION}.tgz" && helm pull jupyterhub --repo "$CHART_SOURCE" --version "$CHART_VERSION" --destination "$CHART_DIR" && helm show chart "$CHART_PACKAGE"
+```
+
+다운로드한 패키지의 `name: jupyterhub`와 `version: 4.2.0`을 확인합니다.
+
+**3. 내부 AR 업로드 및 검증**
+
+```bash
+helm push "$CHART_PACKAGE" "$AR_REPO" && helm show chart "$JUPYTER_CHART_URI" --version "$CHART_VERSION"
+```
+
+`helm push`의 대상은 저장소 루트입니다. Helm은 차트 이름과 버전을 패키지의 `Chart.yaml`에서 읽습니다. 배포에는 `oci://asia-northeast3-docker.pkg.dev/gcp-sbx-edp-gke01/ar-sbxtest01-platform/jupyterhub`와 `--version 4.2.0`을 사용합니다. 승인된 다른 AR을 사용할 경우 `AR_REPO`와 배포 설정의 차트 URI를 같이 맞춥니다.
 
 ### Hub·Proxy·Notebook 기본 이미지 복사
 
