@@ -45,9 +45,11 @@ unset OAUTH_CLIENT_ID OAUTH_CLIENT_SECRET
 
 ## 5. 플랫폼 릴리스 게시
 
+플랫폼 운영자가 공통 인프라 초기 구성 후, 또는 요청 API·GKE 배포 Runner·Terraform 소스를 새 버전으로 게시할 때 관리 VM에서 실행합니다. 게시 과정에서 Cloud Run Provisioner가 새 버전으로 갱신됩니다.
+
 ```bash
 export SBX_GKE_PROJECT="gcp-sbx-edp-gke01"
-# 저장소 루트 GCP_SBX_Test01에서 실행합니다.
+# Test02 저장소 루트에서 실행합니다.
 export ADMIN_ACCOUNT="son@sonmap.net"
 export REGION="asia-northeast3"
 export TF_MANAGER="tf-manager@${SBX_GKE_PROJECT}.iam.gserviceaccount.com"

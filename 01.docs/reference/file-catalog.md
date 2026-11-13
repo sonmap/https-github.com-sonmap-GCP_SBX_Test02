@@ -52,7 +52,7 @@
 </details>
 
 <details>
-<summary>02.sandbox_setup_01_gcloud · 운영자가 실행하는 gcloud 명령 (12개)</summary>
+<summary>02.sandbox_setup_01_gcloud · 운영자가 실행하는 gcloud 명령 (11개)</summary>
 
 | 폴더 | 파일명 | 역할 | 수행 순서 |
 |---|---|---|---|
@@ -67,7 +67,6 @@
 | `02.sandbox_setup_01_gcloud/configs` | [`bootstrap-build.yaml`](../../02.sandbox_setup_01_gcloud/configs/bootstrap-build.yaml) | 초기 두 실행 이미지 Build 입력 | 1차 3 · Build 설정 |
 | `02.sandbox_setup_01_gcloud/configs` | [`provisioner-env.yaml`](../../02.sandbox_setup_01_gcloud/configs/provisioner-env.yaml) | Cloud Run 환경변수 입력 | 1차 3·6 · Cloud Run 입력 |
 | `02.sandbox_setup_01_gcloud/configs` | [`workflow.template.yaml`](../../02.sandbox_setup_01_gcloud/configs/workflow.template.yaml) | Workflows OIDC 호출 템플릿, URL만 치환 | 1차 3 · Workflow 입력 |
-| `02.sandbox_setup_01_gcloud` | [`release.sh`](../../02.sandbox_setup_01_gcloud/release.sh) | 현재 Git 커밋 기준 플랫폼 릴리스 Build 제출 | 1차 6 · 선택 보조 |
 
 </details>
 

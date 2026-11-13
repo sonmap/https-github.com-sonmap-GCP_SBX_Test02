@@ -84,7 +84,7 @@ flowchart TD
 | [mirror-jupyterhub-images.yaml](../../03.cloudbuild/mirror-jupyterhub-images.yaml) | 기본 이미지를 내부 Artifact Registry에 복사합니다. |
 | [관리 VM 빌드 명령](../../02.sandbox_setup_01_gcloud/04-manual-gcloud.md#7-notebook-표준-이미지-빌드), [Dockerfile](../../04.Jupiter-setup-image/Dockerfile), [시작 스크립트](../../04.Jupiter-setup-image/start-sandbox-notebook.sh) | 사용자 Pod용 표준 이미지를 빌드합니다. 사용자별 홈을 지원하는 이미지의 시작 스크립트는 마운트 경로를 `HOME`으로 사용합니다. |
 
-`release.sh`는 플랫폼 릴리스용 보조 실행 파일입니다. 기본 이미지 복사와 표준 Notebook 이미지 빌드는 [관리 VM의 개별 명령](../../02.sandbox_setup_01_gcloud/04-manual-gcloud.md)을 사용합니다.
+플랫폼 운영자가 관리 VM에서 [플랫폼 릴리스 게시 명령](../../02.sandbox_setup_01_gcloud/04-manual-gcloud.md#5-플랫폼-릴리스-게시)을 실행합니다.
 
 ## 3. 승인 요청 제출 · 운영자에서 자동화로 전환
 
