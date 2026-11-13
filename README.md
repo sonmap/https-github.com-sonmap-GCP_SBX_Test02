@@ -60,7 +60,7 @@ export SBX_PROJECT="pjt-net-hub-base"         # 과제 자원·Query Job
 | 08 | `08.sandbox_setup_02_terraform/` | 과제 프로젝트·IAM·Dataset·GCS 구성 |
 | 09 | `09.sandbox_gke_deployer/` | GKE·JupyterHub 설치·ALB 연결 |
 | 10 | `10.sandbox_deploy_tools/` | 위 작업에서 공통으로 쓰는 보조 도구 |
-| 11 | `11.tests/` | 변경 사항 검증 |
+| 11 | [`11.tests/`](11.tests/README.md) | 로컬 검증 범위와 실행 명령 |
 
 번호는 **문서 확인 → 기반 준비 → 신청 처리 → 과제 배포**의 주 작업 흐름입니다. Cloud Build는 필요한 API/배포 도구 이미지를 준비 단계에서 함께 빌드하고, 이후 API·Terraform·GKE 모듈을 자동으로 호출합니다. 보조 도구는 각 단계에서 재사용하며 테스트는 변경 후·배포 전에 실행합니다.
 

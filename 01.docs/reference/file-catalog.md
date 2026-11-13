@@ -163,14 +163,16 @@
 </details>
 
 <details>
-<summary>11.tests · 개발 검증 (5개)</summary>
+<summary>11.tests · 개발 검증 (7개)</summary>
 
 | 폴더 | 파일명 | 역할 | 수행 순서 |
 |---|---|---|---|
+| `11.tests` | [`README.md`](../../11.tests/README.md) | 검증 흐름·테스트별 역할·실행 명령 | 개발 검증 · 시작 안내 |
 | `11.tests` | [`test_build_paths.py`](../../11.tests/test_build_paths.py) | 빌드 Context·Docker COPY 경로·삭제 컴포넌트 참조 검사 | 개발 검증 · 필요 시 |
 | `11.tests` | [`test_commandbooks.py`](../../11.tests/test_commandbooks.py) | 명령 Bash 구문·변수 치환·Workflow 치환의 오프라인 검증 | 개발 검증 · 필요 시 |
 | `11.tests` | [`test_internal_alb.py`](../../11.tests/test_internal_alb.py) | Workload Identity 연결과 내부 ALB 백엔드·호스트 경로 검증 | 개발 검증 · 필요 시 |
 | `11.tests` | [`test_provisioning.py`](../../11.tests/test_provisioning.py) | 실제 생성 ZIP·Build 계정·그룹 순서·선택 네트워크 검증 | 개발 검증 · 필요 시 |
 | `11.tests` | [`test_release_bootstrap.py`](../../11.tests/test_release_bootstrap.py) | 릴리스 설정 검증과 소스 게시 빌드 구성 검사 | 개발 검증 · 필요 시 |
+| `11.tests` | [`test_shared_sandbox.py`](../../11.tests/test_shared_sandbox.py) | 공유 Notebook Pod·PVC·테스트 계정 검증 | 개발 검증 · 필요 시 |
 
 </details>
