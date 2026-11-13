@@ -27,6 +27,8 @@ flowchart TD
 | [test_release_bootstrap.py](test_release_bootstrap.py) | 2 | Cloud Identity Customer ID 검사와 플랫폼 릴리스의 소스 게시 설정 |
 | [test_shared_sandbox.py](test_shared_sandbox.py) | 7 | 5인 공유 Notebook Pod, 기존·신규 PVC, 로컬 테스트 계정, 과제 중지 시 PVC 보존 명령 |
 
+[fixtures/group.example.json](fixtures/group.example.json)은 공유 Notebook 테스트의 입력 예시입니다. 배포할 때 운영자는 실제 승인값으로 작성한 그룹 JSON의 경로를 `GROUP_CONFIG`에 지정합니다.
+
 ## 실행 명령
 
 Test02 저장소 루트에서 Bash와 Python 3.12를 사용합니다. 의존성 설치는 접근 가능한 Python 패키지 인덱스를 사용합니다. 테스트는 GCP 명령을 모의 실행하므로 GCP 로그인이나 실행 중인 GKE는 필요 없습니다.

@@ -10,7 +10,7 @@ from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 FEATURE = ROOT / "12.sandbox_shared"
-EXAMPLE = FEATURE / "group.example.json"
+EXAMPLE = Path(__file__).resolve().with_name("fixtures") / "group.example.json"
 spec = importlib.util.spec_from_file_location("shared_sandbox", FEATURE / "shared_sandbox.py")
 sandbox = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(sandbox)
