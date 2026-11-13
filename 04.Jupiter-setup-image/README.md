@@ -124,7 +124,7 @@ python -m venv --system-site-packages "$VENV"
 |---|---|
 | [release-image.sh](release-image.sh) | 운영자가 승인한 기존 이미지 digest에 운영 태그를 붙입니다. 태그가 다른 digest를 가리키면 종료합니다. |
 | [Dockerfile.release](Dockerfile.release) | 승인된 라이브러리 변경이 있을 때 베이스 이미지와 해시가 포함된 `requirements.lock`으로 후보 이미지를 만듭니다. |
-| [notebook-candidate-release.yaml](../03.cloudbuild/notebook-candidate-release.yaml) | 운영자가 후보 이미지 빌드를 Cloud Build에 제출할 때 읽는 설정입니다. |
+| [notebook-candidate-release.yaml](notebook-candidate-release.yaml) | 운영자가 후보 이미지 빌드를 Cloud Build에 제출할 때 읽는 설정입니다. |
 
 이미지 내용이 같으면 Central-1 또는 승인된 운영 환경에서 태그만 게시합니다. 릴리스마다 새 버전 태그를 지정합니다. 동시 릴리스 충돌은 AR immutable tags 또는 포털의 단일 승인 실행으로 관리합니다.
 
@@ -138,6 +138,6 @@ bash 04.Jupiter-setup-image/release-image.sh "$APPROVED_IMAGE_DIGEST" "$RELEASE_
 cp 04.Jupiter-setup-image/Dockerfile.release "$APPROVED_BUILD_CONTEXT/Dockerfile.release"
 gcloud builds submit "$APPROVED_BUILD_CONTEXT" \
   --project="$BUILD_PROJECT" --region=asia-northeast3 \
-  --config=03.cloudbuild/notebook-candidate-release.yaml \
+  --config=04.Jupiter-setup-image/notebook-candidate-release.yaml \
   --substitutions="_BASE_IMAGE=$APPROVED_BASE_DIGEST,_CANDIDATE_IMAGE=$CANDIDATE_TAG,_NOTEBOOK_UID=1000"
 ```

@@ -168,7 +168,7 @@ Workspace 최고 관리자는 이 서비스 계정에 Groups Administrator 역�
 실행 계정: tf-manager Build. 3단계가 만든 bootstrap 이미지를 사용해 Namespace 목록만 조회합니다. [점검 YAML 사용법](cloudbuild-private-gke-vpn-design.md)에 따라 DNS 엔드포인트에서 조회합니다.
 
 ```bash
-gcloud builds submit --no-source --config=03.cloudbuild/check-private-gke.yaml --project="${SBX_GKE_PROJECT}" --region="${REGION}" --service-account="${TF_MANAGER_RESOURCE}" --account="${ADMIN_ACCOUNT}" --impersonate-service-account="${TF_MANAGER}"
+gcloud builds submit --no-source --config=01.docs/reference/check-private-gke.yaml --project="${SBX_GKE_PROJECT}" --region="${REGION}" --service-account="${TF_MANAGER_RESOURCE}" --account="${ADMIN_ACCOUNT}" --impersonate-service-account="${TF_MANAGER}"
 ```
 
 완료 기준: Build가 SUCCESS이고 로그에 Namespace 목록이 나옵니다. 실패하면 [사설 접속 점검 문서](cloudbuild-private-gke-vpn-design.md)에서 인증 실패와 라우팅 실패를 구분합니다. **이 확인이 통과하기 전에는 과제 신청을 제출하지 않습니다.** 이 결과는 DNS 엔드포인트 조회 성공을 확인합니다. Control Plane 사설 IP 경로는 별도로 점검합니다.

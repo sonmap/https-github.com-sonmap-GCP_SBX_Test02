@@ -26,7 +26,7 @@ flowchart TD
     ENV -.-> FOUND
     WF -.-> FOUND
     ADM --> WS["01.docs/reference/cloud-identity-group-terraform.md · Workspace 관리자 승인"]
-    FOUND --> CHECK["03.cloudbuild/check-private-gke.yaml · Private Pool 접속 점검"]
+    FOUND --> CHECK["01.docs/reference/check-private-gke.yaml · Private Pool 접속 점검"]
 ```
 
 | 파일 | 사용 시점과 결과 |
@@ -36,7 +36,7 @@ flowchart TD
 | [공통 기반](../01-infra-setup.md#3-공통-기반) | 운영자가 개별 `gcloud` 명령으로 공통 버킷·AR·Private Pool·GKE·Cloud Run·Workflow·ALB 기반을 준비합니다. |
 | [bootstrap-build.yaml](../../03.cloudbuild/bootstrap-build.yaml), [provisioner-env.yaml](../../07.sandbox_request_api/provisioner-env.yaml), [workflow.template.yaml](../../07.sandbox_request_api/workflow.template.yaml) | 기반 명령이 초기 빌드 설정, Cloud Run 환경, Workflow 템플릿을 각각 읽습니다. |
 | [cloud-identity-group-terraform.md](cloud-identity-group-terraform.md) | Workspace 관리자가 `tf-manager`의 그룹 관리 역할을 승인합니다. |
-| [check-private-gke.yaml](../../03.cloudbuild/check-private-gke.yaml) | 운영자가 `gcloud builds submit --config`에 지정합니다. Private Pool에서 DNS 엔드포인트로 Namespace 목록을 조회합니다. [사용법](cloudbuild-private-gke-vpn-design.md) |
+| [check-private-gke.yaml](check-private-gke.yaml) | 운영자가 `gcloud builds submit --config`에 지정합니다. Private Pool에서 DNS 엔드포인트로 Namespace 목록을 조회합니다. [사용법](cloudbuild-private-gke-vpn-design.md) |
 
 ## 2. 플랫폼 릴리스와 Notebook 이미지 · 운영자가 빌드 제출
 

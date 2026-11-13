@@ -23,7 +23,7 @@
 </details>
 
 <details>
-<summary>01.docs · 실행 안내와 참고 문서 (22개)</summary>
+<summary>01.docs · 실행 안내와 참고 문서 (23개)</summary>
 
 | 폴더 | 파일명 | 역할 | 수행 순서 |
 |---|---|---|---|
@@ -34,6 +34,7 @@
 | `01.docs/reference` | [`architecture-and-operations.md`](architecture-and-operations.md) | 구조·권한 통합 영향·State 전환 | 참고 · 설계 |
 | `01.docs/reference` | [`cloud-identity-group-terraform.md`](cloud-identity-group-terraform.md) | 그룹 관리자 역할·Customer ID·기존 그룹 import 안내 | 1차 4 · 관리자 승인 |
 | `01.docs/reference` | [`cloudbuild-private-gke-vpn-design.md`](cloudbuild-private-gke-vpn-design.md) | Private Pool의 GKE DNS 접속 점검과 사설 IP 점검 범위 | 1차 5 · 점검 안내 |
+| `01.docs/reference` | [`check-private-gke.yaml`](check-private-gke.yaml) | Private Pool에서 DNS 엔드포인트를 통해 Namespace 조회 | 접속 점검 · 필요 시 |
 | `01.docs/reference` | [`file-catalog.md`](file-catalog.md) | 이 파일: 전체 파일 설명 | 참고 · 파일 찾기 |
 | `01.docs/reference` | [`file-relationships.md`](file-relationships.md) | 폴더와 파일별 Mermaid 실행·참조 관계 | 참고 · Mermaid |
 | `01.docs/reference` | [`git-sync-current-environment.md`](git-sync-current-environment.md) | 코드 동기화와 기존 환경에서 재시험 | 재시험 · 동기화 |
@@ -53,21 +54,19 @@
 </details>
 
 <details>
-<summary>03.cloudbuild · 플랫폼 릴리스와 미러링 빌드 (6개)</summary>
+<summary>03.cloudbuild · 플랫폼 릴리스와 미러링 빌드 (4개)</summary>
 
 | 폴더 | 파일명 | 역할 | 수행 순서 |
 |---|---|---|---|
-| `03.cloudbuild` | [`check-private-gke.yaml`](../../03.cloudbuild/check-private-gke.yaml) | Private Pool에서 DNS 엔드포인트를 통해 Namespace 조회 | 1차 5 · Build 설정 |
 | `03.cloudbuild` | [`mirror-jupyterhub-images.yaml`](../../03.cloudbuild/mirror-jupyterhub-images.yaml) | JupyterHub 이미지 내부 미러링 | 1차 6 · Build 설정 |
 | `03.cloudbuild` | [`platform-release.yaml`](../../03.cloudbuild/platform-release.yaml) | Runner/Provisioner 빌드·소스 ZIP 게시·Cloud Run 갱신 | 1차 6 · Build 설정 |
-| `03.cloudbuild` | [`notebook-candidate-release.yaml`](../../03.cloudbuild/notebook-candidate-release.yaml) | 의존성 변경 시 Notebook 후보 이미지 빌드 설정 | 운영 릴리스 · 선택 |
 | `03.cloudbuild` | [`publish-sandbox-source.sh`](../../03.cloudbuild/publish-sandbox-source.sh) | Terraform 소스 ZIP을 GCS에 게시 | 플랫폼 릴리스 Build가 호출 |
 | `03.cloudbuild` | [`bootstrap-build.yaml`](../../03.cloudbuild/bootstrap-build.yaml) | 초기 두 실행 이미지 Build 입력 | 1차 3 · Build 설정 |
 
 </details>
 
 <details>
-<summary>04.Jupiter-setup-image · Notebook 이미지와 시작 설정 (7개)</summary>
+<summary>04.Jupiter-setup-image · Notebook 이미지와 시작 설정 (8개)</summary>
 
 | 폴더 | 파일명 | 역할 | 수행 순서 |
 |---|---|---|---|
@@ -77,6 +76,7 @@
 | `04.Jupiter-setup-image` | [`.dockerignore`](../../04.Jupiter-setup-image/.dockerignore) | 빌드 입력을 Dockerfile·설치 목록·시작 스크립트·wheel로 제한 | 관리 VM 빌드 |
 | `04.Jupiter-setup-image` | [`start-sandbox-notebook.sh`](../../04.Jupiter-setup-image/start-sandbox-notebook.sh) | 사용자별 마운트 경로를 HOME으로 설정하고 Notebook 서버 시작 | 2차 3 · Notebook 시작 시 자동 |
 | `04.Jupiter-setup-image` | [`Dockerfile.release`](../../04.Jupiter-setup-image/Dockerfile.release), [`release-image.sh`](../../04.Jupiter-setup-image/release-image.sh) | 후보 이미지 빌드 정의와 승인 digest 운영 태그 등록 | 운영 릴리스 · 필요 시 |
+| `04.Jupiter-setup-image` | [`notebook-candidate-release.yaml`](../../04.Jupiter-setup-image/notebook-candidate-release.yaml) | 의존성 변경 시 Notebook 후보 이미지 빌드 설정 | 운영 릴리스 · 선택 |
 
 </details>
 

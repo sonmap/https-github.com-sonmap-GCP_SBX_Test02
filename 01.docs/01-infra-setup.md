@@ -13,6 +13,17 @@
 
 그룹 공유 PoC만 구성하는 환경에서 공통 자원을 준비할 때는 기존 자동 배포용 Cloud Run·Workflows와 Google OAuth 구간을 구분해 적용합니다. 기존 환경에서는 자원 조회 결과를 확인한 뒤 필요한 생성·갱신 명령만 실행합니다.
 
+### Cloud Build 파일을 사용하는 시점
+
+| 파일 | 사용 시점 |
+|---|---|
+| [bootstrap-build.yaml](../03.cloudbuild/bootstrap-build.yaml) | 공통 기반을 처음 만들 때 요청 API와 배포 Runner의 `:bootstrap` 이미지를 게시합니다. |
+| [mirror-jupyterhub-images.yaml](../03.cloudbuild/mirror-jupyterhub-images.yaml) | Hub·Proxy·Notebook 베이스 이미지가 내부 AR에 없거나 버전을 올릴 때 사용합니다. |
+| [platform-release.yaml](../03.cloudbuild/platform-release.yaml) | 승인된 플랫폼 버전을 게시할 때 API·Runner 이미지를 만들고 Cloud Run을 갱신합니다. |
+| [publish-sandbox-source.sh](../03.cloudbuild/publish-sandbox-source.sh) | 플랫폼 릴리스가 자동 호출해 Terraform ZIP을 GCS에 게시합니다. |
+
+Private Pool 접속은 [점검 절차](reference/cloudbuild-private-gke-vpn-design.md)에서 확인합니다. 표준 Notebook 이미지는 [7번 관리 VM 빌드](#7-notebook-표준-이미지-빌드)를 사용하고, 의존성 변경으로 별도 후보 이미지가 필요할 때는 [Notebook 운영 릴리스](../04.Jupiter-setup-image/README.md#notebook-이미지-운영-릴리스)를 사용합니다.
+
 ## 0. 공통 변수
 
 ### 프로젝트 기준과 변수명

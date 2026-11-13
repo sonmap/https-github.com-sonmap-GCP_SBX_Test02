@@ -1,6 +1,6 @@
 # Private Pool에서 GKE API 접속 점검
 
-[실제 수행 절차](runbook-two-stage.md)의 5단계에서 [check-private-gke.yaml](../../03.cloudbuild/check-private-gke.yaml)을 사용합니다. Cloud Build에 넘기는 실행 설정으로, Cloud Build 설정을 함께 찾을 수 있도록 `03.cloudbuild`에 둡니다. 운영자는 이 문서의 접속 점검 명령에서 이 YAML을 지정합니다.
+[실제 수행 절차](runbook-two-stage.md)의 5단계에서 [check-private-gke.yaml](check-private-gke.yaml)을 사용합니다. Cloud Build에 넘기는 실행 설정으로, 접속 점검이 필요할 때 실행하도록 이 참고 문서와 같은 폴더에 둡니다. 운영자는 이 문서의 접속 점검 명령에서 이 YAML을 지정합니다.
 
 ## 1. 무엇을 확인하는가
 
@@ -23,7 +23,7 @@ Namespace 목록만 조회하는 점검입니다. 운영 VM의 kubeconfig와 Kub
 
 ```bash
 gcloud builds submit --no-source \
-  --config=03.cloudbuild/check-private-gke.yaml \
+  --config=01.docs/reference/check-private-gke.yaml \
   --project=gcp-sbx-edp-gke01 --region=asia-northeast3 \
   --account=son@sonmap.net \
   --service-account=projects/gcp-sbx-edp-gke01/serviceAccounts/tf-manager@gcp-sbx-edp-gke01.iam.gserviceaccount.com

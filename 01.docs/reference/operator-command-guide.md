@@ -1250,18 +1250,18 @@ bigquery.admin·storage.admin·projectIamAdmin은 해당 과제 프로젝트의 
 | 그룹·사용자·승인 | 실제 승인 포탈 JSON 사용. 샘플 APPROVED를 승인 증빙으로 사용하지 않음 |
 | 요청·릴리스 검증 | 로컬 변경·Schema·API 허용값과 새 프로젝트·클러스터 값의 호환성 확인 |
 
-**Private Pool 점검은 읽기 작업입니다.** 저장소의 03.cloudbuild/check-private-gke.yaml을 그대로 사용합니다.
+**Private Pool 점검은 읽기 작업입니다.** 저장소의 01.docs/reference/check-private-gke.yaml을 그대로 사용합니다.
 
 **명령 167 — 저장소의 현재 프로젝트용 점검 YAML 확인**
 
 ```bash
-cat 03.cloudbuild/check-private-gke.yaml
+cat 01.docs/reference/check-private-gke.yaml
 ```
 
 **명령 168 — tf-manager가 Private Pool을 써서 사설 GKE API 조회**
 
 ```bash
-gcloud builds submit --no-source --project=gcp-sbx-edp-gke01 --region=asia-northeast3 --account=son@sonmap.net --service-account=projects/gcp-sbx-edp-gke01/serviceAccounts/tf-manager@gcp-sbx-edp-gke01.iam.gserviceaccount.com --config=03.cloudbuild/check-private-gke.yaml
+gcloud builds submit --no-source --project=gcp-sbx-edp-gke01 --region=asia-northeast3 --account=son@sonmap.net --service-account=projects/gcp-sbx-edp-gke01/serviceAccounts/tf-manager@gcp-sbx-edp-gke01.iam.gserviceaccount.com --config=01.docs/reference/check-private-gke.yaml
 ```
 
 이 Build가 SUCCESS여야 합니다. 관리 VM의 kubectl 성공을 Private Pool의 성공으로 대체하지 않습니다. 실패하면 Pool 출발지·허용 목록·피어링/PSC/라우팅 구조를 확인합니다. 단순히 피어링 옵션을 모두 켜거나 VPN을 무조건 새로 만들지 않습니다.
