@@ -5,7 +5,7 @@ steps:
     args:
       - -ceu
       - |
-        value="$$(awk '/^CLOUD_IDENTITY_CUSTOMER_ID:/ {print $$2; exit}' 07.sandbox_request_api/provisioner-env.yaml)"
+        value="$$(awk '/^CLOUD_IDENTITY_CUSTOMER_ID:/ {print $$2; exit}' 03.sandbox_deploy/03.1.request/provisioner-env.yaml)"
         if [[ ! "$$value" =~ ^C[A-Za-z0-9]+$ ]]; then
           echo "Set actual CLOUD_IDENTITY_CUSTOMER_ID in provisioner-env.yaml before release" >&2
           exit 1
@@ -16,7 +16,7 @@ steps:
     args:
       - build
       - -f
-      - 09.sandbox_gke_deployer/Dockerfile
+      - 03.sandbox_deploy/03.3.gke/Dockerfile
       - -t
       - ${_AUTOMATION_IMAGE_REPO}:${_RELEASE_ID}
       - -t
@@ -35,12 +35,12 @@ steps:
     args:
       - build
       - -f
-      - 07.sandbox_request_api/Dockerfile
+      - 03.sandbox_deploy/03.1.request/Dockerfile
       - -t
       - ${_PROVISIONER_IMAGE_REPO}:${_RELEASE_ID}
       - -t
       - ${_PROVISIONER_IMAGE_REPO}:latest
-      - 07.sandbox_request_api
+      - 03.sandbox_deploy/03.1.request
   - name: gcr.io/cloud-builders/docker
     id: push-provisioner-release
     args: ["push", "${_PROVISIONER_IMAGE_REPO}:${_RELEASE_ID}"]
@@ -57,7 +57,7 @@ steps:
       - |
         set -o pipefail
         release_id="${_RELEASE_ID}"
-        bash 03.cloudbuild/publish-sandbox-source.sh "${_BUNDLE_BUCKET}" "$${release_id}" | tee /workspace/source.env
+        bash 03.sandbox_deploy/03.3.gke/cloudbuild/publish-sandbox-source.sh "${_BUNDLE_BUCKET}" "$${release_id}" | tee /workspace/source.env
         . /workspace/source.env
 
         export RELEASE_ID="$${release_id}"
@@ -106,7 +106,7 @@ steps:
           --project="${_SBX_GKE_PROJECT}" \
           --region="${_REGION}" \
           --image="${_PROVISIONER_IMAGE_REPO}:${_RELEASE_ID}" \
-          --env-vars-file=07.sandbox_request_api/provisioner-env.yaml \
+          --env-vars-file=03.sandbox_deploy/03.1.request/provisioner-env.yaml \
           --clear-network \
           --quiet
 

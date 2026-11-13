@@ -9,12 +9,12 @@ ROOT = Path(__file__).resolve().parents[1]
 
 class ReleaseBootstrapTests(unittest.TestCase):
     def test_customer_validation_runs_without_python_command(self):
-        config = yaml.safe_load((ROOT/'03.cloudbuild/platform-release.yaml').read_text())
+        config = yaml.safe_load((ROOT/'03.sandbox_deploy/03.3.gke/cloudbuild/platform-release.yaml').read_text())
         step = config['steps'][0]
         self.assertEqual(step['entrypoint'], 'bash')
         script = step['args'][-1].replace('$$', '$')
         with tempfile.TemporaryDirectory() as tmp:
-            path = Path(tmp)/'07.sandbox_request_api/provisioner-env.yaml'
+            path = Path(tmp)/'03.sandbox_deploy/03.1.request/provisioner-env.yaml'
             path.parent.mkdir(parents=True)
             for value, expected in [('C03rw3vtp', 0), ('__SET_CUSTOMER_ID__', 1), ('', 1)]:
                 path.write_text('CLOUD_IDENTITY_CUSTOMER_ID: '+value+'\n')
@@ -22,7 +22,7 @@ class ReleaseBootstrapTests(unittest.TestCase):
                 self.assertEqual(result.returncode, expected, result.stderr)
 
     def test_publish_step_uses_built_runner_with_python(self):
-        config = yaml.safe_load((ROOT/'03.cloudbuild/platform-release.yaml').read_text())
+        config = yaml.safe_load((ROOT/'03.sandbox_deploy/03.3.gke/cloudbuild/platform-release.yaml').read_text())
         steps = config['steps']
         publish = next(s for s in steps if s['id']=='publish-sandbox-source')
         self.assertEqual(publish['name'], '${_AUTOMATION_IMAGE_REPO}:${_RELEASE_ID}')

@@ -14,7 +14,7 @@ from unittest import mock
 from request_fixtures import make_request
 
 ROOT=Path(__file__).resolve().parents[1]
-spec=importlib.util.spec_from_file_location('provisioner',ROOT/'07.sandbox_request_api/main.py')
+spec=importlib.util.spec_from_file_location('provisioner',ROOT/'03.sandbox_deploy/03.1.request/main.py')
 p=importlib.util.module_from_spec(spec);spec.loader.exec_module(p)
 ENV={'SBX_GKE_PROJECT':'gcp-sbx-edp-gke01','GCP_REGION':'asia-northeast3',
      'BUNDLE_BUCKET':'gcp-sbx-edp-gke01-sbxtest01-bundles',
@@ -36,7 +36,7 @@ class ProvisioningTests(unittest.TestCase):
         written={}
         bucket=mock.Mock();bucket.name=ENV['BUNDLE_BUCKET'];bucket.blob.side_effect=lambda name:name
         def download(source,destination):
-            shutil.copytree(ROOT/'08.sandbox_setup_02_terraform',destination/'08.sandbox_setup_02_terraform')
+            shutil.copytree(ROOT/'03.sandbox_deploy/03.2.terraform',destination/'08.sandbox_setup_02_terraform')
             return destination
         with mock.patch.object(p.storage,'Client') as client, mock.patch.object(p,'download_source_archive',side_effect=download),mock.patch.object(p,'upload_immutable',side_effect=lambda name,data,ctype:written.setdefault(name,data)):
             client.return_value.bucket.return_value=bucket
@@ -87,7 +87,7 @@ class ProvisioningTests(unittest.TestCase):
         data=make_request(new_project=True)
         bucket=mock.Mock();bucket.name=ENV['BUNDLE_BUCKET'];bucket.blob.side_effect=lambda name:name
         def download(source,destination):
-            shutil.copytree(ROOT/'08.sandbox_setup_02_terraform',destination/'08.sandbox_setup_02_terraform')
+            shutil.copytree(ROOT/'03.sandbox_deploy/03.2.terraform',destination/'08.sandbox_setup_02_terraform')
             (destination/'08.sandbox_setup_02_terraform/deployments/40-data/main.tf').write_text('provider "google" {}')
             return destination
         with mock.patch.object(p.storage,'Client') as client, mock.patch.object(p,'download_source_archive',side_effect=download),mock.patch.object(p,'upload_immutable'):
@@ -142,7 +142,7 @@ class ProvisioningTests(unittest.TestCase):
             stub.write_text('#!/bin/sh\nif [ "$1" = storage ] && [ "$2" = cp ]; then\n  cp "$3" "$SBX_TEST_ARCHIVE"\nelif [ "$1" = storage ] && [ "$2" = objects ] && [ "$3" = describe ]; then\n  printf \'1234567890123\\n\'\nelse\n  exit 2\nfi\n')
             stub.chmod(0o755)
             env=dict(os.environ,PATH=str(work/'bin')+os.pathsep+os.environ['PATH'],SBX_TEST_ARCHIVE=str(work/'source.zip'))
-            subprocess.run(['bash',str(ROOT/'03.cloudbuild/publish-sandbox-source.sh'),'test-bucket','git-test123'],
+            subprocess.run(['bash',str(ROOT/'03.sandbox_deploy/03.3.gke/cloudbuild/publish-sandbox-source.sh'),'test-bucket','git-test123'],
                            cwd=ROOT,env=env,check=True,capture_output=True,text=True)
             extracted=work/'extracted'
             with zipfile.ZipFile(work/'source.zip') as archive:
@@ -198,8 +198,8 @@ class ProvisioningTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,'approved identity.members'):p.validate_semantics(data)
 
     def test_old_group_delegation_runner_removed(self):
-        self.assertFalse((ROOT/'09.sandbox_gke_deployer/group_upsert.py').exists())
-        module=(ROOT/'08.sandbox_setup_02_terraform/deployments/05-group/main.tf').read_text()
+        self.assertFalse((ROOT/'03.sandbox_deploy/03.3.gke/group_upsert.py').exists())
+        module=(ROOT/'03.sandbox_deploy/03.2.terraform/deployments/05-group/main.tf').read_text()
         self.assertIn('google_cloud_identity_group_membership',module)
         self.assertIn('prevent_destroy = true',module)
 

@@ -23,7 +23,7 @@ cd "$HOME/GCP_SBX_Test01"
 ```
 
 ```bash
-cp -p 07.sandbox_request_api/provisioner-env.yaml "$HOME/provisioner-env.before-sbx-sync.yaml"
+cp -p 03.sandbox_deploy/03.1.request/provisioner-env.yaml "$HOME/provisioner-env.before-sbx-sync.yaml"
 ```
 
 ```bash
@@ -59,11 +59,11 @@ awk '/^CLOUD_IDENTITY_CUSTOMER_ID:/ {print}' "$HOME/provisioner-env.before-sbx-s
 아래 `실제_CUSTOMER_ID`를 백업의 C... 값으로 바꾼 뒤 실행합니다. 기존 프로젝트·버킷·Pool 경로를 백업 파일 전체에서 복원하지 않습니다.
 
 ```bash
-sed -i 's/__SET_CUSTOMER_ID__/실제_CUSTOMER_ID/' 07.sandbox_request_api/provisioner-env.yaml
+sed -i 's/__SET_CUSTOMER_ID__/실제_CUSTOMER_ID/' 03.sandbox_deploy/03.1.request/provisioner-env.yaml
 ```
 
 ```bash
-cat 07.sandbox_request_api/provisioner-env.yaml
+cat 03.sandbox_deploy/03.1.request/provisioner-env.yaml
 ```
 
 ## 4. 현재 단계 — Private Pool에서 GKE API 조회
@@ -97,13 +97,13 @@ Pool이 RUNNING이고 이 Build가 SUCCESS여야 합니다. 조회만 수행하�
 **제출: son@sonmap.net / Build 실행: tf-manager / 기본 Build 풀**
 
 ```bash
-gcloud builds submit 07.sandbox_request_api --project=gcp-sbx-edp-gke01 --region=asia-northeast3 --account=son@sonmap.net --service-account=projects/gcp-sbx-edp-gke01/serviceAccounts/tf-manager@gcp-sbx-edp-gke01.iam.gserviceaccount.com --tag=asia-northeast3-docker.pkg.dev/gcp-sbx-edp-gke01/ar-sbxtest01-platform/run-sbxtest01-provisioner:env-sync-20261107 --gcs-source-staging-dir=gs://gcp-sbx-edp-gke01-sbxtest01-build-source/source --gcs-log-dir=gs://gcp-sbx-edp-gke01-sbxtest01-build-source/logs
+gcloud builds submit 03.sandbox_deploy/03.1.request --project=gcp-sbx-edp-gke01 --region=asia-northeast3 --account=son@sonmap.net --service-account=projects/gcp-sbx-edp-gke01/serviceAccounts/tf-manager@gcp-sbx-edp-gke01.iam.gserviceaccount.com --tag=asia-northeast3-docker.pkg.dev/gcp-sbx-edp-gke01/ar-sbxtest01-platform/run-sbxtest01-provisioner:env-sync-20261107 --gcs-source-staging-dir=gs://gcp-sbx-edp-gke01-sbxtest01-build-source/source --gcs-log-dir=gs://gcp-sbx-edp-gke01-sbxtest01-build-source/logs
 ```
 
 **배포: son@sonmap.net / Run 실행: sbx-manager — 위 Build SUCCESS 후**
 
 ```bash
-gcloud run services update run-sbxtest01-provisioner --project=gcp-sbx-edp-gke01 --region=asia-northeast3 --account=son@sonmap.net --image=asia-northeast3-docker.pkg.dev/gcp-sbx-edp-gke01/ar-sbxtest01-platform/run-sbxtest01-provisioner:env-sync-20261107 --env-vars-file=07.sandbox_request_api/provisioner-env.yaml
+gcloud run services update run-sbxtest01-provisioner --project=gcp-sbx-edp-gke01 --region=asia-northeast3 --account=son@sonmap.net --image=asia-northeast3-docker.pkg.dev/gcp-sbx-edp-gke01/ar-sbxtest01-platform/run-sbxtest01-provisioner:env-sync-20261107 --env-vars-file=03.sandbox_deploy/03.1.request/provisioner-env.yaml
 ```
 
 **확인: son@sonmap.net**

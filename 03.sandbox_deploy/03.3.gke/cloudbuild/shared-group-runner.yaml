@@ -1,6 +1,6 @@
 steps:
   - name: gcr.io/cloud-builders/docker
-    args: ["build", "-f", "09.sandbox_gke_deployer/Dockerfile", "-t", "${_RUNNER_IMAGE}", "."]
+    args: ["build", "-f", "03.sandbox_deploy/03.3.gke/Dockerfile", "-t", "${_RUNNER_IMAGE}", "."]
 images: ["${_RUNNER_IMAGE}"]
 options:
   logging: CLOUD_LOGGING_ONLY

@@ -8,7 +8,7 @@ import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 SPEC = importlib.util.spec_from_file_location(
-    "deploy_shared_group", ROOT / "09.sandbox_gke_deployer/deploy_shared_group.py",
+    "deploy_shared_group", ROOT / "03.sandbox_deploy/03.3.gke/deploy_shared_group.py",
 )
 runner = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(runner)
@@ -49,7 +49,7 @@ class SharedGroupDeployTests(unittest.TestCase):
                 self.lock.delete.assert_called_once_with(if_generation_match=12)
 
     def test_workflow_uses_private_pool_runner(self):
-        path = ROOT / "07.sandbox_request_api/shared-group-workflow.yaml"
+        path = ROOT / "03.sandbox_deploy/03.1.request/shared-group-workflow.yaml"
         deploy = yaml.safe_load(path.read_text())["main"]["steps"][1]["deploy"]
         body = deploy["args"]["body"]
         self.assertIn("SBX_WORKER_POOL", body["options"]["pool"]["name"])

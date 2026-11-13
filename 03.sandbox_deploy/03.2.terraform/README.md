@@ -1,8 +1,8 @@
 # 과제별 Infrastructure Manager Terraform
 
-> 신규 프로젝트·과제 전용 GSA 생성은 [sbx03 신규 과제 절차](../01.docs/reference/sbx03-new-project-runbook.md)를 우선 적용합니다. 기존 프로젝트 재사용 절차와 구분하세요.
+> 신규 프로젝트·과제 전용 GSA 생성은 [sbx03 신규 과제 절차](../../01.docs/reference/sbx03-new-project-runbook.md)를 우선 적용합니다. 기존 프로젝트 재사용 절차와 구분하세요.
 
-최초 1~3단계는 [1차 인프라 구축](../01.docs/01-infra-setup.md)의 개별 명령을 사용합니다. 이 폴더는 과제별 자원을 관리합니다.
+최초 1~3단계는 [1차 인프라 구축](../../01.docs/01-infra-setup.md)의 개별 명령을 사용합니다. 이 폴더는 과제별 자원을 관리합니다.
 
 | Root | 기능 | 실행 계정 |
 |---|---|---|
@@ -18,7 +18,7 @@
 
 ## 그룹 생성이 첫 단계입니다
 
-05-group → 10-project → 선택적 20-network → 30-project-iam → 40-data 순서로 Infrastructure Manager가 적용합니다. 모든 단계는 tf-manager로 수행합니다. [권한 및 기존 그룹 편입](../01.docs/reference/cloud-identity-group-terraform.md)을 먼저 확인합니다.
+05-group → 10-project → 선택적 20-network → 30-project-iam → 40-data 순서로 Infrastructure Manager가 적용합니다. 모든 단계는 tf-manager로 수행합니다. [권한 및 기존 그룹 편입](../../01.docs/reference/cloud-identity-group-terraform.md)을 먼저 확인합니다.
 
 ## Host 네트워크 변경은 VPC Admin 수행
 

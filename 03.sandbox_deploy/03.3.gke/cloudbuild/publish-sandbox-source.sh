@@ -6,13 +6,13 @@ set -euo pipefail
 # it does not download Terraform source from GitHub.
 #
 # Usage:
-#   ./03.cloudbuild/publish-sandbox-source.sh BUCKET_NAME RELEASE_ID
+#   ./03.sandbox_deploy/03.3.gke/cloudbuild/publish-sandbox-source.sh BUCKET_NAME RELEASE_ID
 
 bucket_name="${1:?Usage: $0 BUCKET_NAME RELEASE_ID}"
 release_id="${2:?Usage: $0 BUCKET_NAME RELEASE_ID}"
 
-repo_root="$(cd "$(dirname "$0")/.." && pwd)"
-source_root="$repo_root/08.sandbox_setup_02_terraform/deployments"
+repo_root="$(cd "$(dirname "$0")/../../.." && pwd)"
+source_root="$repo_root/03.sandbox_deploy/03.2.terraform/deployments"
 work_dir="$(mktemp -d)"
 trap 'rm -rf "$work_dir"' EXIT
 
@@ -27,7 +27,7 @@ import zipfile
 
 repo_root = pathlib.Path(sys.argv[1])
 archive = pathlib.Path(sys.argv[2])
-source = repo_root / "08.sandbox_setup_02_terraform" / "deployments"
+source = repo_root / "03.sandbox_deploy/03.2.terraform" / "deployments"
 
 excluded_dirs = {".terraform", "__pycache__"}
 excluded_names = {
@@ -52,7 +52,9 @@ with zipfile.ZipFile(archive, "w", zipfile.ZIP_DEFLATED) as output:
             continue
         if path.name.endswith(".auto.tfvars") or path.name.endswith(".auto.tfvars.json"):
             continue
-        output.write(path, path.relative_to(repo_root))
+        # Keep the ZIP's internal layout compatible with published API images.
+        archive_path = pathlib.Path("08.sandbox_setup_02_terraform/deployments") / relative
+        output.write(path, archive_path)
 PY
 
 sha256="$(sha256sum "$archive" | awk '{print $1}')"

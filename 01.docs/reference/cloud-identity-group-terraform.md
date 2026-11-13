@@ -2,7 +2,7 @@
 
 ## 실행 계정과 순서
 
-실행 계정은 tf-manager@gcp-sbx-edp-gke01.iam.gserviceaccount.com입니다. 그룹과 구성원 생성은 08.sandbox_setup_02_terraform/deployments/05-group에서 Cloud Identity Groups API로 수행합니다. 사용자 위임과 Python 그룹 생성 실행기는 제거했습니다.
+실행 계정은 tf-manager@gcp-sbx-edp-gke01.iam.gserviceaccount.com입니다. 그룹과 구성원 생성은 03.sandbox_deploy/03.2.terraform/deployments/05-group에서 Cloud Identity Groups API로 수행합니다. 사용자 위임과 Python 그룹 생성 실행기는 제거했습니다.
 
 ```mermaid
 flowchart TD
@@ -18,7 +18,7 @@ flowchart TD
 1. GCP 관리자는 tf-manager에 [API·관리자 권한](../01-infra-setup.md#1-api와-관리자-권한)의 조직·Folder·프로젝트 생성·IAM·필요 Billing 권한을 부여합니다.
 2. Workspace 최고 관리자는 tf-manager 서비스 계정에 **Groups Administrator 역할을 직접 부여**합니다. [공식 방법](https://docs.cloud.google.com/identity/docs/how-to/setup#assigning_an_admin_role_to_the_service_account)에 따라 서비스 계정 Unique ID로 역할을 부여합니다. GCP 프로젝트 Owner만 부여해서는 그룹 관리 권한이 생기지 않습니다.
 3. cloudidentity.googleapis.com을 자동화 실행 프로젝트에서 활성화합니다. [1차 인프라 구축의 1절](../01-infra-setup.md#1-api와-관리자-권한)에 포함되어 있습니다.
-4. 실제 Cloud Identity Customer ID를 확인해 `07.sandbox_request_api/provisioner-env.yaml`의 CLOUD_IDENTITY_CUSTOMER_ID에 입력하고 커밋합니다. __SET_CUSTOMER_ID__는 배포 가능한 값이 아닙니다. GCP 프로젝트 ID·프로젝트 번호와 Customer ID는 다릅니다.
+4. 실제 Cloud Identity Customer ID를 확인해 `03.sandbox_deploy/03.1.request/provisioner-env.yaml`의 CLOUD_IDENTITY_CUSTOMER_ID에 입력하고 커밋합니다. __SET_CUSTOMER_ID__는 배포 가능한 값이 아닙니다. GCP 프로젝트 ID·프로젝트 번호와 Customer ID는 다릅니다.
 5. 새 플랫폼 릴리스로 API·Runner·소스 ZIP과 Cloud Run 환경설정을 함께 갱신합니다. 포털 요청 source도 새 release.json을 사용합니다. 이전 ZIP에는 05-group이 없으므로 새 API와 혼용하지 않습니다.
 
 Domain-wide Delegation, 사용자 관리자 이메일, Directory API Scope 승인, SA 키파일은 사용하지 않습니다. Jupyter 사용자 로그인용 OAuth Client ID/Secret은 별도로 유지합니다. Private Pool 경로·BQ 권한은 VPC Admin 요청사항이며 인증서·DNS는 별도 진행합니다.

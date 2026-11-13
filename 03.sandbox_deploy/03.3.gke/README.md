@@ -9,4 +9,4 @@ Cloud Build의 Private Pool 컨테이너 안에서 실행하는 도구입니다.
 | Dockerfile | 위 도구와 gcloud/kubectl/Helm 등을 담는 이미지 |
 | requirements.txt | Python 라이브러리 목록 |
 
-신청을 받는 Cloud Run API와 다른 역할입니다. 요청 접수는 `07.sandbox_request_api/`, 사용자 Notebook 실행 이미지는 `04.Jupiter-setup-image/`에 있습니다.
+신청을 받는 Cloud Run API와 다른 역할입니다. 요청 접수는 `03.sandbox_deploy/03.1.request/`, 사용자 Notebook 실행 이미지는 `03.sandbox_deploy/03.3.gke/notebook-image/`에 있습니다.

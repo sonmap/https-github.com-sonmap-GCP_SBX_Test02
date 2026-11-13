@@ -9,7 +9,7 @@
 | 기존 Workflows 경로 | [OAuth 설정](#4-oauth-값-등록), [그룹 권한](reference/cloud-identity-group-terraform.md), [Private Pool 점검](reference/cloudbuild-private-gke-vpn-design.md), [플랫폼 릴리스](#5-플랫폼-릴리스-게시) |
 | 이미지 준비 | [Helm 차트와 기본 이미지](#6-chart와-기본-이미지-미러링) → [표준 Notebook 이미지](#7-notebook-표준-이미지-빌드) |
 | 접속 검증 | [관리 VM에서 GKE 접속](#gke와-내부-https-접속-확인), [내부 HTTPS·DNS](reference/sbx03-https-certificate-runbook.md) |
-| 과제 배포 | [그룹 공유 Sandbox 자동 배포](02-sandbox-deploy.md#그룹-공유-sandbox-자동-배포) 또는 [기존 Workflows 배포](02-sandbox-deploy.md) |
+| 과제 배포 | [그룹 공유 Sandbox 자동 배포](../03.sandbox_deploy/README.md#그룹-공유-sandbox-자동-배포) 또는 [기존 Workflows 배포](../03.sandbox_deploy/03.1.request/legacy-deploy.md) |
 
 그룹 공유 PoC만 구성하는 환경에서 공통 자원을 준비할 때는 기존 자동 배포용 Cloud Run·Workflows와 Google OAuth 구간을 구분해 적용합니다. 기존 환경에서는 자원 조회 결과를 확인한 뒤 필요한 생성·갱신 명령만 실행합니다.
 
@@ -17,12 +17,12 @@
 
 | 파일 | 사용 시점 |
 |---|---|
-| [bootstrap-build.yaml](../03.cloudbuild/bootstrap-build.yaml) | 공통 기반을 처음 만들 때 요청 API와 배포 Runner의 `:bootstrap` 이미지를 게시합니다. |
-| [mirror-jupyterhub-images.yaml](../03.cloudbuild/mirror-jupyterhub-images.yaml) | Hub·Proxy·Notebook 베이스 이미지가 내부 AR에 없거나 버전을 올릴 때 사용합니다. |
-| [platform-release.yaml](../03.cloudbuild/platform-release.yaml) | 승인된 플랫폼 버전을 게시할 때 API·Runner 이미지를 만들고 Cloud Run을 갱신합니다. |
-| [publish-sandbox-source.sh](../03.cloudbuild/publish-sandbox-source.sh) | 플랫폼 릴리스가 자동 호출해 Terraform ZIP을 GCS에 게시합니다. |
+| [bootstrap-build.yaml](../03.sandbox_deploy/03.3.gke/cloudbuild/bootstrap-build.yaml) | 공통 기반을 처음 만들 때 요청 API와 배포 Runner의 `:bootstrap` 이미지를 게시합니다. |
+| [mirror-jupyterhub-images.yaml](../03.sandbox_deploy/03.3.gke/cloudbuild/mirror-jupyterhub-images.yaml) | Hub·Proxy·Notebook 베이스 이미지가 내부 AR에 없거나 버전을 올릴 때 사용합니다. |
+| [platform-release.yaml](../03.sandbox_deploy/03.3.gke/cloudbuild/platform-release.yaml) | 승인된 플랫폼 버전을 게시할 때 API·Runner 이미지를 만들고 Cloud Run을 갱신합니다. |
+| [publish-sandbox-source.sh](../03.sandbox_deploy/03.3.gke/cloudbuild/publish-sandbox-source.sh) | 플랫폼 릴리스가 자동 호출해 Terraform ZIP을 GCS에 게시합니다. |
 
-Private Pool 접속은 [점검 절차](reference/cloudbuild-private-gke-vpn-design.md)에서 확인합니다. 표준 Notebook 이미지는 [7번 관리 VM 빌드](#7-notebook-표준-이미지-빌드)를 사용하고, 의존성 변경으로 별도 후보 이미지가 필요할 때는 [Notebook 운영 릴리스](../04.Jupiter-setup-image/README.md#notebook-이미지-운영-릴리스)를 사용합니다.
+Private Pool 접속은 [점검 절차](reference/cloudbuild-private-gke-vpn-design.md)에서 확인합니다. 표준 Notebook 이미지는 [7번 관리 VM 빌드](#7-notebook-표준-이미지-빌드)를 사용하고, 의존성 변경으로 별도 후보 이미지가 필요할 때는 [Notebook 운영 릴리스](../03.sandbox_deploy/03.3.gke/notebook-image/README.md#notebook-이미지-운영-릴리스)를 사용합니다.
 
 ## 0. 공통 변수
 
@@ -513,10 +513,10 @@ gcloud container clusters describe "${MAIN_CLUSTER}" --project="${SBX_GKE_PROJEC
 gcloud container clusters create-auto "${MAIN_CLUSTER}" --project="${SBX_GKE_PROJECT}" --region="${REGION}" --network="projects/${VPC_HOST_PROJECT}/global/networks/${NETWORK}" --subnetwork="projects/${VPC_HOST_PROJECT}/regions/${REGION}/subnetworks/${MAIN_SUBNET}" --cluster-secondary-range-name="${MAIN_POD_RANGE}" --enable-private-nodes --enable-private-endpoint --master-ipv4-cidr="${MAIN_CP_CIDR}" --enable-master-authorized-networks --master-authorized-networks="${ADMIN_CIDR},${PSA_CIDR}" --enable-master-global-access --release-channel=regular --account="${ADMIN_ACCOUNT}" --impersonate-service-account="${TF_MANAGER}"
 
 # ── 19. builds submit . ──
-gcloud builds submit . --project="${SBX_GKE_PROJECT}" --region="${REGION}" --service-account="projects/${SBX_GKE_PROJECT}/serviceAccounts/${TF_MANAGER}" --gcs-source-staging-dir="gs://${SBX_GKE_PROJECT}-sbxtest01-build-source/source" --config=03.cloudbuild/bootstrap-build.yaml --account="${ADMIN_ACCOUNT}" --impersonate-service-account="${TF_MANAGER}"
+gcloud builds submit . --project="${SBX_GKE_PROJECT}" --region="${REGION}" --service-account="projects/${SBX_GKE_PROJECT}/serviceAccounts/${TF_MANAGER}" --gcs-source-staging-dir="gs://${SBX_GKE_PROJECT}-sbxtest01-build-source/source" --config=03.sandbox_deploy/03.3.gke/cloudbuild/bootstrap-build.yaml --account="${ADMIN_ACCOUNT}" --impersonate-service-account="${TF_MANAGER}"
 
 # ── 20. run deploy run-sbxtest01-provisioner ──
-gcloud run deploy run-sbxtest01-provisioner --project="${SBX_GKE_PROJECT}" --region="${REGION}" --image="${REGION}-docker.pkg.dev/${SBX_GKE_PROJECT}/ar-sbxtest01-platform/run-sbxtest01-provisioner:bootstrap" --service-account="${SBX_MANAGER}" --no-allow-unauthenticated --ingress=all --timeout=300 --max-instances=2 --env-vars-file=07.sandbox_request_api/provisioner-env.yaml --clear-network --account="${ADMIN_ACCOUNT}" --impersonate-service-account="${TF_MANAGER}"
+gcloud run deploy run-sbxtest01-provisioner --project="${SBX_GKE_PROJECT}" --region="${REGION}" --image="${REGION}-docker.pkg.dev/${SBX_GKE_PROJECT}/ar-sbxtest01-platform/run-sbxtest01-provisioner:bootstrap" --service-account="${SBX_MANAGER}" --no-allow-unauthenticated --ingress=all --timeout=300 --max-instances=2 --env-vars-file=03.sandbox_deploy/03.1.request/provisioner-env.yaml --clear-network --account="${ADMIN_ACCOUNT}" --impersonate-service-account="${TF_MANAGER}"
 
 # ── 21. run services add-iam-policy-binding run-sbxtest01-provisioner · roles/run.invoker ──
 gcloud run services add-iam-policy-binding run-sbxtest01-provisioner --project="${SBX_GKE_PROJECT}" --region="${REGION}" --member="serviceAccount:${SBX_MANAGER}" --role=roles/run.invoker --account="${ADMIN_ACCOUNT}" --impersonate-service-account="${TF_MANAGER}"
@@ -529,7 +529,7 @@ gcloud run services describe run-sbxtest01-provisioner --project="${SBX_GKE_PROJ
 # URL만 치환합니다. Workflows의 ${args}, ${response.body}는 그대로 유지합니다.
 export PROVISIONER_URL="$(gcloud run services describe run-sbxtest01-provisioner --project="${SBX_GKE_PROJECT}" --region="${REGION}" --account="${ADMIN_ACCOUNT}" --impersonate-service-account="${TF_MANAGER}" --format='value(status.url)')"
 mkdir -p .local
-sed "s|__PROVISIONER_URL__|${PROVISIONER_URL}|g" 07.sandbox_request_api/workflow.template.yaml > .local/workflow.yaml
+sed "s|__PROVISIONER_URL__|${PROVISIONER_URL}|g" 03.sandbox_deploy/03.1.request/workflow.template.yaml > .local/workflow.yaml
 
 # ── 23. workflows deploy workflow-sbxtest01-provision ──
 gcloud workflows deploy workflow-sbxtest01-provision --project="${SBX_GKE_PROJECT}" --location="${REGION}" --service-account="${SBX_MANAGER}" --source=.local/workflow.yaml --account="${ADMIN_ACCOUNT}" --impersonate-service-account="${TF_MANAGER}"
@@ -599,10 +599,10 @@ gcloud compute forwarding-rules create fr-alb-sbxtest01-shared-https --project="
 # 기존 자원 확인
 # gcloud builds triggers describe trigger-sbxtest01-platform-release --project="${SBX_GKE_PROJECT}" --region="${REGION}" --format=json --account="${ADMIN_ACCOUNT}" --impersonate-service-account="${TF_MANAGER}"
 # 조회 결과가 명시적 Not Found일 때만 아래 생성 명령을 실행합니다.
-# gcloud builds triggers create github --name=trigger-sbxtest01-platform-release --project="${SBX_GKE_PROJECT}" --region="${REGION}" --repo-owner=sonmap --repo-name=GCP_SBX_Test01 --branch-pattern="^main$" --build-config=03.cloudbuild/platform-release.yaml --service-account="projects/${SBX_GKE_PROJECT}/serviceAccounts/${TF_MANAGER}" '--substitutions=_RELEASE_ID=git-$SHORT_SHA,_COMMIT_SHA=$COMMIT_SHA' --account="${ADMIN_ACCOUNT}" --impersonate-service-account="${TF_MANAGER}"
+# gcloud builds triggers create github --name=trigger-sbxtest01-platform-release --project="${SBX_GKE_PROJECT}" --region="${REGION}" --repo-owner=sonmap --repo-name=GCP_SBX_Test01 --branch-pattern="^main$" --build-config=03.sandbox_deploy/03.3.gke/cloudbuild/platform-release.yaml --service-account="projects/${SBX_GKE_PROJECT}/serviceAccounts/${TF_MANAGER}" '--substitutions=_RELEASE_ID=git-$SHORT_SHA,_COMMIT_SHA=$COMMIT_SHA' --account="${ADMIN_ACCOUNT}" --impersonate-service-account="${TF_MANAGER}"
 
 # 다음: OAuth Secret 값 등록 → Workspace tf-manager 그룹 관리자 역할 부여 → 릴리스 → 이미지 미러링 → 과제 요청
-# Build 설정은 03.cloudbuild에, Cloud Run과 Workflows 설정은 07.sandbox_request_api에 있습니다.
+# Build 설정은 03.sandbox_deploy/03.3.gke/cloudbuild에, Cloud Run과 Workflows 설정은 03.sandbox_deploy/03.1.request에 있습니다.
 ```
 
 ## 4. OAuth 값 등록
@@ -653,7 +653,7 @@ unset CLOUDSDK_AUTH_IMPERSONATE_SERVICE_ACCOUNT
 export COMMIT_SHA="$(git rev-parse HEAD)"
 export RELEASE_ID="git-$(git rev-parse HEAD | cut -c1-12)"
 if [ -z "$(git status --porcelain)" ]; then
-  gcloud builds submit . --project="${SBX_GKE_PROJECT}" --region="${REGION}" --account="${ADMIN_ACCOUNT}" --impersonate-service-account="${TF_MANAGER}" --service-account="${TF_MANAGER_RESOURCE}" --gcs-source-staging-dir="gs://${BUILD_STAGING_BUCKET}/source" --config=03.cloudbuild/platform-release.yaml --substitutions="_RELEASE_ID=${RELEASE_ID},_COMMIT_SHA=${COMMIT_SHA}"
+  gcloud builds submit . --project="${SBX_GKE_PROJECT}" --region="${REGION}" --account="${ADMIN_ACCOUNT}" --impersonate-service-account="${TF_MANAGER}" --service-account="${TF_MANAGER_RESOURCE}" --gcs-source-staging-dir="gs://${BUILD_STAGING_BUCKET}/source" --config=03.sandbox_deploy/03.3.gke/cloudbuild/platform-release.yaml --substitutions="_RELEASE_ID=${RELEASE_ID},_COMMIT_SHA=${COMMIT_SHA}"
 else
   echo "로컬 변경을 커밋하거나 정리한 뒤 다시 실행하세요."
 fi
@@ -733,7 +733,7 @@ unset CLOUDSDK_AUTH_IMPERSONATE_SERVICE_ACCOUNT
 export AUTOMATION_IMAGE="${REGION}-docker.pkg.dev/${SBX_GKE_PROJECT}/ar-sbxtest01-platform/sbxtest01-automation-runner:bootstrap"
 
 # Hub / Proxy / Notebook 기본 이미지를 내부 저장소로 복사합니다.
-gcloud builds submit --no-source --project="${SBX_GKE_PROJECT}" --region="${REGION}" --account="${ADMIN_ACCOUNT}" --impersonate-service-account="${TF_MANAGER}" --service-account="${TF_MANAGER_RESOURCE}" --config=03.cloudbuild/mirror-jupyterhub-images.yaml --substitutions="_AUTOMATION_IMAGE=${AUTOMATION_IMAGE}"
+gcloud builds submit --no-source --project="${SBX_GKE_PROJECT}" --region="${REGION}" --account="${ADMIN_ACCOUNT}" --impersonate-service-account="${TF_MANAGER}" --service-account="${TF_MANAGER_RESOURCE}" --config=03.sandbox_deploy/03.3.gke/cloudbuild/mirror-jupyterhub-images.yaml --substitutions="_AUTOMATION_IMAGE=${AUTOMATION_IMAGE}"
 ```
 
 기본 이미지 복사 Build가 SUCCESS인지 확인합니다. 외부 다운로드가 가능한 관리형 Build에서 실행합니다.
@@ -753,7 +753,7 @@ TARGET_PLATFORM=linux/amd64
 NOTEBOOK_PIP_MODE=index
 ```
 
-`TARGET_PLATFORM`은 GKE 대상 노드에 맞춥니다. 예제 태그가 이미 게시되어 있으면 기존 이미지를 사용하거나, 변경 버전에 새로운 승인 태그를 지정합니다. 기존 과제별 배포에서 새 태그를 사용할 경우 사용자 홈 설정도 함께 적용합니다. [이미지 적용 절차](../04.Jupiter-setup-image/README.md)
+`TARGET_PLATFORM`은 GKE 대상 노드에 맞춥니다. 예제 태그가 이미 게시되어 있으면 기존 이미지를 사용하거나, 변경 버전에 새로운 승인 태그를 지정합니다. 기존 과제별 배포에서 새 태그를 사용할 경우 사용자 홈 설정도 함께 적용합니다. [이미지 적용 절차](../03.sandbox_deploy/03.3.gke/notebook-image/README.md)
 
 **1. Docker를 내부 AR에 인증하고 베이스 이미지를 확인합니다.**
 
@@ -765,7 +765,7 @@ docker pull --platform="$TARGET_PLATFORM" "$BASE_IMAGE"
 **2. Python 패키지 설치 경로를 선택합니다.**
 
 - `index`는 Docker 빌드 안에서 필요한 Python 패키지와 의존성을 모두 받을 수 있을 때 사용합니다.
-- 일부만 받을 수 있으면 [표준 이미지 wheel 반입 절차](../04.Jupiter-setup-image/README.md#표준-이미지-wheel-반입)를 따라 완전한 wheel 모음을 `04.Jupiter-setup-image/wheelhouse/`에 준비하고 아래 설정을 적용합니다. Dockerfile은 이 모드에서 Python 인덱스에 접속하지 않습니다. APT 설치에는 승인된 APT 접근 경로가 계속 필요합니다.
+- 일부만 받을 수 있으면 [표준 이미지 wheel 반입 절차](../03.sandbox_deploy/03.3.gke/notebook-image/README.md#표준-이미지-wheel-반입)를 따라 완전한 wheel 모음을 `03.sandbox_deploy/03.3.gke/notebook-image/wheelhouse/`에 준비하고 아래 설정을 적용합니다. Dockerfile은 이 모드에서 Python 인덱스에 접속하지 않습니다. APT 설치에는 승인된 APT 접근 경로가 계속 필요합니다.
 
 ```bash
 NOTEBOOK_PIP_MODE=wheelhouse
@@ -774,7 +774,7 @@ NOTEBOOK_PIP_MODE=wheelhouse
 **3. VM에서 빌드하고 확인 후 AR에 올립니다.**
 
 ```bash
-DOCKER_BUILDKIT=1 docker build --platform="$TARGET_PLATFORM" --build-arg "BASE_IMAGE=$BASE_IMAGE" --build-arg "IMAGE_VERSION=$IMAGE_TAG" --build-arg "NOTEBOOK_PIP_MODE=$NOTEBOOK_PIP_MODE" --tag "$IMAGE" 04.Jupiter-setup-image
+DOCKER_BUILDKIT=1 docker build --platform="$TARGET_PLATFORM" --build-arg "BASE_IMAGE=$BASE_IMAGE" --build-arg "IMAGE_VERSION=$IMAGE_TAG" --build-arg "NOTEBOOK_PIP_MODE=$NOTEBOOK_PIP_MODE" --tag "$IMAGE" 03.sandbox_deploy/03.3.gke/notebook-image
 docker run --rm --platform="$TARGET_PLATFORM" --entrypoint python "$IMAGE" -c 'import pandas, pyarrow, db_dtypes; from google.cloud import bigquery, storage'
 docker run --rm --platform="$TARGET_PLATFORM" --entrypoint sh "$IMAGE" -c 'command -v jupyterhub-singleuser && gcloud version'
 docker push "$IMAGE"
@@ -782,11 +782,11 @@ docker pull --platform="$TARGET_PLATFORM" "$IMAGE"
 docker image inspect "$IMAGE" --format='{{range .RepoDigests}}{{println .}}{{end}}' | grep -F "${IMAGE%:*}@sha256:"
 ```
 
-각 명령이 성공한 뒤 다음 명령을 실행합니다. 그룹 공유 PoC는 마지막 명령의 `이미지@sha256:…` 값을 승인 과제 JSON의 `image`에 넣고 배포합니다. 개발 중 추가 패키지는 [개발자 인터넷 PC → GCS → Notebook Pod 절차](../04.Jupiter-setup-image/README.md#개발자-추가-패키지-gcs-경유)를 사용합니다.
+각 명령이 성공한 뒤 다음 명령을 실행합니다. 그룹 공유 PoC는 마지막 명령의 `이미지@sha256:…` 값을 승인 과제 JSON의 `image`에 넣고 배포합니다. 개발 중 추가 패키지는 [개발자 인터넷 PC → GCS → Notebook Pod 절차](../03.sandbox_deploy/03.3.gke/notebook-image/README.md#개발자-추가-패키지-gcs-경유)를 사용합니다.
 
 ## 운영 자동화 경계
 
-이 문서는 공통 기반 준비용입니다. 과제마다 위 명령을 반복하지 않습니다. 포털은 승인 JSON을 GCS에 저장하고, 작업자가 [2차 배포 문서](02-sandbox-deploy.md)의 명령으로 Deploy를 시작합니다. GCS 이벤트 시작·입력 변환·포털 결과 전달은 나중에 자동화할 항목입니다. 포털 없이 수행하는 JSON 작성·업로드는 연동 시험용입니다. 기존 .sh 파일은 호환·참고용으로 유지하며 본 문서의 명령과 중복 실행하지 않습니다.
+공통 기반은 최초에 준비합니다. 과제마다 [2차 그룹 공유 자동 배포](../03.sandbox_deploy/README.md)를 사용합니다. 포털은 승인된 그룹 JSON을 GCS에 저장하고 Workflow를 호출합니다. 기존 과제별 Hub 경로는 [기존 Workflows 배포](../03.sandbox_deploy/03.1.request/legacy-deploy.md)를 따릅니다.
 
 ## 그룹 관리 사전 설정
 
@@ -804,7 +804,7 @@ KUBECONFIG="$HOME/.kube/config-sbx-dns" gcloud container clusters get-credential
 CLOUDSDK_CORE_ACCOUNT=son@sonmap.net kubectl --kubeconfig="$HOME/.kube/config-sbx-dns" get namespaces
 ```
 
-기존 Workflows 경로를 사용할 때는 [Private Pool 접속 점검](reference/cloudbuild-private-gke-vpn-design.md)도 실행합니다. DNS·인증서 담당자와 [내부 HTTPS 연결](reference/sbx03-https-certificate-runbook.md)을 확인한 뒤 [2차 배포](02-sandbox-deploy.md)로 진행합니다.
+기존 Workflows 경로를 사용할 때는 [Private Pool 접속 점검](reference/cloudbuild-private-gke-vpn-design.md)도 실행합니다. DNS·인증서 담당자와 [내부 HTTPS 연결](reference/sbx03-https-certificate-runbook.md)을 확인한 뒤 [2차 Sandbox 구축](../03.sandbox_deploy/README.md)로 진행합니다.
 
 ## 부록. 기존 Host 광역 IAM 정리
 

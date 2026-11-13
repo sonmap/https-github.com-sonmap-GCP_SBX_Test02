@@ -43,7 +43,7 @@ class CommandbookTests(unittest.TestCase):
         sample = make_request()
         self.assertEqual(sample['network']['host_project_id'], 'gcp-prod-edp-hub-vpchost')
         self.assertEqual(sample['network']['network_name'], 'vpc-prod-edp-hub')
-        properties = json.loads((ROOT / '07.sandbox_request_api/sandbox-request.schema.json').read_text())['properties']
+        properties = json.loads((ROOT / '03.sandbox_deploy/03.1.request/sandbox-request.schema.json').read_text())['properties']
         for section, field in [('network', 'host_project_id'), ('network', 'network_name'), ('gke', 'project_id')]:
             self.assertEqual(properties[section]['properties'][field]['const'], sample[section][field])
         variables = '\n'.join(blocks(FOUNDATION_SECTIONS[0]))
@@ -67,8 +67,8 @@ class CommandbookTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             work = Path(tmp)
             (work / 'bin').mkdir()
-            workflow = Path('07.sandbox_request_api/workflow.template.yaml')
-            (work / workflow.parent).mkdir()
+            workflow = Path('03.sandbox_deploy/03.1.request/workflow.template.yaml')
+            (work / workflow.parent).mkdir(parents=True)
             shutil.copyfile(ROOT / workflow, work / workflow)
             stub = work / 'bin/gcloud'
             stub.write_text('''#!/bin/sh
@@ -131,11 +131,11 @@ esac
             self.assertTrue(any('--role=roles/container.hostServiceAgentUser ' in c for c in host_grants))
 
     def test_static_configs_match_runtime_targets_and_reference_files_exist(self):
-        env = yaml.safe_load((ROOT / '07.sandbox_request_api/provisioner-env.yaml').read_text())
+        env = yaml.safe_load((ROOT / '03.sandbox_deploy/03.1.request/provisioner-env.yaml').read_text())
         self.assertEqual(env['SBX_GKE_PROJECT'], 'gcp-sbx-edp-gke01')
         self.assertEqual(env['GKE_ENDPOINT_MODE'], 'dns')
         self.assertEqual(env['SBX_GKE_PROJECT'], 'gcp-sbx-edp-gke01')
-        build = yaml.safe_load((ROOT / '03.cloudbuild/bootstrap-build.yaml').read_text())
+        build = yaml.safe_load((ROOT / '03.sandbox_deploy/03.3.gke/cloudbuild/bootstrap-build.yaml').read_text())
         self.assertEqual(build['options']['logging'], 'CLOUD_LOGGING_ONLY')
         self.assertEqual(len(build['images']), 2)
         for name in FOUNDATION_SECTIONS:
@@ -143,14 +143,14 @@ esac
                 self.assertTrue((ROOT / target).is_file(), target)
 
     def test_unified_platform_endpoints(self):
-        env = yaml.safe_load((ROOT / '07.sandbox_request_api/provisioner-env.yaml').read_text())
+        env = yaml.safe_load((ROOT / '03.sandbox_deploy/03.1.request/provisioner-env.yaml').read_text())
         project = env['SBX_GKE_PROJECT']
         self.assertEqual(project, 'gcp-sbx-edp-gke01')
         self.assertEqual(env['REQUEST_BUCKET'], project + '-sbxtest01-requests')
         self.assertEqual(env['BUNDLE_BUCKET'], project + '-sbxtest01-bundles')
         self.assertEqual(env['WORKER_POOL'], f'projects/{project}/locations/asia-northeast3/workerPools/pool-sbxtest01')
         self.assertTrue(env['JUPYTER_CHART_URI'].startswith(f'oci://asia-northeast3-docker.pkg.dev/{project}/'))
-        release = yaml.safe_load((ROOT / '03.cloudbuild/platform-release.yaml').read_text())
+        release = yaml.safe_load((ROOT / '03.sandbox_deploy/03.3.gke/cloudbuild/platform-release.yaml').read_text())
         self.assertEqual(release['substitutions']['_SBX_GKE_PROJECT'], project)
         self.assertEqual(release['substitutions']['_BUNDLE_BUCKET'], env['BUNDLE_BUCKET'])
         sample = make_request()
@@ -168,7 +168,7 @@ esac
         self.assertNotIn('--subnet=',run)
         self.assertNotIn('--vpc-egress=',run)
         self.assertIn('builds worker-pools create pool-sbxtest01',foundation)
-        release=yaml.safe_load((ROOT/'03.cloudbuild/platform-release.yaml').read_text())
+        release=yaml.safe_load((ROOT/'03.sandbox_deploy/03.3.gke/cloudbuild/platform-release.yaml').read_text())
         rollout=next(step for step in release['steps'] if step.get('id')=='roll-provisioner')
         self.assertIn('--clear-network',rollout['args'][-1])
 

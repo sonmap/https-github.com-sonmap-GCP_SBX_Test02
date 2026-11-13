@@ -9,7 +9,7 @@ from unittest.mock import patch
 
 
 ROOT = Path(__file__).resolve().parents[1]
-FEATURE = ROOT / "12.sandbox_shared"
+FEATURE = ROOT / "03.sandbox_deploy/03.3.gke/shared-group"
 EXAMPLE = Path(__file__).resolve().with_name("fixtures") / "group.example.json"
 spec = importlib.util.spec_from_file_location("shared_sandbox", FEATURE / "shared_sandbox.py")
 sandbox = importlib.util.module_from_spec(spec)

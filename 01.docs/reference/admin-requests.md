@@ -53,7 +53,7 @@ VPC Admin은 BigQuery 조회 권한의 요청 창구입니다. 네트워크 관�
 
 ## 작업 순서
 
-VPC Admin 요청과 인증서·DNS 별도 준비를 먼저 착수합니다. 작업자는 인프라 gcloud 명령을 수행하고, 해당 외부 준비가 완료된 뒤 Private Pool 접속·사용자 인증을 확인합니다. 이후 [Deploy 명령](../02-sandbox-deploy.md#공통-workflows-배포-명령)을 실행합니다.
+VPC Admin 요청과 인증서·DNS 별도 준비를 먼저 착수합니다. 작업자는 인프라 gcloud 명령을 수행하고, 해당 외부 준비가 완료된 뒤 Private Pool 접속·사용자 인증을 확인합니다. 이후 [Deploy 명령](../../03.sandbox_deploy/03.1.request/legacy-deploy.md#공통-workflows-배포-명령)을 실행합니다.
 
 ## VPC Admin 요청 3 — 내부 ALB
 

@@ -6,7 +6,7 @@ from pathlib import Path
 from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
-spec = importlib.util.spec_from_file_location("reconcile", ROOT / "09.sandbox_gke_deployer/reconcile_postdeploy.py")
+spec = importlib.util.spec_from_file_location("reconcile", ROOT / "03.sandbox_deploy/03.3.gke/reconcile_postdeploy.py")
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 PROJECT = "gcp-sbx-edp-gke01"

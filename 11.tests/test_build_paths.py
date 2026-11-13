@@ -8,8 +8,8 @@ ROOT=Path(__file__).resolve().parents[1]
 
 class BuildPathTests(unittest.TestCase):
     def test_bootstrap_and_release_docker_contexts_exist(self):
-        for name in ['03.cloudbuild/bootstrap-build.yaml','03.cloudbuild/platform-release.yaml',
-                     '03.cloudbuild/shared-group-runner.yaml']:
+        for name in ['03.sandbox_deploy/03.3.gke/cloudbuild/bootstrap-build.yaml','03.sandbox_deploy/03.3.gke/cloudbuild/platform-release.yaml',
+                     '03.sandbox_deploy/03.3.gke/cloudbuild/shared-group-runner.yaml']:
             config=yaml.safe_load((ROOT/name).read_text())
             for step in config['steps']:
                 args=step.get('args',[])

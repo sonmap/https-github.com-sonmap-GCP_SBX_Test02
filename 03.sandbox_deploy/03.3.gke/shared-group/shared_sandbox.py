@@ -225,7 +225,7 @@ def kubectl(context, namespace, *args):
 
 
 def reconcile_alb(settings, args):
-    sys.path.insert(0, str(HERE.parent / "09.sandbox_gke_deployer"))
+    sys.path.insert(0, str(HERE.parent))
     import reconcile_postdeploy as alb
 
     group = settings["group"]

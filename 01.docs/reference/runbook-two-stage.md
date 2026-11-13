@@ -1,6 +1,6 @@
 # 실제 수행 절차 — 관리 VM에서 Notebook 접속까지
 
-> **현재 작업 기준:** 공통 인프라는 작업자가 개별 gcloud 명령으로 구축합니다. 과제는 포털이 GCS에 저장한 승인 JSON을 대상으로 작업자가 [Deploy 명령](../02-sandbox-deploy.md#공통-workflows-배포-명령)을 실행합니다. GCS 이벤트 자동 시작·포털 결과 자동 전달은 추후 적용하며 현재 필수 구축 단계가 아닙니다. 기존 Deploy 내부의 API·Build·Terraform·GKE 처리 코드는 사용합니다.
+> **현재 작업 기준:** 공통 인프라는 작업자가 개별 gcloud 명령으로 구축합니다. 과제는 포털이 GCS에 저장한 승인 JSON을 대상으로 작업자가 [Deploy 명령](../../03.sandbox_deploy/03.1.request/legacy-deploy.md#공통-workflows-배포-명령)을 실행합니다. GCS 이벤트 자동 시작·포털 결과 자동 전달은 추후 적용하며 현재 필수 구축 단계가 아닙니다. 기존 Deploy 내부의 API·Build·Terraform·GKE 처리 코드는 사용합니다.
 
 현재 저장소의 파일과 프로그램 동작을 기준으로 작성했습니다. 아래 명령은 **Test02 저장소 루트에서** 실행합니다. 각 코드 블록의 주석과 완료 기준을 확인하며 진행합니다. 문서의 명령은 작성·검사한 것이며 실제 GCP에 실행한 기록은 아닙니다.
 
@@ -159,7 +159,7 @@ gcloud iam service-accounts describe "${TF_MANAGER}" --project="${SBX_GKE_PROJEC
 
 Workspace 최고 관리자는 이 서비스 계정에 Groups Administrator 역할을 직접 부여합니다. 이 최초 역할 부여는 GCP IAM 역할만으로 대체되지 않습니다. [공식 설정 절차](https://docs.cloud.google.com/identity/docs/how-to/setup#assigning_an_admin_role_to_the_service_account)를 따릅니다.
 
-조직의 실제 Cloud Identity Customer ID(C로 시작하는 값)를 확인하고 `07.sandbox_request_api/provisioner-env.yaml`의 CLOUD_IDENTITY_CUSTOMER_ID에 설정합니다. 기본 __SET_CUSTOMER_ID__는 실행 가능한 값이 아니며 API가 요청을 거절합니다. 설정을 반영한 커밋으로 새 플랫폼 릴리스를 게시합니다. 릴리스는 Cloud Run 환경설정과 API·Runner 이미지를 함께 갱신합니다.
+조직의 실제 Cloud Identity Customer ID(C로 시작하는 값)를 확인하고 `03.sandbox_deploy/03.1.request/provisioner-env.yaml`의 CLOUD_IDENTITY_CUSTOMER_ID에 설정합니다. 기본 __SET_CUSTOMER_ID__는 실행 가능한 값이 아니며 API가 요청을 거절합니다. 설정을 반영한 커밋으로 새 플랫폼 릴리스를 게시합니다. 릴리스는 Cloud Run 환경설정과 API·Runner 이미지를 함께 갱신합니다.
 
 완료 기준: cloudidentity.googleapis.com 활성화, tf-manager의 프로젝트/그룹 관리 권한 준비, 실제 Customer ID 설정. 기존 그룹은 [기존 그룹 편입 절차](cloud-identity-group-terraform.md)를 확인합니다. SA JSON 키와 사용자 위임은 사용하지 않습니다.
 
@@ -186,7 +186,7 @@ export RELEASE_ID="git-$(git rev-parse HEAD | cut -c1-12)"
 export COMMIT_SHA="$(git rev-parse HEAD)"
 export RELEASE_ID="git-$(git rev-parse HEAD | cut -c1-12)"
 if [ -z "$(git status --porcelain)" ]; then
-  gcloud builds submit . --project="${SBX_GKE_PROJECT}" --region="${REGION}" --account="${ADMIN_ACCOUNT}" --impersonate-service-account="${TF_MANAGER}" --service-account="${TF_MANAGER_RESOURCE}" --gcs-source-staging-dir="gs://${BUILD_STAGING_BUCKET}/source" --config=03.cloudbuild/platform-release.yaml --substitutions="_RELEASE_ID=${RELEASE_ID},_COMMIT_SHA=${COMMIT_SHA}"
+  gcloud builds submit . --project="${SBX_GKE_PROJECT}" --region="${REGION}" --account="${ADMIN_ACCOUNT}" --impersonate-service-account="${TF_MANAGER}" --service-account="${TF_MANAGER_RESOURCE}" --gcs-source-staging-dir="gs://${BUILD_STAGING_BUCKET}/source" --config=03.sandbox_deploy/03.3.gke/cloudbuild/platform-release.yaml --substitutions="_RELEASE_ID=${RELEASE_ID},_COMMIT_SHA=${COMMIT_SHA}"
 else
   echo "로컬 변경을 커밋하거나 정리한 뒤 다시 실행하세요."
 fi
@@ -196,7 +196,7 @@ gcloud storage cp "gs://${BUNDLE_BUCKET}/platform-releases/${RELEASE_ID}/release
 jq '{release_id,git_commit,archive_uri,generation,sha256,runner_image,provisioner_image}' .local/release.json
 ```
 
-완료 기준: 릴리스 Build SUCCESS, 두 이미지와 release.json/ZIP이 존재하고 release.json의 release_id가 위 RELEASE_ID와 일치합니다. ZIP 내부 Root는 `08.sandbox_setup_02_terraform/deployments/`입니다. 이전 폴더명의 ZIP을 새 API 이미지와 섞지 않습니다.
+완료 기준: 릴리스 Build SUCCESS, 두 이미지와 release.json/ZIP이 존재하고 release.json의 release_id가 위 RELEASE_ID와 일치합니다. ZIP 내부 Root는 `03.sandbox_deploy/03.2.terraform/deployments/`입니다. 이전 폴더명의 ZIP을 새 API 이미지와 섞지 않습니다.
 
 ## 7. Chart와 기본 이미지 미러링
 
@@ -206,7 +206,7 @@ jq '{release_id,git_commit,archive_uri,generation,sha256,runner_image,provisione
 export AUTOMATION_IMAGE="${REGION}-docker.pkg.dev/${SBX_GKE_PROJECT}/ar-sbxtest01-platform/sbxtest01-automation-runner:bootstrap"
 
 # Hub / Proxy / Notebook 기본 이미지를 내부 저장소로 복사합니다.
-gcloud builds submit --no-source --project="${SBX_GKE_PROJECT}" --region="${REGION}" --account="${ADMIN_ACCOUNT}" --impersonate-service-account="${TF_MANAGER}" --service-account="${TF_MANAGER_RESOURCE}" --config=03.cloudbuild/mirror-jupyterhub-images.yaml --substitutions="_AUTOMATION_IMAGE=${AUTOMATION_IMAGE}"
+gcloud builds submit --no-source --project="${SBX_GKE_PROJECT}" --region="${REGION}" --account="${ADMIN_ACCOUNT}" --impersonate-service-account="${TF_MANAGER}" --service-account="${TF_MANAGER_RESOURCE}" --config=03.sandbox_deploy/03.3.gke/cloudbuild/mirror-jupyterhub-images.yaml --substitutions="_AUTOMATION_IMAGE=${AUTOMATION_IMAGE}"
 
 gcloud artifacts docker images list "${REGION}-docker.pkg.dev/${SBX_GKE_PROJECT}/ar-sbxtest01-platform" --include-tags --account="${ADMIN_ACCOUNT}" --impersonate-service-account="${TF_MANAGER}"
 ```
@@ -215,11 +215,11 @@ gcloud artifacts docker images list "${REGION}-docker.pkg.dev/${SBX_GKE_PROJECT}
 
 ## 8. 사용자 Notebook 표준 이미지 빌드
 
-관리 VM `infra-son01`에서 [표준 이미지 빌드·게시 명령](../01-infra-setup.md#7-notebook-표준-이미지-빌드)을 실행합니다. 내부 AR에서 이미지 digest가 조회되면 완료입니다. 개발자 추가 패키지는 [GCS 경유 절차](../../04.Jupiter-setup-image/README.md#개발자-추가-패키지-gcs-경유)로 설치합니다.
+관리 VM `infra-son01`에서 [표준 이미지 빌드·게시 명령](../01-infra-setup.md#7-notebook-표준-이미지-빌드)을 실행합니다. 내부 AR에서 이미지 digest가 조회되면 완료입니다. 개발자 추가 패키지는 [GCS 경유 절차](../../03.sandbox_deploy/03.3.gke/notebook-image/README.md#개발자-추가-패키지-gcs-경유)로 설치합니다.
 
 ## 9. 수동 연동 시험 전용 — 실제 과제 신청값과 릴리스 반영
 
-운영 요청은 포털이 작성·승인하여 GCS에 저장합니다. 이 단계와 10단계는 포털 없이 시험할 때만 사용합니다. 현재 GCS 이벤트 시작 및 Build 완료 결과의 포털 전달은 미구현이므로, GCS 저장만으로 운영 자동화가 시작된다고 판단하지 않습니다. 포털은 릴리스 메타데이터도 JSON에 반영해야 합니다. [요청 작성 규칙](../../05.sandbox_json/README.md)에 따라 과제별 작업용 신청서를 `.local/request-draft.json`에 준비합니다.
+운영 요청은 포털이 작성·승인하여 GCS에 저장합니다. 이 단계와 10단계는 포털 없이 시험할 때만 사용합니다. 현재 GCS 이벤트 시작 및 Build 완료 결과의 포털 전달은 미구현이므로, GCS 저장만으로 운영 자동화가 시작된다고 판단하지 않습니다. 포털은 릴리스 메타데이터도 JSON에 반영해야 합니다. [요청 작성 규칙](../../03.sandbox_deploy/03.1.request/request-format/README.md)에 따라 과제별 작업용 신청서를 `.local/request-draft.json`에 준비합니다.
 
 현재 40-data는 과제 Dataset/GCS/Workload Identity를 관리하는 필수 배포 단계입니다. 기존 별도 BQ 프로젝트만 조회하고 과제 Dataset/GCS를 구성하지 않는 모드는 아직 없습니다. 그런 설계가 목적이면 신청 전에 40-data 코드를 별도 변경해야 합니다.
 

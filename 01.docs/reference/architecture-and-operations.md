@@ -11,7 +11,7 @@
 | 로그인/그룹 준비 | 운영자·Workspace/OAuth 관리자 | Secret 등록·OAuth Callback·tf-manager 그룹 관리자 역할 부여 | 로그인·Terraform Group 생성 사전 조건 |
 | 플랫폼/사용자 이미지 | tf-manager Build | 04-manual-gcloud.md의 개별 gcloud 빌드 명령 | 버전 이미지·소스 ZIP·Chart |
 | 최종 신청/승인 | 승인 담당자·운영자 | 실제 신청 JSON·release.json | .local/request.json |
-| 접수 | 운영자 → sbx-manager Workflow/Run | [배포 문서](../02-sandbox-deploy.md#공통-workflows-배포-명령)의 gcloud workflows run → /provision | 승인 검증·요청별 ZIP·부모 Build 시작 |
+| 접수 | 운영자 → sbx-manager Workflow/Run | [배포 문서](../../03.sandbox_deploy/03.1.request/legacy-deploy.md#공통-workflows-배포-명령)의 gcloud workflows run → /provision | 승인 검증·요청별 ZIP·부모 Build 시작 |
 | 과제 자원 | tf-manager 부모 Build/IM | Terraform Group → 전파 대기 → Project → Network 선택 → IAM → Data | Google Group·과제 자원·WI Binding |
 | Kubernetes/접속 경로 | tf-manager 자식 Private Pool Build | apply_gke_workload.py → reconcile_postdeploy.py | Namespace·JupyterHub·NEG·Backend·ALB 경로 |
 
@@ -79,7 +79,7 @@
 
 ## 새 소스 구조의 릴리스 경계
 
-소스 ZIP의 Root는 `08.sandbox_setup_02_terraform/deployments/`입니다. 폴더 변경 후 새 API 이미지와 새 ZIP을 같은 릴리스로 게시합니다. 이전 경로의 ZIP을 새 API와 섞지 않습니다. 릴리스/미러링은 외부 패키지를 받는 완전관리형 Build, 과제 배포와 GKE 접속 점검은 외부 IP 없는 Private Pool을 사용합니다.
+소스 ZIP의 Root는 `03.sandbox_deploy/03.2.terraform/deployments/`입니다. 폴더 변경 후 새 API 이미지와 새 ZIP을 같은 릴리스로 게시합니다. 이전 경로의 ZIP을 새 API와 섞지 않습니다. 릴리스/미러링은 외부 패키지를 받는 완전관리형 Build, 과제 배포와 GKE 접속 점검은 외부 IP 없는 Private Pool을 사용합니다.
 
 별도 데이터레이크 권한 자동화 서비스는 제거되었습니다. 현재 소스 변경만으로 이전에 생성된 GCP 서비스·기존 BQ를 삭제하지 않습니다. 실제 클라우드 배포 여부는 Build/IM/Kubernetes 조회로 확인합니다.
 

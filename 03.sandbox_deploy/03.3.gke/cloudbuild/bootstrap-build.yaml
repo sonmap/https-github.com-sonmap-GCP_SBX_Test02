@@ -3,7 +3,7 @@ steps:
   args:
   - build
   - -f
-  - 09.sandbox_gke_deployer/Dockerfile
+  - 03.sandbox_deploy/03.3.gke/Dockerfile
   - -t
   - asia-northeast3-docker.pkg.dev/gcp-sbx-edp-gke01/ar-sbxtest01-platform/sbxtest01-automation-runner:bootstrap
   - .
@@ -12,7 +12,7 @@ steps:
   - build
   - -t
   - asia-northeast3-docker.pkg.dev/gcp-sbx-edp-gke01/ar-sbxtest01-platform/run-sbxtest01-provisioner:bootstrap
-  - 07.sandbox_request_api
+  - 03.sandbox_deploy/03.1.request
 images:
 - asia-northeast3-docker.pkg.dev/gcp-sbx-edp-gke01/ar-sbxtest01-platform/sbxtest01-automation-runner:bootstrap
 - asia-northeast3-docker.pkg.dev/gcp-sbx-edp-gke01/ar-sbxtest01-platform/run-sbxtest01-provisioner:bootstrap

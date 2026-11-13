@@ -113,7 +113,7 @@ no-public-egress는 Pool의 공용 인터넷 egress를 제한하는 설정입니
 | 6 | 기존 그룹·Dataset·GCS/state 편입 검토 후 Deploy | 작업자 |
 | 7 | Build·IM·GKE·ALB·로그인·기존 BQ 실제 조회 검증 | 운영자·사용자 |
 
-[실행 순서·명령 링크](work-order.md) / [개별 gcloud](../01-infra-setup.md#4-oauth-값-등록) / [Deploy](../02-sandbox-deploy.md#공통-workflows-배포-명령)
+[실행 순서·명령 링크](work-order.md) / [개별 gcloud](../01-infra-setup.md#4-oauth-값-등록) / [Deploy](../../03.sandbox_deploy/03.1.request/legacy-deploy.md#공통-workflows-배포-명령)
 
 ## 공식 기준
 

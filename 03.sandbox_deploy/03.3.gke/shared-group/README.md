@@ -1,6 +1,6 @@
 # GKE 공유 샌드박스 배포
 
-Test02의 그룹 공유 배포는 2차 Sandbox 구축 업무입니다. 포털이 그룹 구성을 승인한 뒤 [그룹 공유 배포 Workflow](../01.docs/02-sandbox-deploy.md#그룹-공유-sandbox-자동-배포)를 호출하면 Private Pool에서 Hub·Proxy, 과제 Notebook과 내부 ALB를 적용합니다. 기존 과제별 Workflow와는 별도입니다. 과제 Namespace는 한 배포 경로에서 관리합니다.
+Test02의 그룹 공유 배포는 2차 Sandbox 구축 업무입니다. 포털이 그룹 구성을 승인한 뒤 [그룹 공유 배포 Workflow](../../README.md#그룹-공유-sandbox-자동-배포)를 호출하면 Private Pool에서 Hub·Proxy, 과제 Notebook과 내부 ALB를 적용합니다. 기존 과제별 Workflow와는 별도입니다. 과제 Namespace는 한 배포 경로에서 관리합니다.
 
 | 범위 | 구성 |
 | --- | --- |
@@ -11,7 +11,7 @@ Test02의 그룹 공유 배포는 2차 Sandbox 구축 업무입니다. 포털이
 | 인증 | PoC용 Hub 로컬 로그인. 승인된 GW 이메일을 로그인 ID로 사용하고 별도로 설정한 테스트 비밀번호를 확인합니다. Hub는 named server 요청도 과제 승인 명단과 대조합니다. |
 | 이미지 | 과제별 승인된 AR digest를 지정. 기존 Ubuntu VM의 `systemctl`, Docker 종료 훅, 호스트 계정 동기화는 GKE 실행 경로에 의존하지 않음 |
 
-표준 이미지 빌드와 개발자 추가 패키지 설치 흐름은 [Mermaid와 GCS 반입 명령](../04.Jupiter-setup-image/README.md#개발자-추가-패키지-gcs-경유)을 참고합니다.
+표준 이미지 빌드와 개발자 추가 패키지 설치 흐름은 [Mermaid와 GCS 반입 명령](../notebook-image/README.md#개발자-추가-패키지-gcs-경유)을 참고합니다.
 
 ## 파일별 용도와 필요 여부
 
@@ -24,17 +24,17 @@ Test02의 그룹 공유 배포는 2차 Sandbox 구축 업무입니다. 포털이
 | [hub_spawner.py](hub_spawner.py) | 그룹 Hub 로그인과 승인 멤버의 과제 서버 연결 | Helm 설정에 포함되어 Hub가 실행할 때 | 그룹 공유 배포 실행 의존성 |
 | [notebook_slot.py](notebook_slot.py) | 과제 Pod에서 멤버별 Jupyter 서버 실행 | 과제 매니페스트에 포함되어 Notebook 컨테이너가 시작할 때 | 그룹 공유 배포 실행 의존성 |
 
-운영 이관용 이미지 태그·후보 빌드 파일은 [Notebook 이미지 운영 릴리스](../04.Jupiter-setup-image/README.md#notebook-이미지-운영-릴리스)에서 관리합니다.
+운영 이관용 이미지 태그·후보 빌드 파일은 [Notebook 이미지 운영 릴리스](../notebook-image/README.md#notebook-이미지-운영-릴리스)에서 관리합니다.
 
 ## 수동 점검과 복구
 
-아래 명령은 운영자가 단계별로 직접 적용해야 하는 점검·복구에 사용합니다. 자동 배포의 계정 Secret Manager 등록 방법은 [2차 배포 문서](../01.docs/02-sandbox-deploy.md#그룹-공유-sandbox-자동-배포)에 있습니다.
+아래 명령은 운영자가 단계별로 직접 적용해야 하는 점검·복구에 사용합니다. 자동 배포의 계정 Secret Manager 등록 방법은 [2차 배포 문서](../../README.md#그룹-공유-sandbox-자동-배포)에 있습니다.
 
 ### 1. 공통 인프라와 그룹 준비
 
 - VPC·GKE·내부 ALB·DNS·인증서는 기존 Foundation 절차로 준비합니다. 동일 ALB에 그룹 DNS 세 개를 등록하고 인증서가 세 이름을 포함하도록 구성합니다. 사내 DNS에서 각 이름은 내부 ALB VIP를 가리킵니다.
-- 관리 VM `infra-son01`에서 [Helm 차트 4.2.0 수동 반입 명령](../01.docs/01-infra-setup.md#infra-son01에서-helm-차트-수동-반입)을 실행합니다. Hub·Proxy 컨테이너 이미지는 같은 문서의 기본 이미지 복사 절차에서 준비합니다. 이후 배포 환경에서 AR, 사설 GKE API, Filestore에 접근할 수 있어야 합니다.
-- 세 그룹마다 [점검용 그룹 JSON 예시](../11.tests/fixtures/group.example.json)을 복사해 승인된 테스트 계정 이메일, 고유 과제명, GSA, AR 이미지 digest, PVC 이름을 입력합니다. 예제의 digest는 자리표시자입니다. 그룹 전체에서 과제명과 GSA가 중복되지 않도록 포털 또는 운영자가 관리합니다.
+- 관리 VM `infra-son01`에서 [Helm 차트 4.2.0 수동 반입 명령](../../../01.docs/01-infra-setup.md#infra-son01에서-helm-차트-수동-반입)을 실행합니다. Hub·Proxy 컨테이너 이미지는 같은 문서의 기본 이미지 복사 절차에서 준비합니다. 이후 배포 환경에서 AR, 사설 GKE API, Filestore에 접근할 수 있어야 합니다.
+- 세 그룹마다 [점검용 그룹 JSON 예시](../../../11.tests/fixtures/group.example.json)을 복사해 승인된 테스트 계정 이메일, 고유 과제명, GSA, AR 이미지 digest, PVC 이름을 입력합니다. 예제의 digest는 자리표시자입니다. 그룹 전체에서 과제명과 GSA가 중복되지 않도록 포털 또는 운영자가 관리합니다.
 - 그룹별로 승인된 계정의 테스트 비밀번호를 준비합니다. 실제 GW 비밀번호 대신 테스트 전용 비밀번호를 사용하세요. 준비 도구는 비밀번호를 화면에 표시하지 않고 해시만 파일에 기록합니다. 이 파일은 Git에 올리지 않고 Hub 네임스페이스의 Secret으로 등록합니다. Jupyter 사용자는 GKE 관리 권한을 받지 않습니다.
 
 ```bash
@@ -47,12 +47,12 @@ CHART=oci://asia-northeast3-docker.pkg.dev/gcp-sbx-edp-gke01/ar-sbxtest01-platfo
 
 kubectl --context "$CTX" create namespace "$GROUP" --dry-run=client -o yaml |
   kubectl --context "$CTX" apply -f -
-python3 12.sandbox_shared/prepare_test_accounts.py "$GROUP_CONFIG" "$TEST_ACCOUNT_HASHES"
+python3 03.sandbox_deploy/03.3.gke/shared-group/prepare_test_accounts.py "$GROUP_CONFIG" "$TEST_ACCOUNT_HASHES"
 kubectl --context "$CTX" -n "$GROUP" create secret generic "$TEST_ACCOUNTS_SECRET" \
   --from-file=accounts.json="$TEST_ACCOUNT_HASHES" --dry-run=client -o yaml |
   kubectl --context "$CTX" apply --server-side --field-manager=sandbox-test-accounts -f -
 
-python3 12.sandbox_shared/shared_sandbox.py "$GROUP_CONFIG" hub-values > /tmp/sbx-hub-values.json
+python3 03.sandbox_deploy/03.3.gke/shared-group/shared_sandbox.py "$GROUP_CONFIG" hub-values > /tmp/sbx-hub-values.json
 helm upgrade --install shared-hub "$CHART" --version 4.2.0 \
   --kube-context "$CTX" --namespace "$GROUP" --values /tmp/sbx-hub-values.json --atomic --timeout 15m
 ```
@@ -64,7 +64,7 @@ helm upgrade --install shared-hub "$CHART" --version 4.2.0 \
 그룹 Proxy의 standalone NEG를 기존 내부 ALB에 연결합니다. ALB와 GKE가 같은 서비스 프로젝트에 있는 기존 배치 기준입니다.
 
 ```bash
-python3 12.sandbox_shared/shared_sandbox.py "$GROUP_CONFIG" alb \
+python3 03.sandbox_deploy/03.3.gke/shared-group/shared_sandbox.py "$GROUP_CONFIG" alb \
   --context "$CTX" --project "$GKE_PROJECT" --region asia-northeast3 --url-map "$SHARED_URL_MAP"
 ```
 
@@ -81,7 +81,7 @@ gcloud iam service-accounts add-iam-policy-binding "$GSA_EMAIL" \
   --project="$GSA_PROJECT" --role=roles/iam.workloadIdentityUser \
   --member="serviceAccount:${GKE_PROJECT}.svc.id.goog[${TASK}/${KSA}]"
 
-python3 12.sandbox_shared/shared_sandbox.py "$GROUP_CONFIG" task-manifest "$TASK" > /tmp/sbx-task.json
+python3 03.sandbox_deploy/03.3.gke/shared-group/shared_sandbox.py "$GROUP_CONFIG" task-manifest "$TASK" > /tmp/sbx-task.json
 kubectl --context "$CTX" apply --dry-run=server -f /tmp/sbx-task.json
 kubectl --context "$CTX" apply -f /tmp/sbx-task.json
 ```
@@ -91,13 +91,13 @@ kubectl --context "$CTX" apply -f /tmp/sbx-task.json
 ### 3. 중지·재개와 운영 릴리스
 
 ```bash
-python3 12.sandbox_shared/shared_sandbox.py "$GROUP_CONFIG" stop "$TASK" --context "$CTX"
-python3 12.sandbox_shared/shared_sandbox.py "$GROUP_CONFIG" start "$TASK" --context "$CTX"
+python3 03.sandbox_deploy/03.3.gke/shared-group/shared_sandbox.py "$GROUP_CONFIG" stop "$TASK" --context "$CTX"
+python3 03.sandbox_deploy/03.3.gke/shared-group/shared_sandbox.py "$GROUP_CONFIG" start "$TASK" --context "$CTX"
 ```
 
 `stop`은 Deployment를 0으로 조정하고 멤버 세션 데이터를 지웁니다. `start`는 Deployment를 다시 1로 조정합니다. PVC는 두 명령의 대상이 아니며 사용자가 다시 로그인해 서버를 열면 같은 파일을 읽습니다. Hub idle culler는 60분 후 유휴 멤버 서버를 종료합니다. 과제 Pod 자체의 운영시간 종료는 포털 또는 승인된 스케줄러가 `stop`을 호출해야 합니다.
 
-승인된 이미지 digest에 운영 태그를 붙이거나 라이브러리 변경으로 후보 이미지를 빌드할 때는 [Notebook 이미지 운영 릴리스](../04.Jupiter-setup-image/README.md#notebook-이미지-운영-릴리스)를 따릅니다. Git에 있는 Python 소스는 기존 승인 절차에서 배치 Filestore로 이관합니다. 운영 릴리스 기록에는 소스 리비전, Filestore 배치 경로, AR digest와 버전 태그를 함께 기록합니다. 배치 호출은 기존 Central-1 `run-gke.sh` → `client-gke` → GKE #3 경로에서 수행합니다.
+승인된 이미지 digest에 운영 태그를 붙이거나 라이브러리 변경으로 후보 이미지를 빌드할 때는 [Notebook 이미지 운영 릴리스](../notebook-image/README.md#notebook-이미지-운영-릴리스)를 따릅니다. Git에 있는 Python 소스는 기존 승인 절차에서 배치 Filestore로 이관합니다. 운영 릴리스 기록에는 소스 리비전, Filestore 배치 경로, AR digest와 버전 태그를 함께 기록합니다. 배치 호출은 기존 Central-1 `run-gke.sh` → `client-gke` → GKE #3 경로에서 수행합니다.
 
 ### 4. 전환 확인 항목
 

@@ -1,12 +1,12 @@
 # 사용자 Notebook 표준 이미지
 
-표준 이미지는 내부 sample 이미지에 gcloud/git/jq와 pandas/pyarrow/BigQuery/GCS 라이브러리를 추가합니다. 빌드 명령은 [관리 VM의 표준 이미지 빌드 명령](../01.docs/01-infra-setup.md#7-notebook-표준-이미지-빌드)를 참고하세요.
+표준 이미지는 내부 sample 이미지에 gcloud/git/jq와 pandas/pyarrow/BigQuery/GCS 라이브러리를 추가합니다. 빌드 명령은 [관리 VM의 표준 이미지 빌드 명령](../../../01.docs/01-infra-setup.md#7-notebook-표준-이미지-빌드)를 참고하세요.
 
 이미지 태그 `4.2.0-r2-home`은 사용자의 PVC를 `/home/{username}`에 마운트하고, 시작 스크립트가 같은 경로를 `HOME`과 작업 디렉터리로 사용합니다. 예를 들어 `user01`은 `/home/user01`에서 시작합니다. 컨테이너의 Linux 실행 계정은 이미지의 `jovyan`을 사용하므로 기존 PVC의 UID와 권한을 유지합니다.
 
 ## 기존 sbx03에 적용
 
-관리 VM에서 [표준 이미지 빌드·검증·게시](../01.docs/01-infra-setup.md#7-notebook-표준-이미지-빌드)를 마칩니다. 아래 절차는 기존 과제별 Hub 릴리스 `jupyterhub-sbx03`용입니다. 그룹 공유 PoC는 과제 JSON의 `image`에 게시된 digest를 지정합니다.
+관리 VM에서 [표준 이미지 빌드·검증·게시](../../../01.docs/01-infra-setup.md#7-notebook-표준-이미지-빌드)를 마칩니다. 아래 절차는 기존 과제별 Hub 릴리스 `jupyterhub-sbx03`용입니다. 그룹 공유 PoC는 과제 JSON의 `image`에 게시된 digest를 지정합니다.
 
 빌드가 성공하면 Helm 레지스트리에 로그인합니다.
 
@@ -38,10 +38,10 @@ CLOUDSDK_CORE_ACCOUNT=son@sonmap.net helm upgrade jupyterhub-sbx03 \
 
 ```bash
 STANDARD_WHEELS="$(mktemp -d)"
-python -m pip download --only-binary=:all: --dest "$STANDARD_WHEELS" -r 04.Jupiter-setup-image/requirements.txt
+python -m pip download --only-binary=:all: --dest "$STANDARD_WHEELS" -r 03.sandbox_deploy/03.3.gke/notebook-image/requirements.txt
 ```
 
-승인된 경로로 wheel 파일을 관리 VM의 Test02 저장소 `04.Jupiter-setup-image/wheelhouse/`에 전달합니다. 해당 빌드 전용 디렉터리를 사용하고 이전 반입 파일이 섞이지 않도록 확인합니다. 관리 VM에서 `NOTEBOOK_PIP_MODE=wheelhouse`로 빌드하면 Dockerfile이 이 파일들로 Python 설치를 수행합니다. 대상에 맞는 wheel이 없는 패키지는 승인된 대상 호환 빌드 환경에서 wheel을 준비해야 합니다.
+승인된 경로로 wheel 파일을 관리 VM의 Test02 저장소 `03.sandbox_deploy/03.3.gke/notebook-image/wheelhouse/`에 전달합니다. 해당 빌드 전용 디렉터리를 사용하고 이전 반입 파일이 섞이지 않도록 확인합니다. 관리 VM에서 `NOTEBOOK_PIP_MODE=wheelhouse`로 빌드하면 Dockerfile이 이 파일들로 Python 설치를 수행합니다. 대상에 맞는 wheel이 없는 패키지는 승인된 대상 호환 빌드 환경에서 wheel을 준비해야 합니다.
 
 ## 개발자 추가 패키지 GCS 경유
 
@@ -129,15 +129,15 @@ python -m venv --system-site-packages "$VENV"
 이미지 내용이 같으면 Central-1 또는 승인된 운영 환경에서 태그만 게시합니다. 릴리스마다 새 버전 태그를 지정합니다. 동시 릴리스 충돌은 AR immutable tags 또는 포털의 단일 승인 실행으로 관리합니다.
 
 ```bash
-bash 04.Jupiter-setup-image/release-image.sh "$APPROVED_IMAGE_DIGEST" "$RELEASE_TAG"
+bash 03.sandbox_deploy/03.3.gke/notebook-image/release-image.sh "$APPROVED_IMAGE_DIGEST" "$RELEASE_TAG"
 ```
 
 라이브러리가 바뀌면 승인된 빌드 컨텍스트에 해시가 포함된 `requirements.lock`을 준비합니다. 다음 예시에서 `APPROVED_BUILD_CONTEXT`는 그 디렉터리입니다. 후보 태그로 빌드하고 GKE에서 검증한 새 digest에 운영 태그를 붙입니다.
 
 ```bash
-cp 04.Jupiter-setup-image/Dockerfile.release "$APPROVED_BUILD_CONTEXT/Dockerfile.release"
+cp 03.sandbox_deploy/03.3.gke/notebook-image/Dockerfile.release "$APPROVED_BUILD_CONTEXT/Dockerfile.release"
 gcloud builds submit "$APPROVED_BUILD_CONTEXT" \
   --project="$BUILD_PROJECT" --region=asia-northeast3 \
-  --config=04.Jupiter-setup-image/notebook-candidate-release.yaml \
+  --config=03.sandbox_deploy/03.3.gke/notebook-image/notebook-candidate-release.yaml \
   --substitutions="_BASE_IMAGE=$APPROVED_BASE_DIGEST,_CANDIDATE_IMAGE=$CANDIDATE_TAG,_NOTEBOOK_UID=1000"
 ```

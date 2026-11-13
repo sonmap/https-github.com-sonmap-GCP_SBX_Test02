@@ -949,7 +949,7 @@ gcloud container clusters update gke-sbx-main-an3 --project=gcp-sbx-edp-gke01 --
 **명령 132 — 배포 도구 이미지 빌드**
 
 ```bash
-gcloud builds submit 09.sandbox_gke_deployer --project=gcp-sbx-edp-gke01 --region=asia-northeast3 --account=son@sonmap.net --service-account=projects/gcp-sbx-edp-gke01/serviceAccounts/tf-manager@gcp-sbx-edp-gke01.iam.gserviceaccount.com --tag=asia-northeast3-docker.pkg.dev/gcp-sbx-edp-gke01/ar-sbxtest01-platform/sbxtest01-automation-runner:bootstrap --gcs-source-staging-dir=gs://gcp-sbx-edp-gke01-sbxtest01-build-source/source --gcs-log-dir=gs://gcp-sbx-edp-gke01-sbxtest01-build-source/logs
+gcloud builds submit 03.sandbox_deploy/03.3.gke --project=gcp-sbx-edp-gke01 --region=asia-northeast3 --account=son@sonmap.net --service-account=projects/gcp-sbx-edp-gke01/serviceAccounts/tf-manager@gcp-sbx-edp-gke01.iam.gserviceaccount.com --tag=asia-northeast3-docker.pkg.dev/gcp-sbx-edp-gke01/ar-sbxtest01-platform/sbxtest01-automation-runner:bootstrap --gcs-source-staging-dir=gs://gcp-sbx-edp-gke01-sbxtest01-build-source/source --gcs-log-dir=gs://gcp-sbx-edp-gke01-sbxtest01-build-source/logs
 ```
 
 **명령 133 — Helm 차트 외부 반입**
@@ -959,7 +959,7 @@ gcloud builds submit 09.sandbox_gke_deployer --project=gcp-sbx-edp-gke01 --regio
 **명령 134 — Hub·Proxy·Notebook 기본 이미지 외부 반입**
 
 ```bash
-gcloud builds submit --no-source --project=gcp-sbx-edp-gke01 --region=asia-northeast3 --account=son@sonmap.net --service-account=projects/gcp-sbx-edp-gke01/serviceAccounts/tf-manager@gcp-sbx-edp-gke01.iam.gserviceaccount.com --config=03.cloudbuild/mirror-jupyterhub-images.yaml --substitutions=_AUTOMATION_IMAGE=asia-northeast3-docker.pkg.dev/gcp-sbx-edp-gke01/ar-sbxtest01-platform/sbxtest01-automation-runner:bootstrap
+gcloud builds submit --no-source --project=gcp-sbx-edp-gke01 --region=asia-northeast3 --account=son@sonmap.net --service-account=projects/gcp-sbx-edp-gke01/serviceAccounts/tf-manager@gcp-sbx-edp-gke01.iam.gserviceaccount.com --config=03.sandbox_deploy/03.3.gke/cloudbuild/mirror-jupyterhub-images.yaml --substitutions=_AUTOMATION_IMAGE=asia-northeast3-docker.pkg.dev/gcp-sbx-edp-gke01/ar-sbxtest01-platform/sbxtest01-automation-runner:bootstrap
 ```
 
 **명령 135 — 사용자 표준 Notebook 이미지 빌드**
@@ -969,7 +969,7 @@ gcloud builds submit --no-source --project=gcp-sbx-edp-gke01 --region=asia-north
 **명령 136 — API 이미지 빌드**
 
 ```bash
-gcloud builds submit 07.sandbox_request_api --project=gcp-sbx-edp-gke01 --region=asia-northeast3 --account=son@sonmap.net --service-account=projects/gcp-sbx-edp-gke01/serviceAccounts/tf-manager@gcp-sbx-edp-gke01.iam.gserviceaccount.com --tag=asia-northeast3-docker.pkg.dev/gcp-sbx-edp-gke01/ar-sbxtest01-platform/run-sbxtest01-provisioner:bootstrap --gcs-source-staging-dir=gs://gcp-sbx-edp-gke01-sbxtest01-build-source/source --gcs-log-dir=gs://gcp-sbx-edp-gke01-sbxtest01-build-source/logs
+gcloud builds submit 03.sandbox_deploy/03.1.request --project=gcp-sbx-edp-gke01 --region=asia-northeast3 --account=son@sonmap.net --service-account=projects/gcp-sbx-edp-gke01/serviceAccounts/tf-manager@gcp-sbx-edp-gke01.iam.gserviceaccount.com --tag=asia-northeast3-docker.pkg.dev/gcp-sbx-edp-gke01/ar-sbxtest01-platform/run-sbxtest01-provisioner:bootstrap --gcs-source-staging-dir=gs://gcp-sbx-edp-gke01-sbxtest01-build-source/source --gcs-log-dir=gs://gcp-sbx-edp-gke01-sbxtest01-build-source/logs
 ```
 
 **명령 137 — 빌드 성공 확인**
@@ -1023,7 +1023,7 @@ flowchart TD
 **명령 140 — 동기화된 환경 파일 확인 — 로컬**
 
 ```bash
-cat 07.sandbox_request_api/provisioner-env.yaml
+cat 03.sandbox_deploy/03.1.request/provisioner-env.yaml
 ```
 
 **명령 141 — Customer ID 조회 — admin**
@@ -1037,13 +1037,13 @@ gcloud organizations list --account=admin@sonmap.net --format="table(displayName
 **명령 142 — 실제 Customer ID 반영 — 로컬**
 
 ```bash
-sed -i 's/__SET_CUSTOMER_ID__/실제_CUSTOMER_ID/' 07.sandbox_request_api/provisioner-env.yaml
+sed -i 's/__SET_CUSTOMER_ID__/실제_CUSTOMER_ID/' 03.sandbox_deploy/03.1.request/provisioner-env.yaml
 ```
 
 **명령 143 — 배포 전 설정 확인**
 
 ```bash
-cat 07.sandbox_request_api/provisioner-env.yaml
+cat 03.sandbox_deploy/03.1.request/provisioner-env.yaml
 ```
 
 REQUEST_BUCKET·BUNDLE_BUCKET·WORKER_POOL·JUPYTER_CHART_URI가 새 프로젝트인지 확인합니다. Secret 값은 이 파일에 넣지 않습니다. 아래 서비스는 IAM 인증 필수, ingress all, VPC 연결 없음이 현재 설계입니다. 기존 서비스에 이전 VPC 연결이 남아 있다면 별도 확인·해제합니다.
@@ -1051,7 +1051,7 @@ REQUEST_BUCKET·BUNDLE_BUCKET·WORKER_POOL·JUPYTER_CHART_URI가 새 프로젝�
 **명령 144 — API 배포**
 
 ```bash
-gcloud run deploy run-sbxtest01-provisioner --project=gcp-sbx-edp-gke01 --region=asia-northeast3 --account=son@sonmap.net --image=asia-northeast3-docker.pkg.dev/gcp-sbx-edp-gke01/ar-sbxtest01-platform/run-sbxtest01-provisioner:bootstrap --service-account=sbx-manager@gcp-sbx-edp-gke01.iam.gserviceaccount.com --env-vars-file=07.sandbox_request_api/provisioner-env.yaml --no-allow-unauthenticated --ingress=all --timeout=300s --max-instances=2
+gcloud run deploy run-sbxtest01-provisioner --project=gcp-sbx-edp-gke01 --region=asia-northeast3 --account=son@sonmap.net --image=asia-northeast3-docker.pkg.dev/gcp-sbx-edp-gke01/ar-sbxtest01-platform/run-sbxtest01-provisioner:bootstrap --service-account=sbx-manager@gcp-sbx-edp-gke01.iam.gserviceaccount.com --env-vars-file=03.sandbox_deploy/03.1.request/provisioner-env.yaml --no-allow-unauthenticated --ingress=all --timeout=300s --max-instances=2
 ```
 
 **명령 145 — 현재 URL·배포 상태 확인**
@@ -1077,7 +1077,7 @@ gcloud run services add-iam-policy-binding run-sbxtest01-provisioner --project=g
 **명령 147 — 실제 Run URL을 템플릿에 반영 — 로컬**
 
 ```bash
-sed 's|__PROVISIONER_URL__|https://run-sbxtest01-provisioner-869916265282.asia-northeast3.run.app|g' 07.sandbox_request_api/workflow.template.yaml > /tmp/workflow-sbxtest01.yaml
+sed 's|__PROVISIONER_URL__|https://run-sbxtest01-provisioner-869916265282.asia-northeast3.run.app|g' 03.sandbox_deploy/03.1.request/workflow.template.yaml > /tmp/workflow-sbxtest01.yaml
 ```
 
 **명령 148 — Workflow 배포**
@@ -1115,7 +1115,7 @@ git status --short
 **명령 152 — Terraform 배포 폴더만 ZIP 생성**
 
 ```bash
-git archive --format=zip --output=/tmp/sandbox-source-20261107.zip HEAD 08.sandbox_setup_02_terraform/deployments
+git archive --format=zip --output=/tmp/sandbox-source-20261107.zip HEAD 03.sandbox_deploy/03.2.terraform/deployments
 ```
 
 **명령 153 — 객체 최초 업로드만 허용**
@@ -1152,7 +1152,7 @@ unzip -l /tmp/sandbox-source-20261107.zip
 | generation | `1793980566647505` |
 | size | `8542` bytes |
 | SHA-256 | `dde60a37ae98747469cc97bb62baeeb720e357002d0bd2a0e8aee9c530cb7954` |
-| ZIP 내부 | `08.sandbox_setup_02_terraform/deployments/05-group,10-project,20-network,30-project-iam,40-data` |
+| ZIP 내부 | `03.sandbox_deploy/03.2.terraform/deployments/05-group,10-project,20-network,30-project-iam,40-data` |
 
 20-network가 ZIP에 포함되어도 요청의 network.required=false이면 실행하지 않습니다. 이 단계는 소스 저장이며 Terraform 실행이 아닙니다.
 
@@ -1160,7 +1160,7 @@ unzip -l /tmp/sandbox-source-20261107.zip
 
 ## 14. 과제 요청 JSON에 확인값 반영
 
-[요청 작성 규칙](../../05.sandbox_json/README.md)에 따라 실제 과제 값으로 `.local/request-draft.json`을 준비합니다. 사용할 릴리스의 `release.json`을 `.local/release.json`에 내려받은 뒤 실행합니다.
+[요청 작성 규칙](../../03.sandbox_deploy/03.1.request/request-format/README.md)에 따라 실제 과제 값으로 `.local/request-draft.json`을 준비합니다. 사용할 릴리스의 `release.json`을 `.local/release.json`에 내려받은 뒤 실행합니다.
 
 **명령 157 — 확인된 소스 버전을 요청에 반영**
 
@@ -1274,7 +1274,7 @@ gcloud artifacts docker images describe asia-northeast3-docker.pkg.dev/gcp-sbx-e
 
 태그가 없다면 소스 커밋과 bootstrap 이미지 빌드의 일치를 확인한 뒤, 검증된 digest에 릴리스 태그를 붙이거나 해당 커밋에서 이미지를 재빌드합니다. 본 가이드는 확인되지 않은 bootstrap을 자동 재태깅하지 않습니다. platform-release.yaml은 현재 프로젝트 기본값으로 동기화했지만 기존 Cloud Run 업데이트를 포함하므로 소스·릴리스 값과 실행 영향을 확인한 뒤 실행합니다.
 
-준비 완료 후 [Deploy 절차](../02-sandbox-deploy.md#공통-workflows-배포-명령)의 요청 버전 고정·SHA256 확인·입력 작성 순서를 현재 프로젝트와 son 계정에 맞춰 수행합니다. 실행 프로젝트는 son, 호스트·초기 IAM 작업은 admin으로 명시한 계정을 따릅니다. 포탈이 승인 JSON을 GCS에 저장하고, 작업자가 Deploy를 시작합니다. GCS 이벤트 자동 시작은 향후 작업입니다. Workflow의 ACCEPTED는 접수 성공이며 부모·자식 Build SUCCESS와 로그인·BQ 검증이 최종 완료 기준입니다.
+준비 완료 후 [Deploy 절차](../../03.sandbox_deploy/03.1.request/legacy-deploy.md#공통-workflows-배포-명령)의 요청 버전 고정·SHA256 확인·입력 작성 순서를 현재 프로젝트와 son 계정에 맞춰 수행합니다. 실행 프로젝트는 son, 호스트·초기 IAM 작업은 admin으로 명시한 계정을 따릅니다. 포탈이 승인 JSON을 GCS에 저장하고, 작업자가 Deploy를 시작합니다. GCS 이벤트 자동 시작은 향후 작업입니다. Workflow의 ACCEPTED는 접수 성공이며 부모·자식 Build SUCCESS와 로그인·BQ 검증이 최종 완료 기준입니다.
 
 ## 오류와 재개 위치
 
@@ -1301,9 +1301,9 @@ gcloud artifacts docker images describe asia-northeast3-docker.pkg.dev/gcp-sbx-e
 - [작업 순서](work-order.md)
 - [기반 설정](../01-infra-setup.md#3-공통-기반)
 - [미러링·이미지 수동 명령](../01-infra-setup.md#4-oauth-값-등록)
-- [API 코드](../../07.sandbox_request_api/main.py)
-- [요청 작성 규칙](../../05.sandbox_json/README.md)
-- [Terraform 배포 단계](../../08.sandbox_setup_02_terraform/deployments)
+- [API 코드](../../03.sandbox_deploy/03.1.request/main.py)
+- [요청 작성 규칙](../../03.sandbox_deploy/03.1.request/request-format/README.md)
+- [Terraform 배포 단계](../../03.sandbox_deploy/03.2.terraform/deployments)
 
 기존 소스의 허용값·기본 프로젝트·릴리스 태그와 실제 실행값을 맞추는 검증은 계속 필요합니다. 저장소 기본값·요청 Schema는 현재 환경으로 동기화했습니다. 실제 GCP 자원은 Git 변경만으로 갱신되지 않으며, 기존 API 이미지의 Schema를 반영하려면 아래 재빌드·재배포가 필요합니다.
 

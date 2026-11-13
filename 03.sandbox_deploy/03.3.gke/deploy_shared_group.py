@@ -16,8 +16,7 @@ import time
 from google.api_core.exceptions import PreconditionFailed
 from google.cloud import storage
 
-sys.path.insert(0, str(Path(__file__).resolve().parent / "12.sandbox_shared"))
-sys.path.append(str(Path(__file__).resolve().parents[1] / "12.sandbox_shared"))
+sys.path.insert(0, str(Path(__file__).resolve().parent / "shared-group"))
 from shared_sandbox import DNS, group_values, load_group, member_secret, reconcile_alb, require, task_resources
 from test_passwords import PASSWORD_HASH
 

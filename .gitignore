@@ -12,4 +12,4 @@ __pycache__/
 *.pem
 *.key
 
-/04.Jupiter-setup-image/wheelhouse/
+/03.sandbox_deploy/03.3.gke/notebook-image/wheelhouse/

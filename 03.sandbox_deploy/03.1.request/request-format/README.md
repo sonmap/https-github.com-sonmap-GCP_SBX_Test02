@@ -31,4 +31,4 @@ flowchart TD
     API -->|"실패"| ERROR["요청 오류 반환"]
 ```
 
-실제 검사는 [Cloud Run 실행용 JSON Schema](../07.sandbox_request_api/sandbox-request.schema.json)와 [업무 검증 코드](../07.sandbox_request_api/main.py)가 수행합니다. 실행 규칙이 바뀌면 관련 코드와 이 표를 함께 갱신합니다. 승인 요청 제출은 [Workflows 배포 명령](../01.docs/02-sandbox-deploy.md#공통-workflows-배포-명령)을 따릅니다.
+실제 검사는 [Cloud Run 실행용 JSON Schema](../sandbox-request.schema.json)와 [업무 검증 코드](../main.py)가 수행합니다. 실행 규칙이 바뀌면 관련 코드와 이 표를 함께 갱신합니다. 승인 요청 제출은 [Workflows 배포 명령](../legacy-deploy.md#공통-workflows-배포-명령)을 따릅니다.

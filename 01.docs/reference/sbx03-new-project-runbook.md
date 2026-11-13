@@ -86,19 +86,19 @@ git pull --ff-only
 Customer ID는 더 이상 예시 문자열을 넣지 않고 확인된 실제 값을 사용합니다. DNS 모드는 현재 성공한 연결 방식입니다. DNS 모드 성공만으로 통신회사 사설망 경로 준수까지 입증되는 것은 아닙니다.
 
 ```bash
-sed -i 's/^CLOUD_IDENTITY_CUSTOMER_ID:.*/CLOUD_IDENTITY_CUSTOMER_ID: C03rw3vtp/' 07.sandbox_request_api/provisioner-env.yaml
+sed -i 's/^CLOUD_IDENTITY_CUSTOMER_ID:.*/CLOUD_IDENTITY_CUSTOMER_ID: C03rw3vtp/' 03.sandbox_deploy/03.1.request/provisioner-env.yaml
 ```
 
 새 릴리스 이름은 이번 코드 전용 `sbx03-20261107-v1`입니다. 이 태그가 이미 있다면 덮어쓰지 말고 v2 등 새 이름을 사용합니다.
 다음 Cloud Build는 공통 배포 도구/API 이미지·Terraform ZIP을 발행하고 Run API를 갱신하며, **과제 프로젝트 생성 자체는 실행하지 않습니다**. 빌드 실행 SA의 Run 배포·이미지/GCS 권한은 공통 준비 사항입니다.
 
 ```bash
-gcloud builds submit . --config=03.cloudbuild/platform-release.yaml --project=gcp-sbx-edp-gke01 --region=asia-northeast3 --account=son@sonmap.net --service-account=projects/gcp-sbx-edp-gke01/serviceAccounts/tf-manager@gcp-sbx-edp-gke01.iam.gserviceaccount.com --gcs-source-staging-dir=gs://gcp-sbx-edp-gke01-sbxtest01-build-source/source --substitutions="_RELEASE_ID=sbx03-20261107-v1,_COMMIT_SHA=$(git rev-parse HEAD)"
+gcloud builds submit . --config=03.sandbox_deploy/03.3.gke/cloudbuild/platform-release.yaml --project=gcp-sbx-edp-gke01 --region=asia-northeast3 --account=son@sonmap.net --service-account=projects/gcp-sbx-edp-gke01/serviceAccounts/tf-manager@gcp-sbx-edp-gke01.iam.gserviceaccount.com --gcs-source-staging-dir=gs://gcp-sbx-edp-gke01-sbxtest01-build-source/source --substitutions="_RELEASE_ID=sbx03-20261107-v1,_COMMIT_SHA=$(git rev-parse HEAD)"
 ```
 
 ## 3. 요청 준비 (포탈 JSON)
 
-[요청 작성 규칙](../../05.sandbox_json/README.md)에 따라 승인된 일련번호로 신규 과제 요청을 작성합니다. `project.create_project=true`와 `identity.create_jupyter_gsa=true`를 지정하고 실제 승인 정보와 새 릴리스 결과를 넣습니다. 예전 승인 정보나 manual-20261107의 ZIP/해시를 재사용하지 않습니다.
+[요청 작성 규칙](../../03.sandbox_deploy/03.1.request/request-format/README.md)에 따라 승인된 일련번호로 신규 과제 요청을 작성합니다. `project.create_project=true`와 `identity.create_jupyter_gsa=true`를 지정하고 실제 승인 정보와 새 릴리스 결과를 넣습니다. 예전 승인 정보나 manual-20261107의 ZIP/해시를 재사용하지 않습니다.
 
 ```bash
 gcloud storage cat gs://gcp-sbx-edp-gke01-sbxtest01-bundles/platform-releases/sbx03-20261107-v1/release.json --account=son@sonmap.net
@@ -285,7 +285,7 @@ CLOUDSDK_CORE_ACCOUNT=son@sonmap.net kubectl --kubeconfig="$HOME/.kube/config-sb
 
 ### 6.6 사용자별 홈과 BigQuery 최종 확인
 
-[Notebook 이미지 빌드 및 Helm 적용](../../04.Jupiter-setup-image/README.md)에서 `4.2.0-r2-home`을 적용합니다. 시험 중 Docker 빌더가 `COPY --chmod`를 지원하지 않아 Dockerfile을 `COPY`와 `RUN chmod`로 나눴습니다. 수정 후 빌드가 완료됐고, 기존 `sbx03` Helm 업데이트는 `REVISION: 2`, `STATUS: deployed`로 확인했습니다. 이전 runner 릴리스로 다시 배포하면 현재 Helm 값과 Notebook 이미지 태그를 확인하고 필요하면 홈 설정을 다시 적용합니다.
+[Notebook 이미지 빌드 및 Helm 적용](../../03.sandbox_deploy/03.3.gke/notebook-image/README.md)에서 `4.2.0-r2-home`을 적용합니다. 시험 중 Docker 빌더가 `COPY --chmod`를 지원하지 않아 Dockerfile을 `COPY`와 `RUN chmod`로 나눴습니다. 수정 후 빌드가 완료됐고, 기존 `sbx03` Helm 업데이트는 `REVISION: 2`, `STATUS: deployed`로 확인했습니다. 이전 runner 릴리스로 다시 배포하면 현재 Helm 값과 Notebook 이미지 태그를 확인하고 필요하면 홈 설정을 다시 적용합니다.
 
 ```mermaid
 flowchart TD
