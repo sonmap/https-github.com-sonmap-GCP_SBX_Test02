@@ -163,7 +163,7 @@ CLOUDSDK_CORE_ACCOUNT=son@sonmap.net kubectl --kubeconfig="$HOME/.kube/config-sb
 
 ### 6.2 GKE 복구와 Private Pool 점검
 
-[공통 기반 18번의 Autopilot 생성 명령](../01.docs/01-infra-setup.md#3-공통-기반)으로 `gcp-sbx-edp-gke01` / `asia-northeast3`의 `gke-sbx-main-an3`을 다시 만듭니다. 기존 Shared VPC `vpc-prod-edp-hub`, 노드 서브넷 `subnet-prod-sbx-gke-01`, Pod 보조 대역 `subnet-prod-sbx-pod-01`을 사용합니다.
+[공통 기반 18번의 Autopilot 생성 명령](infra-setup-commend.md#3-공통-기반)으로 `gcp-sbx-edp-gke01` / `asia-northeast3`의 `gke-sbx-main-an3`을 다시 만듭니다. 기존 Shared VPC `vpc-prod-edp-hub`, 노드 서브넷 `subnet-prod-sbx-gke-01`, Pod 보조 대역 `subnet-prod-sbx-pod-01`을 사용합니다.
 
 생성이 끝나면 관리 VM에서 DNS 엔드포인트를 설정하고 kubeconfig를 다시 받습니다.
 

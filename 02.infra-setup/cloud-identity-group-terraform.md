@@ -15,9 +15,9 @@ flowchart TD
 
 ## 최초 준비
 
-1. GCP 관리자는 tf-manager에 [API·관리자 권한](../01.docs/01-infra-setup.md#1-api와-관리자-권한)의 조직·Folder·프로젝트 생성·IAM·필요 Billing 권한을 부여합니다.
+1. GCP 관리자는 tf-manager에 [API·관리자 권한](infra-setup-commend.md#1-api와-관리자-권한)의 조직·Folder·프로젝트 생성·IAM·필요 Billing 권한을 부여합니다.
 2. Workspace 최고 관리자는 tf-manager 서비스 계정에 **Groups Administrator 역할을 직접 부여**합니다. [공식 방법](https://docs.cloud.google.com/identity/docs/how-to/setup#assigning_an_admin_role_to_the_service_account)에 따라 서비스 계정 Unique ID로 역할을 부여합니다. GCP 프로젝트 Owner만 부여해서는 그룹 관리 권한이 생기지 않습니다.
-3. cloudidentity.googleapis.com을 자동화 실행 프로젝트에서 활성화합니다. [1차 인프라 구축의 1절](../01.docs/01-infra-setup.md#1-api와-관리자-권한)에 포함되어 있습니다.
+3. cloudidentity.googleapis.com을 자동화 실행 프로젝트에서 활성화합니다. [1차 인프라 구축의 1절](infra-setup-commend.md#1-api와-관리자-권한)에 포함되어 있습니다.
 4. 실제 Cloud Identity Customer ID를 확인해 `03.sandbox_deploy/03.1.request/provisioner-env.yaml`의 CLOUD_IDENTITY_CUSTOMER_ID에 입력하고 커밋합니다. __SET_CUSTOMER_ID__는 배포 가능한 값이 아닙니다. GCP 프로젝트 ID·프로젝트 번호와 Customer ID는 다릅니다.
 5. 새 플랫폼 릴리스로 API·Runner·소스 ZIP과 Cloud Run 환경설정을 함께 갱신합니다. 포털 요청 source도 새 release.json을 사용합니다. 이전 ZIP에는 05-group이 없으므로 새 API와 혼용하지 않습니다.
 

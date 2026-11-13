@@ -48,13 +48,13 @@ gcloud projects describe "${SBX_GKE_PROJECT}" --account="${ADMIN_ACCOUNT}" --for
 mkdir -p .local
 ```
 
-완료 기준: 도구가 실행되고 관리자 계정이 인증되어 있으며 통합 프로젝트 gcp-sbx-edp-gke01이 조회됩니다. 새 터미널에서는 위 변수를 다시 설정합니다. 실제 계정·CIDR을 바꿀 경우 [1차 인프라 구축](../01.docs/01-infra-setup.md)의 변수 선언, YAML 및 JSON Schema에 고정된 대상도 함께 맞춰야 합니다.
+완료 기준: 도구가 실행되고 관리자 계정이 인증되어 있으며 통합 프로젝트 gcp-sbx-edp-gke01이 조회됩니다. 새 터미널에서는 위 변수를 다시 설정합니다. 실제 계정·CIDR을 바꿀 경우 [1차 인프라 구축](infra-setup-commend.md)의 변수 선언, YAML 및 JSON Schema에 고정된 대상도 함께 맞춰야 합니다.
 
 ## 1. 관리자 API·서비스 계정·IAM 준비
 
 수행자: 대상 Project/Folder IAM과 필요한 Billing 범위를 관리할 수 있는 기존 관리자.
 
-[API·관리자 권한](../01.docs/01-infra-setup.md#1-api와-관리자-권한)의 **변수 선언부터** 실행합니다. API 활성화 → 서비스 에이전트 → sbx-manager/tf-manager → 각 프로젝트·Folder IAM 순서입니다. SA 조회가 성공하면 해당 create 명령은 건너뜁니다. Billing 권한은 새 프로젝트를 생성할 때만 선택합니다.
+[API·관리자 권한](infra-setup-commend.md#1-api와-관리자-권한)의 **변수 선언부터** 실행합니다. API 활성화 → 서비스 에이전트 → sbx-manager/tf-manager → 각 프로젝트·Folder IAM 순서입니다. SA 조회가 성공하면 해당 create 명령은 건너뜁니다. Billing 권한은 새 프로젝트를 생성할 때만 선택합니다.
 
 ```bash
 # 관리자 문서를 적용한 뒤 두 계정을 조회합니다.
@@ -71,7 +71,7 @@ gcloud services list --enabled --project="${SBX_GKE_PROJECT}" --account="${ADMIN
 
 실행 계정: 실제 VPC Admin. Host 네트워크·방화벽·PSA 관리 권한이 있는 계정으로 수행합니다.
 
-[Shared VPC·네트워크](../01.docs/01-infra-setup.md#2-shared-vpc와-네트워크)의 변수를 확인한 뒤, 각 조회 결과를 보고 필요한 생성/갱신 명령만 실행합니다. 기존 Main GKE 대역과 Private Pool PSA만 기본 대상으로 유지합니다. Cloud Run 전용·과제별 서브넷은 생성하지 않습니다.
+[Shared VPC·네트워크](infra-setup-commend.md#2-shared-vpc와-네트워크)의 변수를 확인한 뒤, 각 조회 결과를 보고 필요한 생성/갱신 명령만 실행합니다. 기존 Main GKE 대역과 Private Pool PSA만 기본 대상으로 유지합니다. Cloud Run 전용·과제별 서브넷은 생성하지 않습니다.
 
 ```bash
 export SBX_GKE_PROJECT="gcp-sbx-edp-gke01"
@@ -86,11 +86,11 @@ gcloud compute firewall-rules describe fw-sbxtest01-alb-hc --project="${VPC_HOST
 
 ## 2-1. 서브넷별 사용 권한 부여
 
-VPC Admin이 [서브넷별 IAM](../01.docs/01-infra-setup.md#2-1-서브넷별-iam)를 수행합니다. Main GKE Subnet에는 tf-manager·GKE 서비스 에이전트·Google APIs 서비스 에이전트, ALB VIP Subnet에는 tf-manager의 Network User를 부여합니다. Pod Secondary와 프록시 전용 대역에는 별도 사용자 바인딩을 넣지 않습니다. 기존 광역 권한 정리는 새 바인딩·실제 동작 확인 후 별도 수행합니다.
+VPC Admin이 [서브넷별 IAM](infra-setup-commend.md#2-1-서브넷별-iam)를 수행합니다. Main GKE Subnet에는 tf-manager·GKE 서비스 에이전트·Google APIs 서비스 에이전트, ALB VIP Subnet에는 tf-manager의 Network User를 부여합니다. Pod Secondary와 프록시 전용 대역에는 별도 사용자 바인딩을 넣지 않습니다. 기존 광역 권한 정리는 새 바인딩·실제 동작 확인 후 별도 수행합니다.
 
 ## 3. 공통 실행 기반 구축
 
-실행 계정: tf-manager. 단 Private Pool 초기 구성 절은 VPC_ADMIN_ACCOUNT로 수행합니다. 2-1단계 완료 후 [공통 기반](../01.docs/01-infra-setup.md#3-공통-기반)를 열어 다음 순서로 명령을 실행합니다.
+실행 계정: tf-manager. 단 Private Pool 초기 구성 절은 VPC_ADMIN_ACCOUNT로 수행합니다. 2-1단계 완료 후 [공통 기반](infra-setup-commend.md#3-공통-기반)를 열어 다음 순서로 명령을 실행합니다.
 
 | 문서 안 순서 | 실제 작업 |
 |---|---|
@@ -200,7 +200,7 @@ jq '{release_id,git_commit,archive_uri,generation,sha256,runner_image,provisione
 
 ## 7. Chart와 기본 이미지 미러링
 
-먼저 [infra-son01에서 Helm 차트 수동 반입](../01.docs/01-infra-setup.md#infra-son01에서-helm-차트-수동-반입)을 완료합니다. 아래 명령은 tf-manager Build로 기본 이미지를 복사합니다.
+먼저 [infra-son01에서 Helm 차트 수동 반입](infra-setup-commend.md#infra-son01에서-helm-차트-수동-반입)을 완료합니다. 아래 명령은 tf-manager Build로 기본 이미지를 복사합니다.
 
 ```bash
 export AUTOMATION_IMAGE="${REGION}-docker.pkg.dev/${SBX_GKE_PROJECT}/ar-sbxtest01-platform/sbxtest01-automation-runner:bootstrap"
@@ -215,7 +215,7 @@ gcloud artifacts docker images list "${REGION}-docker.pkg.dev/${SBX_GKE_PROJECT}
 
 ## 8. 사용자 Notebook 표준 이미지 빌드
 
-관리 VM `infra-son01`에서 [표준 이미지 빌드·게시 명령](../01.docs/01-infra-setup.md#7-notebook-표준-이미지-빌드)을 실행합니다. 내부 AR에서 이미지 digest가 조회되면 완료입니다. 개발자 추가 패키지는 [GCS 경유 절차](../03.sandbox_deploy/03.3.gke/notebook-image/README.md#개발자-추가-패키지-gcs-경유)로 설치합니다.
+관리 VM `infra-son01`에서 [표준 이미지 빌드·게시 명령](infra-setup-commend.md#7-notebook-표준-이미지-빌드)을 실행합니다. 내부 AR에서 이미지 digest가 조회되면 완료입니다. 개발자 추가 패키지는 [GCS 경유 절차](../03.sandbox_deploy/03.3.gke/notebook-image/README.md#개발자-추가-패키지-gcs-경유)로 설치합니다.
 
 ## 9. 수동 연동 시험 전용 — 실제 과제 신청값과 릴리스 반영
 

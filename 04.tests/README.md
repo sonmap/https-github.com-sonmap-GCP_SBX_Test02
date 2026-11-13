@@ -1,6 +1,6 @@
 # Test02 로컬 검증
 
-코드·YAML·실행 문서를 수정한 뒤, 배포에 필요한 명령과 설정이 서로 맞는지 로컬에서 확인합니다. 실제 운영 작업은 [1차 인프라 구축](../01.docs/01-infra-setup.md), [Workflows 과제 배포](../03.sandbox_deploy/03.1.request/legacy-deploy.md) 또는 [2차 그룹 공유 자동 배포](../03.sandbox_deploy/README.md)에서 시작합니다.
+코드·YAML·실행 문서를 수정한 뒤, 배포에 필요한 명령과 설정이 서로 맞는지 로컬에서 확인합니다. 실제 운영 작업은 [1차 인프라 구축](../02.infra-setup/infra-setup-commend.md), [Workflows 과제 배포](../03.sandbox_deploy/03.1.request/legacy-deploy.md) 또는 [2차 그룹 공유 자동 배포](../03.sandbox_deploy/README.md)에서 시작합니다.
 
 ## 검증 흐름
 

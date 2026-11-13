@@ -71,7 +71,7 @@ class InternalAlbTests(unittest.TestCase):
                 module.gcloud_describe_or_none(("compute", "backend-services", "describe", "bes"))
 
     def test_foundation_uses_shared_vpc_internal_vip_and_proxy_subnet(self):
-        guide = (ROOT / "01.docs/01-infra-setup.md").read_text()
+        guide = (ROOT / "02.infra-setup/infra-setup-commend.md").read_text()
         network = guide.split("\n## 2. Shared VPC와 네트워크\n", 1)[1].split("\n## ", 1)[0]
         foundation = guide.split("\n## 3. 공통 기반\n", 1)[1].split("\n## ", 1)[0]
         self.assertIn("--purpose=REGIONAL_MANAGED_PROXY --role=ACTIVE", network)

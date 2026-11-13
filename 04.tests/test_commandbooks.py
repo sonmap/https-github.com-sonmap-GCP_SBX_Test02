@@ -12,7 +12,7 @@ import yaml
 from request_fixtures import make_request
 
 ROOT = Path(__file__).resolve().parents[1]
-INFRA_GUIDE = ROOT / '01.docs/01-infra-setup.md'
+INFRA_GUIDE = ROOT / '02.infra-setup/infra-setup-commend.md'
 FOUNDATION_SECTIONS = [
     '0. 공통 변수',
     '1. API와 관리자 권한',

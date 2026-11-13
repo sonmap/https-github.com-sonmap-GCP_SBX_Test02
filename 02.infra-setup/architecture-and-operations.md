@@ -6,8 +6,8 @@
 
 | 구간 | 누가 실행 | 실제 입력/프로그램 | 실제 결과 |
 |---|---|---|---|
-| 최초 관리자 준비 | 기존 권한 관리자 | [API·관리자 권한](../01.docs/01-infra-setup.md#1-api와-관리자-권한) | API·sbx-manager·tf-manager·IAM |
-| 공통 네트워크/기반 | VPC Admin 네트워크·Subnet IAM 후 tf-manager 기반 구축 | [네트워크](../01.docs/01-infra-setup.md#2-shared-vpc와-네트워크) → [서브넷 IAM](../01.docs/01-infra-setup.md#2-1-서브넷별-iam) → [공통 기반](../01.docs/01-infra-setup.md#3-공통-기반) | Subnet/PSA/Pool/GKE/Run/Workflow/ALB |
+| 최초 관리자 준비 | 기존 권한 관리자 | [API·관리자 권한](infra-setup-commend.md#1-api와-관리자-권한) | API·sbx-manager·tf-manager·IAM |
+| 공통 네트워크/기반 | VPC Admin 네트워크·Subnet IAM 후 tf-manager 기반 구축 | [네트워크](infra-setup-commend.md#2-shared-vpc와-네트워크) → [서브넷 IAM](infra-setup-commend.md#2-1-서브넷별-iam) → [공통 기반](infra-setup-commend.md#3-공통-기반) | Subnet/PSA/Pool/GKE/Run/Workflow/ALB |
 | 로그인/그룹 준비 | 운영자·Workspace/OAuth 관리자 | Secret 등록·OAuth Callback·tf-manager 그룹 관리자 역할 부여 | 로그인·Terraform Group 생성 사전 조건 |
 | 플랫폼/사용자 이미지 | tf-manager Build | 04-manual-gcloud.md의 개별 gcloud 빌드 명령 | 버전 이미지·소스 ZIP·Chart |
 | 최종 신청/승인 | 승인 담당자·운영자 | 실제 신청 JSON·release.json | .local/request.json |
@@ -85,4 +85,4 @@
 
 ## Host IAM과 ALB 배포 경계
 
-VPC Admin이 네트워크·서브넷·방화벽·PSA와 Private Pool 초기 연결을 준비합니다. tf-manager에는 Host Network Viewer와 지정한 GKE·VIP 서브넷 Network User를 부여하며, Host 전체 Network User·Network Admin·Security Admin·Service Networking Admin은 기본 부여하지 않습니다. ALB·VIP·Backend의 생성 권한은 gcp-sbx-edp-gke01에서 유지합니다. [서브넷 IAM](../01.docs/01-infra-setup.md#2-1-서브넷별-iam)과 [기존 권한 정리](../01.docs/01-infra-setup.md#부록-기존-host-광역-iam-정리)를 확인합니다.
+VPC Admin이 네트워크·서브넷·방화벽·PSA와 Private Pool 초기 연결을 준비합니다. tf-manager에는 Host Network Viewer와 지정한 GKE·VIP 서브넷 Network User를 부여하며, Host 전체 Network User·Network Admin·Security Admin·Service Networking Admin은 기본 부여하지 않습니다. ALB·VIP·Backend의 생성 권한은 gcp-sbx-edp-gke01에서 유지합니다. [서브넷 IAM](infra-setup-commend.md#2-1-서브넷별-iam)과 [기존 권한 정리](infra-setup-commend.md#부록-기존-host-광역-iam-정리)를 확인합니다.

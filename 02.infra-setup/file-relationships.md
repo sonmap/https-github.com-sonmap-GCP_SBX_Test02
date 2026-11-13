@@ -8,7 +8,7 @@
 
 ```mermaid
 flowchart TD
-    subgraph MANUAL["01.docs/01-infra-setup.md"]
+    subgraph MANUAL["02.infra-setup/infra-setup-commend.md"]
       VAR["공통 변수 · 프로젝트와 리전"]
       ADM["API·관리자 권한 · API·SA·IAM"]
       NET["Shared VPC·네트워크 · Shared VPC와 서브넷"]
@@ -31,9 +31,9 @@ flowchart TD
 
 | 파일 | 사용 시점과 결과 |
 |---|---|
-| [공통 변수](../01.docs/01-infra-setup.md#0-공통-변수), [API·관리자 권한](../01.docs/01-infra-setup.md#1-api와-관리자-권한) | 관리자가 변수와 계정을 확인하고 API, `tf-manager`·`sbx-manager`, IAM을 준비합니다. |
-| [Shared VPC·네트워크](../01.docs/01-infra-setup.md#2-shared-vpc와-네트워크), [서브넷별 IAM](../01.docs/01-infra-setup.md#2-1-서브넷별-iam) | VPC 관리자가 호스트 프로젝트의 네트워크와 서브넷별 권한을 준비합니다. |
-| [공통 기반](../01.docs/01-infra-setup.md#3-공통-기반) | 운영자가 개별 `gcloud` 명령으로 공통 버킷·AR·Private Pool·GKE·Cloud Run·Workflow·ALB 기반을 준비합니다. |
+| [공통 변수](infra-setup-commend.md#0-공통-변수), [API·관리자 권한](infra-setup-commend.md#1-api와-관리자-권한) | 관리자가 변수와 계정을 확인하고 API, `tf-manager`·`sbx-manager`, IAM을 준비합니다. |
+| [Shared VPC·네트워크](infra-setup-commend.md#2-shared-vpc와-네트워크), [서브넷별 IAM](infra-setup-commend.md#2-1-서브넷별-iam) | VPC 관리자가 호스트 프로젝트의 네트워크와 서브넷별 권한을 준비합니다. |
+| [공통 기반](infra-setup-commend.md#3-공통-기반) | 운영자가 개별 `gcloud` 명령으로 공통 버킷·AR·Private Pool·GKE·Cloud Run·Workflow·ALB 기반을 준비합니다. |
 | [bootstrap-build.yaml](../03.sandbox_deploy/03.3.gke/cloudbuild/bootstrap-build.yaml), [provisioner-env.yaml](../03.sandbox_deploy/03.1.request/provisioner-env.yaml), [workflow.template.yaml](../03.sandbox_deploy/03.1.request/workflow.template.yaml) | 기반 명령이 초기 빌드 설정, Cloud Run 환경, Workflow 템플릿을 각각 읽습니다. |
 | [cloud-identity-group-terraform.md](cloud-identity-group-terraform.md) | Workspace 관리자가 `tf-manager`의 그룹 관리 역할을 승인합니다. |
 | [check-private-gke.yaml](check-private-gke.yaml) | 운영자가 `gcloud builds submit --config`에 지정합니다. Private Pool에서 DNS 엔드포인트로 Namespace 목록을 조회합니다. [사용법](cloudbuild-private-gke-vpn-design.md) |
@@ -42,7 +42,7 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    OP["01.docs/01-infra-setup.md"]
+    OP["02.infra-setup/infra-setup-commend.md"]
     REL["03.sandbox_deploy/03.3.gke/cloudbuild/platform-release.yaml"]
     API["03.sandbox_deploy/03.1.request/Dockerfile"]
     RUN["03.sandbox_deploy/03.3.gke/Dockerfile"]
@@ -59,7 +59,7 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    OP["01.docs/01-infra-setup.md"]
+    OP["02.infra-setup/infra-setup-commend.md"]
     CH["infra-son01 · 수동 Helm pull과 push"]
     MI["03.sandbox_deploy/03.3.gke/cloudbuild/mirror-jupyterhub-images.yaml"]
     AR["Artifact Registry · Chart와 기본 이미지"]
@@ -79,12 +79,12 @@ flowchart TD
 
 | 파일 | 사용 시점과 결과 |
 |---|---|
-| [인프라 실행 절차](../01.docs/01-infra-setup.md#4-oauth-값-등록) | OAuth Secret 등록, 차트 수동 반입, 릴리스와 이미지 빌드 명령입니다. |
+| [인프라 실행 절차](infra-setup-commend.md#4-oauth-값-등록) | OAuth Secret 등록, 차트 수동 반입, 릴리스와 이미지 빌드 명령입니다. |
 | [platform-release.yaml](../03.sandbox_deploy/03.3.gke/cloudbuild/platform-release.yaml), [publish-sandbox-source.sh](../03.sandbox_deploy/03.3.gke/cloudbuild/publish-sandbox-source.sh) | 릴리스 빌드가 API·Runner 이미지를 게시하고 Terraform 소스를 ZIP으로 올린 뒤 Cloud Run을 갱신합니다. |
 | [mirror-jupyterhub-images.yaml](../03.sandbox_deploy/03.3.gke/cloudbuild/mirror-jupyterhub-images.yaml) | 기본 이미지를 내부 Artifact Registry에 복사합니다. |
-| [관리 VM 빌드 명령](../01.docs/01-infra-setup.md#7-notebook-표준-이미지-빌드), [Dockerfile](../03.sandbox_deploy/03.3.gke/notebook-image/Dockerfile), [시작 스크립트](../03.sandbox_deploy/03.3.gke/notebook-image/start-sandbox-notebook.sh) | 사용자 Pod용 표준 이미지를 빌드합니다. 사용자별 홈을 지원하는 이미지의 시작 스크립트는 마운트 경로를 `HOME`으로 사용합니다. |
+| [관리 VM 빌드 명령](infra-setup-commend.md#7-notebook-표준-이미지-빌드), [Dockerfile](../03.sandbox_deploy/03.3.gke/notebook-image/Dockerfile), [시작 스크립트](../03.sandbox_deploy/03.3.gke/notebook-image/start-sandbox-notebook.sh) | 사용자 Pod용 표준 이미지를 빌드합니다. 사용자별 홈을 지원하는 이미지의 시작 스크립트는 마운트 경로를 `HOME`으로 사용합니다. |
 
-플랫폼 운영자가 관리 VM에서 [플랫폼 릴리스 게시 명령](../01.docs/01-infra-setup.md#5-플랫폼-릴리스-게시)을 실행합니다.
+플랫폼 운영자가 관리 VM에서 [플랫폼 릴리스 게시 명령](infra-setup-commend.md#5-플랫폼-릴리스-게시)을 실행합니다.
 
 ## 3. 승인 요청 제출 · 운영자에서 자동화로 전환
 

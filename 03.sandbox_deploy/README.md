@@ -1,6 +1,6 @@
 # 03 · 2차 Sandbox 구축
 
-[1차 인프라 구축](../01.docs/01-infra-setup.md)을 완료한 후 진행합니다.
+[1차 인프라 구축](../02.infra-setup/infra-setup-commend.md)을 완료한 후 진행합니다.
 
 | 폴더 | 용도 |
 |---|---|

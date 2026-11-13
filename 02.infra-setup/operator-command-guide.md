@@ -954,7 +954,7 @@ gcloud builds submit 03.sandbox_deploy/03.3.gke --project=gcp-sbx-edp-gke01 --re
 
 **명령 133 — Helm 차트 외부 반입**
 
-[infra-son01에서 Helm 차트 수동 반입](../01.docs/01-infra-setup.md#infra-son01에서-helm-차트-수동-반입)을 실행합니다.
+[infra-son01에서 Helm 차트 수동 반입](infra-setup-commend.md#infra-son01에서-helm-차트-수동-반입)을 실행합니다.
 
 **명령 134 — Hub·Proxy·Notebook 기본 이미지 외부 반입**
 
@@ -964,7 +964,7 @@ gcloud builds submit --no-source --project=gcp-sbx-edp-gke01 --region=asia-north
 
 **명령 135 — 사용자 표준 Notebook 이미지 빌드**
 
-[관리 VM의 Docker 빌드·AR 게시 명령](../01.docs/01-infra-setup.md#7-notebook-표준-이미지-빌드)을 실행합니다.
+[관리 VM의 Docker 빌드·AR 게시 명령](infra-setup-commend.md#7-notebook-표준-이미지-빌드)을 실행합니다.
 
 **명령 136 — API 이미지 빌드**
 
@@ -1299,8 +1299,8 @@ gcloud artifacts docker images describe asia-northeast3-docker.pkg.dev/gcp-sbx-e
 ## 참고 소스
 
 - [작업 순서](work-order.md)
-- [기반 설정](../01.docs/01-infra-setup.md#3-공통-기반)
-- [미러링·이미지 수동 명령](../01.docs/01-infra-setup.md#4-oauth-값-등록)
+- [기반 설정](infra-setup-commend.md#3-공통-기반)
+- [미러링·이미지 수동 명령](infra-setup-commend.md#4-oauth-값-등록)
 - [API 코드](../03.sandbox_deploy/03.1.request/main.py)
 - [요청 작성 규칙](../03.sandbox_deploy/03.1.request/request-format/README.md)
 - [Terraform 배포 단계](../03.sandbox_deploy/03.2.terraform/deployments)

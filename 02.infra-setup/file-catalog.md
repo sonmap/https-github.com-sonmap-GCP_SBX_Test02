@@ -1,6 +1,6 @@
 # 파일별 설명
 
-**실제 작업은 [1차 인프라 구축](../01.docs/01-infra-setup.md) → [2차 Sandbox 구축](../03.sandbox_deploy/README.md) 두 문서를 따라 진행합니다.** 이 페이지는 필요한 파일을 찾을 때만 열어보세요. 아래에서 해당 폴더를 펼치면 **폴더 → 파일명 → 역할 → 수행 순서**를 확인할 수 있습니다.
+**실제 작업은 [1차 인프라 구축](infra-setup-commend.md) → [2차 Sandbox 구축](../03.sandbox_deploy/README.md) 두 문서를 따라 진행합니다.** 이 페이지는 필요한 파일을 찾을 때만 열어보세요. 아래에서 해당 폴더를 펼치면 **폴더 → 파일명 → 역할 → 수행 순서**를 확인할 수 있습니다.
 
 | 수행 순서 표기 | 읽는 방법 |
 |---|---|
@@ -22,19 +22,19 @@
 </details>
 
 <details>
-<summary>01.docs · 1차 시작 문서 (2개)</summary>
+<summary>01.docs · 시작 안내</summary>
 
 | 폴더 | 파일명 | 역할 | 수행 순서 |
 |---|---|---|---|
 | `01.docs` | [`README.md`](../01.docs/README.md) | 실제 수행 단계·실행 계정·완료 기준의 시작 안내 | 시작 · 읽기 |
-| `01.docs` | [`01-infra-setup.md`](../01.docs/01-infra-setup.md) | 공통 인프라 구축과 이미지 준비 명령 | 1차 · 실행 |
 </details>
 
 <details>
-<summary>02.infra-setup · 인프라 참고 자료</summary>
+<summary>02.infra-setup · 1차 구축 명령과 참고 자료</summary>
 
 | 폴더 | 파일명 | 역할 | 수행 순서 |
 |---|---|---|---|
+| `02.infra-setup` | [`infra-setup-commend.md`](infra-setup-commend.md) | 공통 인프라 구축과 이미지 준비 명령 | 1차 · 실행 |
 | `02.infra-setup` | [`admin-requests.md`](admin-requests.md) | 관리자별 네트워크·데이터·인증 준비 요청 | 1차 준비 · 필요 시 |
 | `02.infra-setup` | [`architecture-and-operations.md`](architecture-and-operations.md) | 구조·권한 통합 영향·State 전환 | 참고 · 설계 |
 | `02.infra-setup` | [`cloud-identity-group-terraform.md`](cloud-identity-group-terraform.md) | 그룹 관리자 역할·Customer ID·기존 그룹 import 안내 | 1차 4 · 관리자 승인 |

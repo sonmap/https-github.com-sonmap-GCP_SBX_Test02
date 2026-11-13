@@ -48,8 +48,8 @@ flowchart TD
 ## 작업자가 수행할 순서
 
 1. VPC Admin이 후보 CIDR·기존 ACTIVE 프록시 전용 Subnet을 확인합니다. 기존 프록시를 재사용하면 ILB_PROXY_SUBNET·ILB_PROXY_CIDR을 실제 값으로 맞춥니다. 원래 서브넷이 일반 Subnet이라면 프록시 전용으로 대신 쓸 수 없습니다.
-2. [Shared VPC·네트워크](../01.docs/01-infra-setup.md#2-shared-vpc와-네트워크)의 개별 gcloud 명령으로 VIP Subnet·필요한 프록시 Subnet·방화벽을 준비합니다. 사내 클라이언트에서 VIP 대역으로의 라우팅도 확인합니다.
-3. 서브넷 생성 후 VPC Admin이 [서브넷별 IAM](../01.docs/01-infra-setup.md#2-1-서브넷별-iam)을 적용합니다. tf-manager는 VIP·GKE 서브넷을 사용하고 프록시 전용 Subnet은 VPC Admin이 관리합니다. 이후 [공통 기반](../01.docs/01-infra-setup.md#3-공통-기반) 27~34단계에서 Regional VIP·기본 Health Check/Backend·URL Map·Proxy·Forwarding Rule을 준비합니다. 인증서가 없으면 HTTPS 단계를 중단하고 Regional 인증서를 별도 등록합니다. 기본 Backend는 과제 라우트가 붙기 전까지 사용자 서비스를 제공하지 않습니다.
+2. [Shared VPC·네트워크](infra-setup-commend.md#2-shared-vpc와-네트워크)의 개별 gcloud 명령으로 VIP Subnet·필요한 프록시 Subnet·방화벽을 준비합니다. 사내 클라이언트에서 VIP 대역으로의 라우팅도 확인합니다.
+3. 서브넷 생성 후 VPC Admin이 [서브넷별 IAM](infra-setup-commend.md#2-1-서브넷별-iam)을 적용합니다. tf-manager는 VIP·GKE 서브넷을 사용하고 프록시 전용 Subnet은 VPC Admin이 관리합니다. 이후 [공통 기반](infra-setup-commend.md#3-공통-기반) 27~34단계에서 Regional VIP·기본 Health Check/Backend·URL Map·Proxy·Forwarding Rule을 준비합니다. 인증서가 없으면 HTTPS 단계를 중단하고 Regional 인증서를 별도 등록합니다. 기본 Backend는 과제 라우트가 붙기 전까지 사용자 서비스를 제공하지 않습니다.
 4. 새 API·Runner 릴리스를 게시하고 새 source로 과제를 Deploy합니다. Reconciler는 Regional Health Check·INTERNAL_MANAGED Backend·NEG·Regional URL Map을 연결합니다. 기존 Global Backend와 혼용하지 않습니다.
 5. 내부 DNS를 사설 VIP로 연결합니다. 인증서 SAN·신뢰·OAuth Callback은 실제 도메인과 일치해야 합니다. 브라우저는 Google OAuth 로그인에도 접근할 수 있어야 합니다.
 6. 사내망에서 HTTPS 로그인·Notebook·WebSocket/터미널·BQ를 확인하고, GKE Backend HEALTHY를 확인합니다.
@@ -70,7 +70,7 @@ Google Health Check의 주소는 관리형 점검 트래픽의 출발 범위이�
 
 ## 검증 범위
 
-Host 전체 권한이 이미 있었다면 서브넷별 추가만으로 사용 범위가 제한되지 않습니다. [이전 광역 권한 정리](../01.docs/01-infra-setup.md#부록-기존-host-광역-iam-정리)는 실제 동작을 확인한 뒤 별도로 수행합니다.
+Host 전체 권한이 이미 있었다면 서브넷별 추가만으로 사용 범위가 제한되지 않습니다. [이전 광역 권한 정리](infra-setup-commend.md#부록-기존-host-광역-iam-정리)는 실제 동작을 확인한 뒤 별도로 수행합니다.
 
 단위 테스트는 Regional 범위·내부 scheme·Shared VPC 경로·Health Check 참조·Global Backend 혼용 거부를 확인합니다. 실제 CIDR 가용성, GCP 생성 성공, Regional 인증서, 사내 라우팅·NEG health·DNS·사용자 로그인은 적용 환경에서 검증해야 합니다.
 

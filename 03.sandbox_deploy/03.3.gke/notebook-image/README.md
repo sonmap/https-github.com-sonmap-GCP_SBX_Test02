@@ -1,12 +1,12 @@
 # 사용자 Notebook 표준 이미지
 
-표준 이미지는 내부 sample 이미지에 gcloud/git/jq와 pandas/pyarrow/BigQuery/GCS 라이브러리를 추가합니다. 빌드 명령은 [관리 VM의 표준 이미지 빌드 명령](../../../01.docs/01-infra-setup.md#7-notebook-표준-이미지-빌드)를 참고하세요.
+표준 이미지는 내부 sample 이미지에 gcloud/git/jq와 pandas/pyarrow/BigQuery/GCS 라이브러리를 추가합니다. 빌드 명령은 [관리 VM의 표준 이미지 빌드 명령](../../../02.infra-setup/infra-setup-commend.md#7-notebook-표준-이미지-빌드)를 참고하세요.
 
 이미지 태그 `4.2.0-r2-home`은 사용자의 PVC를 `/home/{username}`에 마운트하고, 시작 스크립트가 같은 경로를 `HOME`과 작업 디렉터리로 사용합니다. 예를 들어 `user01`은 `/home/user01`에서 시작합니다. 컨테이너의 Linux 실행 계정은 이미지의 `jovyan`을 사용하므로 기존 PVC의 UID와 권한을 유지합니다.
 
 ## 기존 sbx03에 적용
 
-관리 VM에서 [표준 이미지 빌드·검증·게시](../../../01.docs/01-infra-setup.md#7-notebook-표준-이미지-빌드)를 마칩니다. 아래 절차는 기존 과제별 Hub 릴리스 `jupyterhub-sbx03`용입니다. 그룹 공유 PoC는 과제 JSON의 `image`에 게시된 digest를 지정합니다.
+관리 VM에서 [표준 이미지 빌드·검증·게시](../../../02.infra-setup/infra-setup-commend.md#7-notebook-표준-이미지-빌드)를 마칩니다. 아래 절차는 기존 과제별 Hub 릴리스 `jupyterhub-sbx03`용입니다. 그룹 공유 PoC는 과제 JSON의 `image`에 게시된 digest를 지정합니다.
 
 빌드가 성공하면 Helm 레지스트리에 로그인합니다.
 

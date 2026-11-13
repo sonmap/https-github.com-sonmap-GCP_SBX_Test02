@@ -1,6 +1,6 @@
 # 작업 순서와 실행 링크
 
-> **[서브넷별 IAM](../01.docs/01-infra-setup.md#2-1-서브넷별-iam)**: VPC Admin이 네트워크를 준비한 뒤 GKE·ALB VIP 서브넷에 필요한 계정만 사용 권한을 부여합니다. 이후 tf-manager로 내부 ALB를 구성합니다.
+> **[서브넷별 IAM](infra-setup-commend.md#2-1-서브넷별-iam)**: VPC Admin이 네트워크를 준비한 뒤 GKE·ALB VIP 서브넷에 필요한 계정만 사용 권한을 부여합니다. 이후 tf-manager로 내부 ALB를 구성합니다.
 
 > **[내부 사설 ALB 설계](internal-alb-design.md)**: ALB·VIP는 gcp-sbx-edp-gke01, /27 VIP Subnet과 최소 /26 프록시 Subnet은 Shared VPC Host에 둡니다. 후보 CIDR은 VPC Admin 승인 후 적용합니다.
 
@@ -34,17 +34,17 @@ flowchart TD
 
 | 순서 | 작업자 / 작업 | 실행 문서 — 클릭 후 명령 실행 | 관련 폴더 | 완료 기준 |
 |---|---|---|---|---|
-| 0 | 운영자: 소스 받기·도구·변수 확인 | [소스 준비](runbook-two-stage.md#0-소스-받기기본-변수-설정), [공통 변수](../01.docs/01-infra-setup.md#0-공통-변수) | [01.docs](../01.docs), [1차 인프라](../01.docs/01-infra-setup.md) | 계정·프로젝트 조회 성공 |
-| 1 | 권한 관리자: API·sbx-manager·tf-manager·IAM | [API·관리자 권한](../01.docs/01-infra-setup.md#1-api와-관리자-권한) | [1차 인프라](../01.docs/01-infra-setup.md) | 두 SA 조회·위임 성공 |
-| 2 | VPC Admin: VPC·Subnet·PSA·방화벽 | [Shared VPC·네트워크](../01.docs/01-infra-setup.md#2-shared-vpc와-네트워크) | [1차 인프라](../01.docs/01-infra-setup.md) | 대역·연결 확인 |
-| 2-1 | VPC Admin: 필요한 계정에 Subnet Network User | [서브넷별 IAM](../01.docs/01-infra-setup.md#2-1-서브넷별-iam) | [1차 인프라](../01.docs/01-infra-setup.md) | GKE·VIP Subnet 정책 확인 |
-| 3 | 인프라 관리자: GCS·AR·Pool·GKE·Run·Workflow·ALB | [공통 기반](../01.docs/01-infra-setup.md#3-공통-기반) | [1차 인프라](../01.docs/01-infra-setup.md), [03.sandbox_deploy/03.3.gke/cloudbuild](../03.sandbox_deploy/03.3.gke/cloudbuild) | GKE RUNNING·API healthz 정상 |
-| 4 | Workspace·OAuth 담당자 인증 준비 / VPC Admin 사설 경로·BQ 권한 요청 / 인증서·DNS 별도 진행 | [OAuth 등록 명령](../01.docs/01-infra-setup.md#4-oauth-값-등록), [그룹 관리자 역할 직접 부여](runbook-two-stage.md#4-2-cloud-identity-그룹-관리자-역할), [인증·도메인 안내](jupyterhub-internal-alb-oauth-runbook.md) | [01.docs](../01.docs), [1차 인프라](../01.docs/01-infra-setup.md) | OAuth Secret ENABLED·tf-manager 그룹 관리자 역할 부여·도메인/인증서 준비 |
+| 0 | 운영자: 소스 받기·도구·변수 확인 | [소스 준비](runbook-two-stage.md#0-소스-받기기본-변수-설정), [공통 변수](infra-setup-commend.md#0-공통-변수) | [01.docs](../01.docs), [1차 인프라](infra-setup-commend.md) | 계정·프로젝트 조회 성공 |
+| 1 | 권한 관리자: API·sbx-manager·tf-manager·IAM | [API·관리자 권한](infra-setup-commend.md#1-api와-관리자-권한) | [1차 인프라](infra-setup-commend.md) | 두 SA 조회·위임 성공 |
+| 2 | VPC Admin: VPC·Subnet·PSA·방화벽 | [Shared VPC·네트워크](infra-setup-commend.md#2-shared-vpc와-네트워크) | [1차 인프라](infra-setup-commend.md) | 대역·연결 확인 |
+| 2-1 | VPC Admin: 필요한 계정에 Subnet Network User | [서브넷별 IAM](infra-setup-commend.md#2-1-서브넷별-iam) | [1차 인프라](infra-setup-commend.md) | GKE·VIP Subnet 정책 확인 |
+| 3 | 인프라 관리자: GCS·AR·Pool·GKE·Run·Workflow·ALB | [공통 기반](infra-setup-commend.md#3-공통-기반) | [1차 인프라](infra-setup-commend.md), [03.sandbox_deploy/03.3.gke/cloudbuild](../03.sandbox_deploy/03.3.gke/cloudbuild) | GKE RUNNING·API healthz 정상 |
+| 4 | Workspace·OAuth 담당자 인증 준비 / VPC Admin 사설 경로·BQ 권한 요청 / 인증서·DNS 별도 진행 | [OAuth 등록 명령](infra-setup-commend.md#4-oauth-값-등록), [그룹 관리자 역할 직접 부여](runbook-two-stage.md#4-2-cloud-identity-그룹-관리자-역할), [인증·도메인 안내](jupyterhub-internal-alb-oauth-runbook.md) | [01.docs](../01.docs), [1차 인프라](infra-setup-commend.md) | OAuth Secret ENABLED·tf-manager 그룹 관리자 역할 부여·도메인/인증서 준비 |
 | 5 | 운영자: Private Pool에서 GKE API 조회 | [접속 점검 명령](runbook-two-stage.md#5-private-pool에서-gke-사설-api-연결-확인), [점검 YAML](check-private-gke.yaml) | [01.docs](../01.docs) | 점검 Build SUCCESS |
-| 6 | 운영자: API·배포 도구 이미지와 Terraform 소스 게시 | [플랫폼 릴리스 명령](../01.docs/01-infra-setup.md#5-플랫폼-릴리스-게시) | [03.sandbox_deploy/03.3.gke/cloudbuild](../03.sandbox_deploy/03.3.gke/cloudbuild) | Build SUCCESS·release.json 생성 |
-| 7 | 운영자: 관리 VM에서 차트 반입, 기본 이미지 복사 | [차트 수동 명령](../01.docs/01-infra-setup.md#infra-son01에서-helm-차트-수동-반입) | [기본 이미지 복사](../03.sandbox_deploy/03.3.gke/cloudbuild/mirror-jupyterhub-images.yaml) | AR 차트 조회와 기본 이미지 Build SUCCESS |
-| 8 | 운영자: 관리 VM에서 Notebook 표준 이미지 빌드·게시 | [Notebook 빌드 명령](../01.docs/01-infra-setup.md#7-notebook-표준-이미지-빌드) | [04.Notebook 이미지](../03.sandbox_deploy/03.3.gke/notebook-image) | 이미지 조회 성공 |
-| 9 | 운영자: GCS의 승인 JSON을 지정해 Deploy 시작·결과 확인 | [Deploy 실행 명령](../03.sandbox_deploy/03.1.request/legacy-deploy.md#공통-workflows-배포-명령) | [1차 인프라](../01.docs/01-infra-setup.md), [07.API](../03.sandbox_deploy/03.1.request) | 부모·자식 Build SUCCESS·사용자 접속 확인 |
+| 6 | 운영자: API·배포 도구 이미지와 Terraform 소스 게시 | [플랫폼 릴리스 명령](infra-setup-commend.md#5-플랫폼-릴리스-게시) | [03.sandbox_deploy/03.3.gke/cloudbuild](../03.sandbox_deploy/03.3.gke/cloudbuild) | Build SUCCESS·release.json 생성 |
+| 7 | 운영자: 관리 VM에서 차트 반입, 기본 이미지 복사 | [차트 수동 명령](infra-setup-commend.md#infra-son01에서-helm-차트-수동-반입) | [기본 이미지 복사](../03.sandbox_deploy/03.3.gke/cloudbuild/mirror-jupyterhub-images.yaml) | AR 차트 조회와 기본 이미지 Build SUCCESS |
+| 8 | 운영자: 관리 VM에서 Notebook 표준 이미지 빌드·게시 | [Notebook 빌드 명령](infra-setup-commend.md#7-notebook-표준-이미지-빌드) | [04.Notebook 이미지](../03.sandbox_deploy/03.3.gke/notebook-image) | 이미지 조회 성공 |
+| 9 | 운영자: GCS의 승인 JSON을 지정해 Deploy 시작·결과 확인 | [Deploy 실행 명령](../03.sandbox_deploy/03.1.request/legacy-deploy.md#공통-workflows-배포-명령) | [1차 인프라](infra-setup-commend.md), [07.API](../03.sandbox_deploy/03.1.request) | 부모·자식 Build SUCCESS·사용자 접속 확인 |
 
 3단계의 HTTPS Proxy 구성 전에 인증서가 필요합니다. 인증서가 없다면 해당 명령을 보류하고 4단계 담당자 준비 후 완료합니다. Private Pool의 GKE 사설 경로는 PSA 생성만으로 완성되지 않으며, 5단계 통과가 필수입니다.
 
@@ -67,8 +67,8 @@ flowchart TD
 
 | 구간 | 지금 수행하는 방식 | 문서·소스 |
 |---|---|---|
-| 공통 인프라 | 작업자가 gcloud 명령을 한 줄씩 수행 | [API·관리자 권한](../01.docs/01-infra-setup.md#1-api와-관리자-권한), [Shared VPC·네트워크](../01.docs/01-infra-setup.md#2-shared-vpc와-네트워크), [공통 기반](../01.docs/01-infra-setup.md#3-공통-기반) |
-| 공통 이미지 준비 | 작업자가 빌드·릴리스 gcloud 명령을 직접 제출 | [인프라 실행 절차](../01.docs/01-infra-setup.md#4-oauth-값-등록) |
+| 공통 인프라 | 작업자가 gcloud 명령을 한 줄씩 수행 | [API·관리자 권한](infra-setup-commend.md#1-api와-관리자-권한), [Shared VPC·네트워크](infra-setup-commend.md#2-shared-vpc와-네트워크), [공통 기반](infra-setup-commend.md#3-공통-기반) |
+| 공통 이미지 준비 | 작업자가 빌드·릴리스 gcloud 명령을 직접 제출 | [인프라 실행 절차](infra-setup-commend.md#4-oauth-값-등록) |
 | 과제 Deploy 시작 | 작업자가 GCS 요청을 지정하고 Deploy 명령 실행 | [Workflows 배포](../03.sandbox_deploy/03.1.request/legacy-deploy.md#공통-workflows-배포-명령) |
 | Deploy 내부 처리 | 기존 API·Build가 검증·Terraform·GKE 배포 수행 | [07.API](../03.sandbox_deploy/03.1.request), [08.Terraform](../03.sandbox_deploy/03.2.terraform), [09.GKE 배포](../03.sandbox_deploy/03.3.gke) |
 | 배포 결과 확인 | 작업자가 Build·GKE·접속 결과 확인 | [Deploy 결과 확인](../03.sandbox_deploy/03.1.request/legacy-deploy.md#배포-결과-확인) |

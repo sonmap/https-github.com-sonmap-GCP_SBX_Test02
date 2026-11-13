@@ -33,7 +33,7 @@ Test02의 그룹 공유 배포는 2차 Sandbox 구축 업무입니다. 포털이
 ### 1. 공통 인프라와 그룹 준비
 
 - VPC·GKE·내부 ALB·DNS·인증서는 기존 Foundation 절차로 준비합니다. 동일 ALB에 그룹 DNS 세 개를 등록하고 인증서가 세 이름을 포함하도록 구성합니다. 사내 DNS에서 각 이름은 내부 ALB VIP를 가리킵니다.
-- 관리 VM `infra-son01`에서 [Helm 차트 4.2.0 수동 반입 명령](../../../01.docs/01-infra-setup.md#infra-son01에서-helm-차트-수동-반입)을 실행합니다. Hub·Proxy 컨테이너 이미지는 같은 문서의 기본 이미지 복사 절차에서 준비합니다. 이후 배포 환경에서 AR, 사설 GKE API, Filestore에 접근할 수 있어야 합니다.
+- 관리 VM `infra-son01`에서 [Helm 차트 4.2.0 수동 반입 명령](../../../02.infra-setup/infra-setup-commend.md#infra-son01에서-helm-차트-수동-반입)을 실행합니다. Hub·Proxy 컨테이너 이미지는 같은 문서의 기본 이미지 복사 절차에서 준비합니다. 이후 배포 환경에서 AR, 사설 GKE API, Filestore에 접근할 수 있어야 합니다.
 - 세 그룹마다 [점검용 그룹 JSON 예시](../../../04.tests/fixtures/group.example.json)을 복사해 승인된 테스트 계정 이메일, 고유 과제명, GSA, AR 이미지 digest, PVC 이름을 입력합니다. 예제의 digest는 자리표시자입니다. 그룹 전체에서 과제명과 GSA가 중복되지 않도록 포털 또는 운영자가 관리합니다.
 - 그룹별로 승인된 계정의 테스트 비밀번호를 준비합니다. 실제 GW 비밀번호 대신 테스트 전용 비밀번호를 사용하세요. 준비 도구는 비밀번호를 화면에 표시하지 않고 해시만 파일에 기록합니다. 이 파일은 Git에 올리지 않고 Hub 네임스페이스의 Secret으로 등록합니다. Jupyter 사용자는 GKE 관리 권한을 받지 않습니다.
 

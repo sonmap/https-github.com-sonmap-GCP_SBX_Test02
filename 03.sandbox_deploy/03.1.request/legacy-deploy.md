@@ -1,6 +1,6 @@
 # 기존 과제별 Sandbox 배포 · sbx03
 
-[1차 공통 인프라](../../01.docs/01-infra-setup.md)가 준비되면, 포털에서 승인된 요청으로 과제별 자원을 추가합니다. 아래는 신규 과제 `sbx03` 기준입니다.
+[1차 공통 인프라](../../02.infra-setup/infra-setup-commend.md)가 준비되면, 포털에서 승인된 요청으로 과제별 자원을 추가합니다. 아래는 신규 과제 `sbx03` 기준입니다.
 
 | 구분 | 배포를 시작하는 주체 | 그 뒤에 실행되는 작업 |
 |---|---|---|
@@ -166,14 +166,14 @@ gcloud compute backend-services get-health bes-jupyter-sbx03 --project=gcp-sbx-e
 
 | 순서 | 직접 실행할 문서 | 수행 내용 |
 |---|---|---|
-| 0 | [공통 변수](../../01.docs/01-infra-setup.md#0-공통-변수) | 프로젝트·계정·대역 확인 |
-| 1 | [관리자 준비](../../01.docs/01-infra-setup.md#1-api와-관리자-권한) | API·서비스 계정·IAM |
-| 2 | [네트워크](../../01.docs/01-infra-setup.md#2-shared-vpc와-네트워크) | Shared VPC·Subnet·PSA·방화벽 |
-| 2-1 | [서브넷별 IAM](../../01.docs/01-infra-setup.md#2-1-서브넷별-iam) | GKE·ALB VIP 사용 계정 부여 |
-| 3 | [공통 실행 기반](../../01.docs/01-infra-setup.md#3-공통-기반) | GCS·AR·Private Pool·GKE·Cloud Run·Workflow·ALB |
-| 4 | [관리자 개별 명령](../../01.docs/01-infra-setup.md#4-oauth-값-등록) 및 [인증 안내](../../02.infra-setup/jupyterhub-internal-alb-oauth-runbook.md) | OAuth 등록·그룹 관리자 역할 직접 부여·인증서·DNS 준비 |
+| 0 | [공통 변수](../../02.infra-setup/infra-setup-commend.md#0-공통-변수) | 프로젝트·계정·대역 확인 |
+| 1 | [관리자 준비](../../02.infra-setup/infra-setup-commend.md#1-api와-관리자-권한) | API·서비스 계정·IAM |
+| 2 | [네트워크](../../02.infra-setup/infra-setup-commend.md#2-shared-vpc와-네트워크) | Shared VPC·Subnet·PSA·방화벽 |
+| 2-1 | [서브넷별 IAM](../../02.infra-setup/infra-setup-commend.md#2-1-서브넷별-iam) | GKE·ALB VIP 사용 계정 부여 |
+| 3 | [공통 실행 기반](../../02.infra-setup/infra-setup-commend.md#3-공통-기반) | GCS·AR·Private Pool·GKE·Cloud Run·Workflow·ALB |
+| 4 | [관리자 개별 명령](../../02.infra-setup/infra-setup-commend.md#4-oauth-값-등록) 및 [인증 안내](../../02.infra-setup/jupyterhub-internal-alb-oauth-runbook.md) | OAuth 등록·그룹 관리자 역할 직접 부여·인증서·DNS 준비 |
 | 5 | [Private Pool 접속 점검](../../02.infra-setup/runbook-two-stage.md#5-private-pool에서-gke-사설-api-연결-확인) | GKE 사설 API 조회 Build 성공 확인 |
-| 6 | [관리자 개별 명령 5~7절](../../01.docs/01-infra-setup.md#4-oauth-값-등록) | 플랫폼 릴리스·기본 이미지 미러링·Notebook 이미지 빌드 |
+| 6 | [관리자 개별 명령 5~7절](../../02.infra-setup/infra-setup-commend.md#4-oauth-값-등록) | 플랫폼 릴리스·기본 이미지 미러링·Notebook 이미지 빌드 |
 
 tf-manager 그룹 관리자 역할 준비·DNS·인증서와 기존 BQ 데이터 조회 권한은 각 담당자가 준비합니다. 인증서는 공통 ALB의 HTTPS 연결 명령 전에 필요합니다. 이 준비 작업을 과제 Deploy마다 반복하지 않습니다.
 
