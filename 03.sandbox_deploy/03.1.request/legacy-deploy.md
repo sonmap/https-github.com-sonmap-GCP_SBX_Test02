@@ -30,7 +30,7 @@ flowchart TD
     C --> I["sbx03-workflow-input.json"]
 ```
 
-포털이 GCS에 저장한 **승인된 요청 ID**를 입력합니다. 신규 프로젝트 사전 권한과 승인 JSON이 아직 준비되지 않았다면 [sbx03 신규 과제 절차 1~3절](../../01.docs/reference/sbx03-new-project-runbook.md)을 먼저 따릅니다. 같은 `sbx03`을 재배포할 때는 포털에서 새 요청 ID를 발급받습니다.
+포털이 GCS에 저장한 **승인된 요청 ID**를 입력합니다. 신규 프로젝트 사전 권한과 승인 JSON이 아직 준비되지 않았다면 [sbx03 신규 과제 절차 1~3절](../../02.infra-setup/sbx03-new-project-runbook.md)을 먼저 따릅니다. 같은 `sbx03`을 재배포할 때는 포털에서 새 요청 ID를 발급받습니다.
 
 아래 블록을 같은 Bash 셸에서 실행합니다. 성공하면 검증된 입력 파일을 만듭니다. 다운로드나 검증이 실패하면 파일을 새로 만들지 않습니다.
 
@@ -107,7 +107,7 @@ flowchart TD
 | 데이터와 실행 계정 | `sbx03_main`, `gcp-sbx-edp-sbx03-sbx03-data`, `gsa-jupyter-sbx03`과 Workload Identity 권한 |
 | 데이터레이크 연결 | 승인된 경우 `pjt-c-admin:dlk_sample` 조회 권한 |
 
-Infrastructure Manager가 ZIP별로 Terraform을 적용합니다. 시험 운영자가 직접 실행하는 시작 명령은 위의 `gcloud workflows run`입니다. [Terraform 파일과 실행 관계](../../01.docs/reference/file-relationships.md#4-terraform-자동-적용--zip과-실제-원본-파일)
+Infrastructure Manager가 ZIP별로 Terraform을 적용합니다. 시험 운영자가 직접 실행하는 시작 명령은 위의 `gcloud workflows run`입니다. [Terraform 파일과 실행 관계](../../02.infra-setup/file-relationships.md#4-terraform-자동-적용--zip과-실제-원본-파일)
 
 ### 2-2. 후속 빌드가 GKE와 내부 ALB 연결
 
@@ -149,14 +149,14 @@ gcloud compute backend-services get-health bes-jupyter-sbx03 --project=gcp-sbx-e
 
 | 막힌 지점 | 열어야 할 문서 |
 |---|---|
-| Workflow 이후 빌드 실패 또는 대기 | [sbx03 실제 시험 기록](../../01.docs/reference/sbx03-new-project-runbook.md#6-실제-작업-기록과-다음-테스트-순서) |
-| 이름 해석·443·인증서 오류 | [내부 HTTPS와 인증서](../../01.docs/reference/sbx03-https-certificate-runbook.md) |
-| `redirect_uri_mismatch` 또는 로그인 거부 | [Google OAuth 로그인](../../01.docs/reference/sbx03-google-oauth-runbook.md) |
+| Workflow 이후 빌드 실패 또는 대기 | [sbx03 실제 시험 기록](../../02.infra-setup/sbx03-new-project-runbook.md#6-실제-작업-기록과-다음-테스트-순서) |
+| 이름 해석·443·인증서 오류 | [내부 HTTPS와 인증서](../../02.infra-setup/sbx03-https-certificate-runbook.md) |
+| `redirect_uri_mismatch` 또는 로그인 거부 | [Google OAuth 로그인](../../02.infra-setup/sbx03-google-oauth-runbook.md) |
 | 이전 Notebook 이미지 또는 홈 경로 | [Notebook 이미지와 Helm 적용](../03.3.gke/notebook-image/README.md) |
 
 ## 공통 Workflows 배포 명령
 
-> **담당 구분:** Private Pool → GKE 사설 경로와 기존 BigQuery 데이터 조회 권한은 **VPC Admin 요청사항**입니다. 인증서·DNS는 **별도 진행**합니다. tf-manager의 그룹 관리자 역할은 과제 Google Group 관리용, Jupyter OAuth는 사용자 로그인용입니다. [담당자 요청서·인증 설명](../../01.docs/reference/admin-requests.md)을 확인하세요.
+> **담당 구분:** Private Pool → GKE 사설 경로와 기존 BigQuery 데이터 조회 권한은 **VPC Admin 요청사항**입니다. 인증서·DNS는 **별도 진행**합니다. tf-manager의 그룹 관리자 역할은 과제 Google Group 관리용, Jupyter OAuth는 사용자 로그인용입니다. [담당자 요청서·인증 설명](../../02.infra-setup/admin-requests.md)을 확인하세요.
 
 현재 운영 방식은 **인프라를 개별 gcloud 명령으로 구축한 뒤, 작업자가 과제 Deploy 명령을 실행**하는 것입니다. GCS 이벤트 자동 시작·포털 결과 전달 자동화는 이후에 적용합니다. 기존 배포 코드를 사용하므로 Deploy 시작 이후의 그룹·Terraform·GKE 설치 순서는 Cloud Build가 수행합니다.
 
@@ -171,8 +171,8 @@ gcloud compute backend-services get-health bes-jupyter-sbx03 --project=gcp-sbx-e
 | 2 | [네트워크](../../01.docs/01-infra-setup.md#2-shared-vpc와-네트워크) | Shared VPC·Subnet·PSA·방화벽 |
 | 2-1 | [서브넷별 IAM](../../01.docs/01-infra-setup.md#2-1-서브넷별-iam) | GKE·ALB VIP 사용 계정 부여 |
 | 3 | [공통 실행 기반](../../01.docs/01-infra-setup.md#3-공통-기반) | GCS·AR·Private Pool·GKE·Cloud Run·Workflow·ALB |
-| 4 | [관리자 개별 명령](../../01.docs/01-infra-setup.md#4-oauth-값-등록) 및 [인증 안내](../../01.docs/reference/jupyterhub-internal-alb-oauth-runbook.md) | OAuth 등록·그룹 관리자 역할 직접 부여·인증서·DNS 준비 |
-| 5 | [Private Pool 접속 점검](../../01.docs/reference/runbook-two-stage.md#5-private-pool에서-gke-사설-api-연결-확인) | GKE 사설 API 조회 Build 성공 확인 |
+| 4 | [관리자 개별 명령](../../01.docs/01-infra-setup.md#4-oauth-값-등록) 및 [인증 안내](../../02.infra-setup/jupyterhub-internal-alb-oauth-runbook.md) | OAuth 등록·그룹 관리자 역할 직접 부여·인증서·DNS 준비 |
+| 5 | [Private Pool 접속 점검](../../02.infra-setup/runbook-two-stage.md#5-private-pool에서-gke-사설-api-연결-확인) | GKE 사설 API 조회 Build 성공 확인 |
 | 6 | [관리자 개별 명령 5~7절](../../01.docs/01-infra-setup.md#4-oauth-값-등록) | 플랫폼 릴리스·기본 이미지 미러링·Notebook 이미지 빌드 |
 
 tf-manager 그룹 관리자 역할 준비·DNS·인증서와 기존 BQ 데이터 조회 권한은 각 담당자가 준비합니다. 인증서는 공통 ALB의 HTTPS 연결 명령 전에 필요합니다. 이 준비 작업을 과제 Deploy마다 반복하지 않습니다.
@@ -238,7 +238,7 @@ gcloud builds list --project="${SBX_GKE_PROJECT}" --region="${REGION}" --account
 # gcloud builds log "${BUILD_ID}" --project="${SBX_GKE_PROJECT}" --region="${REGION}" --account="${ADMIN_ACCOUNT}" --impersonate-service-account="${TF_MANAGER}"
 ```
 
-완료 기준은 부모·자식 Build SUCCESS와 [GKE·ALB·로그인·BQ 확인](../../01.docs/reference/runbook-two-stage.md#11-최종-배포와-사용자-동작-확인)입니다. 최신 Build 하나만 보고 다른 과제의 성공을 이번 요청의 성공으로 판단하지 않습니다.
+완료 기준은 부모·자식 Build SUCCESS와 [GKE·ALB·로그인·BQ 확인](../../02.infra-setup/runbook-two-stage.md#11-최종-배포와-사용자-동작-확인)입니다. 최신 Build 하나만 보고 다른 과제의 성공을 이번 요청의 성공으로 판단하지 않습니다.
 
 ### 나중에 적용할 자동화
 

@@ -954,7 +954,7 @@ gcloud builds submit 03.sandbox_deploy/03.3.gke --project=gcp-sbx-edp-gke01 --re
 
 **명령 133 — Helm 차트 외부 반입**
 
-[infra-son01에서 Helm 차트 수동 반입](../01-infra-setup.md#infra-son01에서-helm-차트-수동-반입)을 실행합니다.
+[infra-son01에서 Helm 차트 수동 반입](../01.docs/01-infra-setup.md#infra-son01에서-helm-차트-수동-반입)을 실행합니다.
 
 **명령 134 — Hub·Proxy·Notebook 기본 이미지 외부 반입**
 
@@ -964,7 +964,7 @@ gcloud builds submit --no-source --project=gcp-sbx-edp-gke01 --region=asia-north
 
 **명령 135 — 사용자 표준 Notebook 이미지 빌드**
 
-[관리 VM의 Docker 빌드·AR 게시 명령](../01-infra-setup.md#7-notebook-표준-이미지-빌드)을 실행합니다.
+[관리 VM의 Docker 빌드·AR 게시 명령](../01.docs/01-infra-setup.md#7-notebook-표준-이미지-빌드)을 실행합니다.
 
 **명령 136 — API 이미지 빌드**
 
@@ -1160,12 +1160,12 @@ unzip -l /tmp/sandbox-source-20261107.zip
 
 ## 14. 과제 요청 JSON에 확인값 반영
 
-[요청 작성 규칙](../../03.sandbox_deploy/03.1.request/request-format/README.md)에 따라 실제 과제 값으로 `.local/request-draft.json`을 준비합니다. 사용할 릴리스의 `release.json`을 `.local/release.json`에 내려받은 뒤 실행합니다.
+[요청 작성 규칙](../03.sandbox_deploy/03.1.request/request-format/README.md)에 따라 실제 과제 값으로 `.local/request-draft.json`을 준비합니다. 사용할 릴리스의 `release.json`을 `.local/release.json`에 내려받은 뒤 실행합니다.
 
 **명령 157 — 확인된 소스 버전을 요청에 반영**
 
 ```bash
-python3 01.docs/reference/set-request-release.py .local/request-draft.json .local/release.json /tmp/sbx01-request.json
+python3 02.infra-setup/set-request-release.py .local/request-draft.json .local/release.json /tmp/sbx01-request.json
 ```
 
 **명령 158 — 대상·승인·사용자 확인**
@@ -1250,18 +1250,18 @@ bigquery.admin·storage.admin·projectIamAdmin은 해당 과제 프로젝트의 
 | 그룹·사용자·승인 | 실제 승인 포탈 JSON 사용. 샘플 APPROVED를 승인 증빙으로 사용하지 않음 |
 | 요청·릴리스 검증 | 로컬 변경·Schema·API 허용값과 새 프로젝트·클러스터 값의 호환성 확인 |
 
-**Private Pool 점검은 읽기 작업입니다.** 저장소의 01.docs/reference/check-private-gke.yaml을 그대로 사용합니다.
+**Private Pool 점검은 읽기 작업입니다.** 저장소의 02.infra-setup/check-private-gke.yaml을 그대로 사용합니다.
 
 **명령 167 — 저장소의 현재 프로젝트용 점검 YAML 확인**
 
 ```bash
-cat 01.docs/reference/check-private-gke.yaml
+cat 02.infra-setup/check-private-gke.yaml
 ```
 
 **명령 168 — tf-manager가 Private Pool을 써서 사설 GKE API 조회**
 
 ```bash
-gcloud builds submit --no-source --project=gcp-sbx-edp-gke01 --region=asia-northeast3 --account=son@sonmap.net --service-account=projects/gcp-sbx-edp-gke01/serviceAccounts/tf-manager@gcp-sbx-edp-gke01.iam.gserviceaccount.com --config=01.docs/reference/check-private-gke.yaml
+gcloud builds submit --no-source --project=gcp-sbx-edp-gke01 --region=asia-northeast3 --account=son@sonmap.net --service-account=projects/gcp-sbx-edp-gke01/serviceAccounts/tf-manager@gcp-sbx-edp-gke01.iam.gserviceaccount.com --config=02.infra-setup/check-private-gke.yaml
 ```
 
 이 Build가 SUCCESS여야 합니다. 관리 VM의 kubectl 성공을 Private Pool의 성공으로 대체하지 않습니다. 실패하면 Pool 출발지·허용 목록·피어링/PSC/라우팅 구조를 확인합니다. 단순히 피어링 옵션을 모두 켜거나 VPN을 무조건 새로 만들지 않습니다.
@@ -1274,7 +1274,7 @@ gcloud artifacts docker images describe asia-northeast3-docker.pkg.dev/gcp-sbx-e
 
 태그가 없다면 소스 커밋과 bootstrap 이미지 빌드의 일치를 확인한 뒤, 검증된 digest에 릴리스 태그를 붙이거나 해당 커밋에서 이미지를 재빌드합니다. 본 가이드는 확인되지 않은 bootstrap을 자동 재태깅하지 않습니다. platform-release.yaml은 현재 프로젝트 기본값으로 동기화했지만 기존 Cloud Run 업데이트를 포함하므로 소스·릴리스 값과 실행 영향을 확인한 뒤 실행합니다.
 
-준비 완료 후 [Deploy 절차](../../03.sandbox_deploy/03.1.request/legacy-deploy.md#공통-workflows-배포-명령)의 요청 버전 고정·SHA256 확인·입력 작성 순서를 현재 프로젝트와 son 계정에 맞춰 수행합니다. 실행 프로젝트는 son, 호스트·초기 IAM 작업은 admin으로 명시한 계정을 따릅니다. 포탈이 승인 JSON을 GCS에 저장하고, 작업자가 Deploy를 시작합니다. GCS 이벤트 자동 시작은 향후 작업입니다. Workflow의 ACCEPTED는 접수 성공이며 부모·자식 Build SUCCESS와 로그인·BQ 검증이 최종 완료 기준입니다.
+준비 완료 후 [Deploy 절차](../03.sandbox_deploy/03.1.request/legacy-deploy.md#공통-workflows-배포-명령)의 요청 버전 고정·SHA256 확인·입력 작성 순서를 현재 프로젝트와 son 계정에 맞춰 수행합니다. 실행 프로젝트는 son, 호스트·초기 IAM 작업은 admin으로 명시한 계정을 따릅니다. 포탈이 승인 JSON을 GCS에 저장하고, 작업자가 Deploy를 시작합니다. GCS 이벤트 자동 시작은 향후 작업입니다. Workflow의 ACCEPTED는 접수 성공이며 부모·자식 Build SUCCESS와 로그인·BQ 검증이 최종 완료 기준입니다.
 
 ## 오류와 재개 위치
 
@@ -1299,11 +1299,11 @@ gcloud artifacts docker images describe asia-northeast3-docker.pkg.dev/gcp-sbx-e
 ## 참고 소스
 
 - [작업 순서](work-order.md)
-- [기반 설정](../01-infra-setup.md#3-공통-기반)
-- [미러링·이미지 수동 명령](../01-infra-setup.md#4-oauth-값-등록)
-- [API 코드](../../03.sandbox_deploy/03.1.request/main.py)
-- [요청 작성 규칙](../../03.sandbox_deploy/03.1.request/request-format/README.md)
-- [Terraform 배포 단계](../../03.sandbox_deploy/03.2.terraform/deployments)
+- [기반 설정](../01.docs/01-infra-setup.md#3-공통-기반)
+- [미러링·이미지 수동 명령](../01.docs/01-infra-setup.md#4-oauth-값-등록)
+- [API 코드](../03.sandbox_deploy/03.1.request/main.py)
+- [요청 작성 규칙](../03.sandbox_deploy/03.1.request/request-format/README.md)
+- [Terraform 배포 단계](../03.sandbox_deploy/03.2.terraform/deployments)
 
 기존 소스의 허용값·기본 프로젝트·릴리스 태그와 실제 실행값을 맞추는 검증은 계속 필요합니다. 저장소 기본값·요청 Schema는 현재 환경으로 동기화했습니다. 실제 GCP 자원은 Git 변경만으로 갱신되지 않으며, 기존 API 이미지의 Schema를 반영하려면 아래 재빌드·재배포가 필요합니다.
 

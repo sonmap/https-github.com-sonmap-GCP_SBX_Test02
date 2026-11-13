@@ -30,7 +30,7 @@ def blocks(heading):
 
 class CommandbookTests(unittest.TestCase):
     def test_private_check_runs_directly_with_current_project(self):
-        check = yaml.safe_load((ROOT / '01.docs/reference/check-private-gke.yaml').read_text())
+        check = yaml.safe_load((ROOT / '02.infra-setup/check-private-gke.yaml').read_text())
         self.assertEqual(check['options']['pool']['name'],
             'projects/gcp-sbx-edp-gke01/locations/asia-northeast3/workerPools/pool-sbxtest01')
         step = check['steps'][0]

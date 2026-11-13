@@ -16,7 +16,7 @@ SPEC.loader.exec_module(runner)
 
 class SharedGroupDeployTests(unittest.TestCase):
     def setUp(self):
-        self.raw = (ROOT / "11.tests/fixtures/group.example.json").read_bytes()
+        self.raw = (ROOT / "04.tests/fixtures/group.example.json").read_bytes()
         self.digest = hashlib.sha256(self.raw).hexdigest()
         self.env = {"SHARED_URL_MAP_NAME": "urlmap-test", "SHARED_BUILD_ID": "build-test"}
         self.group = "sandbox-group-01"

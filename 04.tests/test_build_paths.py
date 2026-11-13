@@ -27,7 +27,7 @@ class BuildPathTests(unittest.TestCase):
     def test_removed_data_access_component_has_no_build_or_doc_links(self):
         self.assertFalse((ROOT/'datalake-access-provisioner').exists())
         for path in ROOT.rglob('*'):
-            if not path.is_file() or any(p in path.parts for p in ['.git','__pycache__','11.tests']):continue
+            if not path.is_file() or any(p in path.parts for p in ['.git','__pycache__','04.tests']):continue
             self.assertNotIn('datalake-access-provisioner',path.read_text(),str(path))
 
 

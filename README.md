@@ -13,4 +13,4 @@ flowchart TD
     W --> N["과제 · Notebook Pod와 PVC"]
 ```
 
-[참고 문서](01.docs/reference/) · [저장소 테스트](11.tests/README.md)
+[참고 문서](02.infra-setup/) · [저장소 테스트](04.tests/README.md)

@@ -1,6 +1,6 @@
 # Test02 로컬 검증
 
-코드·YAML·실행 문서를 수정한 뒤, 배포에 필요한 명령과 설정이 서로 맞는지 로컬에서 확인합니다. 실제 운영 작업은 [1차 인프라 구축](../01.docs/01-infra-setup.md), [Workflows 과제 배포](../03.sandbox_deploy/03.1.request/legacy-deploy.md) 또는 [그룹 공유 PoC](../03.sandbox_deploy/03.3.gke/shared-group/README.md)에서 시작합니다.
+코드·YAML·실행 문서를 수정한 뒤, 배포에 필요한 명령과 설정이 서로 맞는지 로컬에서 확인합니다. 실제 운영 작업은 [1차 인프라 구축](../01.docs/01-infra-setup.md), [Workflows 과제 배포](../03.sandbox_deploy/03.1.request/legacy-deploy.md) 또는 [2차 그룹 공유 자동 배포](../03.sandbox_deploy/README.md)에서 시작합니다.
 
 ## 검증 흐름
 
@@ -25,6 +25,7 @@ flowchart TD
 | [test_internal_alb.py](test_internal_alb.py) | 6 | 리전 내부 ALB의 헬스 체크·백엔드·URL Map, KSA와 GSA 연결, 오류 분류 |
 | [test_provisioning.py](test_provisioning.py) | 12 | 과제 요청 검증, Terraform 배포 ZIP, Build 실행 계정·그룹 구성 순서 |
 | [test_release_bootstrap.py](test_release_bootstrap.py) | 2 | Cloud Identity Customer ID 검사와 플랫폼 릴리스의 소스 게시 설정 |
+| [test_shared_group_deploy.py](test_shared_group_deploy.py) | 3 | 승인 버전·SHA256, 공통 ALB 잠금, Private Pool Workflow 연결 |
 | [test_shared_sandbox.py](test_shared_sandbox.py) | 7 | 5인 공유 Notebook Pod, 기존·신규 PVC, 로컬 테스트 계정, 과제 중지 시 PVC 보존 명령 |
 
 [fixtures/group.example.json](fixtures/group.example.json)은 공유 Notebook 테스트의 입력 예시입니다. 배포할 때 운영자는 실제 승인값으로 작성한 그룹 JSON의 경로를 `GROUP_CONFIG`에 지정합니다.
@@ -35,14 +36,14 @@ Test02 저장소 루트에서 Bash와 Python 3.12를 사용합니다. 의존성 
 
 ```bash
 python3 -m venv .local/test-venv
-.local/test-venv/bin/python -m pip install -r requirements-dev.txt
-.local/test-venv/bin/python -m unittest discover -s 11.tests -v
+.local/test-venv/bin/python -m pip install -r 04.tests/requirements-dev.txt
+.local/test-venv/bin/python -m unittest discover -s 04.tests -v
 ```
 
 특정 파일만 확인하려면 패턴을 지정합니다.
 
 ```bash
-.local/test-venv/bin/python -m unittest discover -s 11.tests -p 'test_shared_sandbox.py' -v
+.local/test-venv/bin/python -m unittest discover -s 04.tests -p 'test_shared_sandbox.py' -v
 ```
 
-전체 테스트는 **36개**입니다. `OK`가 나오면 로컬 검증을 통과한 것입니다. 실제 GCP IAM·네트워크 연결, GKE 배포·브라우저 로그인, Pod 재기동 후 파일 보존은 실환경에서 확인합니다.
+전체 테스트는 **39개**입니다. `OK`가 나오면 로컬 검증을 통과한 것입니다. 실제 GCP IAM·네트워크 연결, GKE 배포·브라우저 로그인, Pod 재기동 후 파일 보존은 실환경에서 확인합니다.
