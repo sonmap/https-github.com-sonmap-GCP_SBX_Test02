@@ -142,7 +142,7 @@ class ProvisioningTests(unittest.TestCase):
             stub.write_text('#!/bin/sh\nif [ "$1" = storage ] && [ "$2" = cp ]; then\n  cp "$3" "$SBX_TEST_ARCHIVE"\nelif [ "$1" = storage ] && [ "$2" = objects ] && [ "$3" = describe ]; then\n  printf \'1234567890123\\n\'\nelse\n  exit 2\nfi\n')
             stub.chmod(0o755)
             env=dict(os.environ,PATH=str(work/'bin')+os.pathsep+os.environ['PATH'],SBX_TEST_ARCHIVE=str(work/'source.zip'))
-            subprocess.run(['bash',str(ROOT/'10.sandbox_deploy_tools/publish-sandbox-source.sh'),'test-bucket','git-test123'],
+            subprocess.run(['bash',str(ROOT/'03.cloudbuild/publish-sandbox-source.sh'),'test-bucket','git-test123'],
                            cwd=ROOT,env=env,check=True,capture_output=True,text=True)
             extracted=work/'extracted'
             with zipfile.ZipFile(work/'source.zip') as archive:
@@ -199,7 +199,6 @@ class ProvisioningTests(unittest.TestCase):
 
     def test_old_group_delegation_runner_removed(self):
         self.assertFalse((ROOT/'09.sandbox_gke_deployer/group_upsert.py').exists())
-        self.assertFalse((ROOT/'10.sandbox_deploy_tools/group_upsert.py').exists())
         module=(ROOT/'08.sandbox_setup_02_terraform/deployments/05-group/main.tf').read_text()
         self.assertIn('google_cloud_identity_group_membership',module)
         self.assertIn('prevent_destroy = true',module)

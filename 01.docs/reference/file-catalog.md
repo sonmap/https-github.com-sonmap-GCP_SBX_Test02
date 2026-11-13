@@ -23,7 +23,7 @@
 </details>
 
 <details>
-<summary>01.docs · 실행 안내와 참고 문서 (21개)</summary>
+<summary>01.docs · 실행 안내와 참고 문서 (22개)</summary>
 
 | 폴더 | 파일명 | 역할 | 수행 순서 |
 |---|---|---|---|
@@ -48,17 +48,19 @@
 | `01.docs/reference` | [`sbx03-new-project-runbook.md`](sbx03-new-project-runbook.md) | 신규 과제 생성과 GKE 복구 후 재시험 | 2차 1 · 사전 준비 / 재시험 |
 | `01.docs/reference` | [`tf-manager-project.md`](tf-manager-project.md) | 플랫폼 프로젝트와 배포 서비스 계정의 범위 | 참고 · 계정 설계 |
 | `01.docs/reference` | [`work-order.md`](work-order.md) | 운영 단계와 관련 명령 문서 연결 | 참고 · 작업 순서 |
+| `01.docs/reference` | [`set-request-release.py`](set-request-release.py) | 수동 시험 요청에 릴리스 메타데이터 반영 | 참고 · 선택 실행 |
 
 </details>
 
 <details>
-<summary>03.cloudbuild · 플랫폼 릴리스와 미러링 빌드 (4개)</summary>
+<summary>03.cloudbuild · 플랫폼 릴리스와 미러링 빌드 (5개)</summary>
 
 | 폴더 | 파일명 | 역할 | 수행 순서 |
 |---|---|---|---|
 | `03.cloudbuild` | [`check-private-gke.yaml`](../../03.cloudbuild/check-private-gke.yaml) | Private Pool에서 DNS 엔드포인트를 통해 Namespace 조회 | 1차 5 · Build 설정 |
 | `03.cloudbuild` | [`mirror-jupyterhub-images.yaml`](../../03.cloudbuild/mirror-jupyterhub-images.yaml) | JupyterHub 이미지 내부 미러링 | 1차 6 · Build 설정 |
 | `03.cloudbuild` | [`platform-release.yaml`](../../03.cloudbuild/platform-release.yaml) | Runner/Provisioner 빌드·소스 ZIP 게시·Cloud Run 갱신 | 1차 6 · Build 설정 |
+| `03.cloudbuild` | [`publish-sandbox-source.sh`](../../03.cloudbuild/publish-sandbox-source.sh) | Terraform 소스 ZIP을 GCS에 게시 | 플랫폼 릴리스 Build가 호출 |
 | `03.cloudbuild` | [`bootstrap-build.yaml`](../../03.cloudbuild/bootstrap-build.yaml) | 초기 두 실행 이미지 Build 입력 | 1차 3 · Build 설정 |
 
 </details>
@@ -86,7 +88,7 @@
 </details>
 
 <details>
-<summary>07.sandbox_request_api · Cloud Run 요청 처리 (6개)</summary>
+<summary>07.sandbox_request_api · Cloud Run 요청 처리 (7개)</summary>
 
 | 폴더 | 파일명 | 역할 | 수행 순서 |
 |---|---|---|---|
@@ -96,6 +98,7 @@
 | `07.sandbox_request_api` | [`requirements.txt`](../../07.sandbox_request_api/requirements.txt) | Python 라이브러리 의존성 | 1차 3·6 · 빌드 입력 |
 | `07.sandbox_request_api` | [`sandbox-request.schema.json`](../../07.sandbox_request_api/sandbox-request.schema.json) | 실제 런타임 요청 규격 | 2차 2 · Cloud Run 자동 |
 | `07.sandbox_request_api` | [`provisioner-env.yaml`](../../07.sandbox_request_api/provisioner-env.yaml) | Cloud Run 환경변수 입력 | 1차 3·6 · Cloud Run 입력 |
+| `07.sandbox_request_api` | [`workflow.template.yaml`](../../07.sandbox_request_api/workflow.template.yaml) | Cloud Run 호출용 Workflow 정의 | Workflows 배포 입력 |
 
 </details>
 
@@ -133,21 +136,6 @@
 | `09.sandbox_gke_deployer` | [`apply_gke_workload.py`](../../09.sandbox_gke_deployer/apply_gke_workload.py) | Namespace·KSA·RBAC·Quota·JupyterHub·NEG | 2차 2 · GKE 배포 자동 |
 | `09.sandbox_gke_deployer` | [`reconcile_postdeploy.py`](../../09.sandbox_gke_deployer/reconcile_postdeploy.py) | WI 확인·Backend·Health Check·공통 ALB 경로 연결 | 2차 2 · GKE 배포 후 자동 |
 | `09.sandbox_gke_deployer` | [`requirements.txt`](../../09.sandbox_gke_deployer/requirements.txt) | Python 라이브러리 의존성 | 1차 3·6 · 빌드 입력 |
-
-</details>
-
-<details>
-<summary>10.sandbox_deploy_tools · 배포 보조 도구 (7개)</summary>
-
-| 폴더 | 파일명 | 역할 | 수행 순서 |
-|---|---|---|---|
-| `10.sandbox_deploy_tools` | [`README.md`](../../10.sandbox_deploy_tools/README.md) | 배포 보조 도구와 scripts 용어 설명 | 참고 · 보조 도구 |
-| `10.sandbox_deploy_tools` | [`preflight-instance-son.sh`](../../10.sandbox_deploy_tools/preflight-instance-son.sh) | gcloud·계정 사전 확인 | 1차 1 · 선택 보조 |
-| `10.sandbox_deploy_tools` | [`publish-sandbox-source.sh`](../../10.sandbox_deploy_tools/publish-sandbox-source.sh) | Terraform 원본을 플랫폼 릴리스 ZIP으로 GCS에 게시 | 1차 6 · 릴리스 Build가 호출 |
-| `10.sandbox_deploy_tools` | [`run-approved-workflow.sh`](../../10.sandbox_deploy_tools/run-approved-workflow.sh) | 승인 요청 업로드·Generation/해시·Workflow 실행 | 2차 1~2 · 수동 시험용 보조 |
-| `10.sandbox_deploy_tools` | [`set-jupyter-oauth-secrets.sh`](../../10.sandbox_deploy_tools/set-jupyter-oauth-secrets.sh) | OAuth 비밀값을 Secret Manager 버전에 등록 | 1차 4 · 선택 보조 |
-| `10.sandbox_deploy_tools` | [`set-request-release.py`](../../10.sandbox_deploy_tools/set-request-release.py) | 새 release.json 값으로 요청 source 갱신 | 2차 1 · 선택 보조 |
-| `10.sandbox_deploy_tools` | [`workflow.template.yaml`](../../10.sandbox_deploy_tools/workflow.template.yaml) | Workflows OIDC 호출 템플릿, URL만 치환 | 1차 3 · Workflow 입력 |
 
 </details>
 

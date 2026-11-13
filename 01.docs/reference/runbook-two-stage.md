@@ -225,7 +225,7 @@ gcloud artifacts docker images list "${REGION}-docker.pkg.dev/${SBX_GKE_PROJECT}
 
 ```bash
 # 이번 릴리스 정보를 반영한 작업용 신청서를 만듭니다.
-python3 10.sandbox_deploy_tools/set-request-release.py .local/request-draft.json .local/release.json .local/request.json
+python3 01.docs/reference/set-request-release.py .local/request-draft.json .local/release.json .local/request.json
 
 # Request ID·사용자·기존 자원·source를 검토합니다.
 jq '{request_id,approval,task,identity,project,network,data,gke,source}' .local/request.json

@@ -57,7 +57,7 @@ steps:
       - |
         set -o pipefail
         release_id="${_RELEASE_ID}"
-        bash 10.sandbox_deploy_tools/publish-sandbox-source.sh "${_BUNDLE_BUCKET}" "$${release_id}" | tee /workspace/source.env
+        bash 03.cloudbuild/publish-sandbox-source.sh "${_BUNDLE_BUCKET}" "$${release_id}" | tee /workspace/source.env
         . /workspace/source.env
 
         export RELEASE_ID="$${release_id}"

@@ -34,7 +34,7 @@ flowchart TD
 | [공통 변수](../01-infra-setup.md#0-공통-변수), [API·관리자 권한](../01-infra-setup.md#1-api와-관리자-권한) | 관리자가 변수와 계정을 확인하고 API, `tf-manager`·`sbx-manager`, IAM을 준비합니다. |
 | [Shared VPC·네트워크](../01-infra-setup.md#2-shared-vpc와-네트워크), [서브넷별 IAM](../01-infra-setup.md#2-1-서브넷별-iam) | VPC 관리자가 호스트 프로젝트의 네트워크와 서브넷별 권한을 준비합니다. |
 | [공통 기반](../01-infra-setup.md#3-공통-기반) | 운영자가 개별 `gcloud` 명령으로 공통 버킷·AR·Private Pool·GKE·Cloud Run·Workflow·ALB 기반을 준비합니다. |
-| [bootstrap-build.yaml](../../03.cloudbuild/bootstrap-build.yaml), [provisioner-env.yaml](../../07.sandbox_request_api/provisioner-env.yaml), [workflow.template.yaml](../../10.sandbox_deploy_tools/workflow.template.yaml) | 기반 명령이 초기 빌드 설정, Cloud Run 환경, Workflow 템플릿을 각각 읽습니다. |
+| [bootstrap-build.yaml](../../03.cloudbuild/bootstrap-build.yaml), [provisioner-env.yaml](../../07.sandbox_request_api/provisioner-env.yaml), [workflow.template.yaml](../../07.sandbox_request_api/workflow.template.yaml) | 기반 명령이 초기 빌드 설정, Cloud Run 환경, Workflow 템플릿을 각각 읽습니다. |
 | [cloud-identity-group-terraform.md](cloud-identity-group-terraform.md) | Workspace 관리자가 `tf-manager`의 그룹 관리 역할을 승인합니다. |
 | [check-private-gke.yaml](../../03.cloudbuild/check-private-gke.yaml) | 운영자가 `gcloud builds submit --config`에 지정합니다. Private Pool에서 DNS 엔드포인트로 Namespace 목록을 조회합니다. [사용법](cloudbuild-private-gke-vpn-design.md) |
 
@@ -46,7 +46,7 @@ flowchart TD
     REL["03.cloudbuild/platform-release.yaml"]
     API["07.sandbox_request_api/Dockerfile"]
     RUN["09.sandbox_gke_deployer/Dockerfile"]
-    PUB["10.sandbox_deploy_tools/publish-sandbox-source.sh"]
+    PUB["03.cloudbuild/publish-sandbox-source.sh"]
     ZIP["GCS · Terraform 소스 ZIP과 release.json"]
     AR["Artifact Registry · API와 Runner 이미지"]
     CR["Cloud Run · Provisioner 갱신"]
@@ -80,7 +80,7 @@ flowchart TD
 | 파일 | 사용 시점과 결과 |
 |---|---|
 | [인프라 실행 절차](../01-infra-setup.md#4-oauth-값-등록) | OAuth Secret 등록, 차트 수동 반입, 릴리스와 이미지 빌드 명령입니다. |
-| [platform-release.yaml](../../03.cloudbuild/platform-release.yaml), [publish-sandbox-source.sh](../../10.sandbox_deploy_tools/publish-sandbox-source.sh) | 릴리스 빌드가 API·Runner 이미지를 게시하고 Terraform 소스를 ZIP으로 올린 뒤 Cloud Run을 갱신합니다. |
+| [platform-release.yaml](../../03.cloudbuild/platform-release.yaml), [publish-sandbox-source.sh](../../03.cloudbuild/publish-sandbox-source.sh) | 릴리스 빌드가 API·Runner 이미지를 게시하고 Terraform 소스를 ZIP으로 올린 뒤 Cloud Run을 갱신합니다. |
 | [mirror-jupyterhub-images.yaml](../../03.cloudbuild/mirror-jupyterhub-images.yaml) | 기본 이미지를 내부 Artifact Registry에 복사합니다. |
 | [관리 VM 빌드 명령](../01-infra-setup.md#7-notebook-표준-이미지-빌드), [Dockerfile](../../04.Jupiter-setup-image/Dockerfile), [시작 스크립트](../../04.Jupiter-setup-image/start-sandbox-notebook.sh) | 사용자 Pod용 표준 이미지를 빌드합니다. 사용자별 홈을 지원하는 이미지의 시작 스크립트는 마운트 경로를 `HOME`으로 사용합니다. |
 
@@ -115,7 +115,7 @@ flowchart TD
 | [Workflows 배포](../02-sandbox-deploy.md#공통-workflows-배포-명령) | 운영자가 승인 객체를 고정하고 `gcloud workflows run`을 실행합니다. `sbx03` 값은 [신규 과제 절차](sbx03-new-project-runbook.md)를 따릅니다. |
 | [main.py](../../07.sandbox_request_api/main.py) | Cloud Run의 `sbx-manager`가 승인 JSON·릴리스 ZIP을 읽고 단계별 ZIP을 만든 후 Cloud Build를 제출합니다. |
 
-[run-approved-workflow.sh](../../10.sandbox_deploy_tools/run-approved-workflow.sh)는 수동 시험용 보조 도구입니다. 운영 흐름에서는 포털이 승인 JSON을 저장하고 운영자가 위 Deploy 명령을 실행합니다.
+운영 흐름에서는 포털이 승인 JSON을 저장하고 운영자가 위 Deploy 명령을 실행합니다. 수동 연동 시험에서 릴리스 정보를 반영할 때는 [요청 작성 보조 도구](set-request-release.py)를 사용할 수 있습니다.
 
 ## 4. Terraform 자동 적용 · ZIP과 실제 원본 파일
 

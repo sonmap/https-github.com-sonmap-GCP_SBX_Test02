@@ -1077,7 +1077,7 @@ gcloud run services add-iam-policy-binding run-sbxtest01-provisioner --project=g
 **명령 147 — 실제 Run URL을 템플릿에 반영 — 로컬**
 
 ```bash
-sed 's|__PROVISIONER_URL__|https://run-sbxtest01-provisioner-869916265282.asia-northeast3.run.app|g' 10.sandbox_deploy_tools/workflow.template.yaml > /tmp/workflow-sbxtest01.yaml
+sed 's|__PROVISIONER_URL__|https://run-sbxtest01-provisioner-869916265282.asia-northeast3.run.app|g' 07.sandbox_request_api/workflow.template.yaml > /tmp/workflow-sbxtest01.yaml
 ```
 
 **명령 148 — Workflow 배포**
@@ -1165,7 +1165,7 @@ unzip -l /tmp/sandbox-source-20261107.zip
 **명령 157 — 확인된 소스 버전을 요청에 반영**
 
 ```bash
-python3 10.sandbox_deploy_tools/set-request-release.py .local/request-draft.json .local/release.json /tmp/sbx01-request.json
+python3 01.docs/reference/set-request-release.py .local/request-draft.json .local/release.json /tmp/sbx01-request.json
 ```
 
 **명령 158 — 대상·승인·사용자 확인**

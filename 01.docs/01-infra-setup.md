@@ -518,7 +518,7 @@ gcloud run services describe run-sbxtest01-provisioner --project="${SBX_GKE_PROJ
 # URL만 치환합니다. Workflows의 ${args}, ${response.body}는 그대로 유지합니다.
 export PROVISIONER_URL="$(gcloud run services describe run-sbxtest01-provisioner --project="${SBX_GKE_PROJECT}" --region="${REGION}" --account="${ADMIN_ACCOUNT}" --impersonate-service-account="${TF_MANAGER}" --format='value(status.url)')"
 mkdir -p .local
-sed "s|__PROVISIONER_URL__|${PROVISIONER_URL}|g" 10.sandbox_deploy_tools/workflow.template.yaml > .local/workflow.yaml
+sed "s|__PROVISIONER_URL__|${PROVISIONER_URL}|g" 07.sandbox_request_api/workflow.template.yaml > .local/workflow.yaml
 
 # ── 23. workflows deploy workflow-sbxtest01-provision ──
 gcloud workflows deploy workflow-sbxtest01-provision --project="${SBX_GKE_PROJECT}" --location="${REGION}" --service-account="${SBX_MANAGER}" --source=.local/workflow.yaml --account="${ADMIN_ACCOUNT}" --impersonate-service-account="${TF_MANAGER}"
@@ -591,7 +591,7 @@ gcloud compute forwarding-rules create fr-alb-sbxtest01-shared-https --project="
 # gcloud builds triggers create github --name=trigger-sbxtest01-platform-release --project="${SBX_GKE_PROJECT}" --region="${REGION}" --repo-owner=sonmap --repo-name=GCP_SBX_Test01 --branch-pattern="^main$" --build-config=03.cloudbuild/platform-release.yaml --service-account="projects/${SBX_GKE_PROJECT}/serviceAccounts/${TF_MANAGER}" '--substitutions=_RELEASE_ID=git-$SHORT_SHA,_COMMIT_SHA=$COMMIT_SHA' --account="${ADMIN_ACCOUNT}" --impersonate-service-account="${TF_MANAGER}"
 
 # 다음: OAuth Secret 값 등록 → Workspace tf-manager 그룹 관리자 역할 부여 → 릴리스 → 이미지 미러링 → 과제 요청
-# Build/Run/Workflow 설정 파일은 각각 03.cloudbuild, 07.sandbox_request_api, 10.sandbox_deploy_tools에 있습니다.
+# Build 설정은 03.cloudbuild에, Cloud Run과 Workflows 설정은 07.sandbox_request_api에 있습니다.
 ```
 
 ## 4. OAuth 값 등록

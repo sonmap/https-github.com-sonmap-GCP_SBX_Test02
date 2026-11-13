@@ -67,7 +67,7 @@ class CommandbookTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             work = Path(tmp)
             (work / 'bin').mkdir()
-            workflow = Path('10.sandbox_deploy_tools/workflow.template.yaml')
+            workflow = Path('07.sandbox_request_api/workflow.template.yaml')
             (work / workflow.parent).mkdir()
             shutil.copyfile(ROOT / workflow, work / workflow)
             stub = work / 'bin/gcloud'

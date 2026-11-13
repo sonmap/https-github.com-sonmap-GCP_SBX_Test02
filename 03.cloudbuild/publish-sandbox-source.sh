@@ -6,7 +6,7 @@ set -euo pipefail
 # it does not download Terraform source from GitHub.
 #
 # Usage:
-#   ./10.sandbox_deploy_tools/publish-sandbox-source.sh BUCKET_NAME RELEASE_ID
+#   ./03.cloudbuild/publish-sandbox-source.sh BUCKET_NAME RELEASE_ID
 
 bucket_name="${1:?Usage: $0 BUCKET_NAME RELEASE_ID}"
 release_id="${2:?Usage: $0 BUCKET_NAME RELEASE_ID}"

@@ -58,7 +58,6 @@ export SBX_PROJECT="pjt-net-hub-base"         # 과제 자원·Query Job
 | 07 | `07.sandbox_request_api/` | Cloud Run에서 신청 접수·배포 시작 |
 | 08 | `08.sandbox_setup_02_terraform/` | 과제 프로젝트·IAM·Dataset·GCS 구성 |
 | 09 | `09.sandbox_gke_deployer/` | GKE·JupyterHub 설치·ALB 연결 |
-| 10 | `10.sandbox_deploy_tools/` | 위 작업에서 공통으로 쓰는 보조 도구 |
 | 11 | [`11.tests/`](11.tests/README.md) | 로컬 검증 범위와 실행 명령 |
 
 번호는 **문서 확인 → 기반 준비 → 신청 처리 → 과제 배포**의 주 작업 흐름입니다. Cloud Build는 필요한 API/배포 도구 이미지를 준비 단계에서 함께 빌드하고, 이후 API·Terraform·GKE 모듈을 자동으로 호출합니다. 보조 도구는 각 단계에서 재사용하며 테스트는 변경 후·배포 전에 실행합니다.
@@ -80,7 +79,7 @@ git clone https://github.com/sonmap/https-github.com-sonmap-GCP_SBX_Test02.git
 cd https-github.com-sonmap-GCP_SBX_Test02
 ```
 
-[공통 변수](01.docs/01-infra-setup.md#0-공통-변수)를 같은 터미널에 설정한 후 1 → 2 → 3 순서로 진행합니다. 최신 Google Cloud CLI와 Bash가 필요합니다. 1~3단계 명령 실행에는 Python·Terraform 설치가 필요하지 않습니다. 배포 설정은 [초기 Cloud Build](03.cloudbuild/bootstrap-build.yaml), [Cloud Run 환경변수](07.sandbox_request_api/provisioner-env.yaml), [Workflows 템플릿](10.sandbox_deploy_tools/workflow.template.yaml)에서 관리합니다. 이후 과제별 자동화의 Python 프로그램은 유지합니다.
+[공통 변수](01.docs/01-infra-setup.md#0-공통-변수)를 같은 터미널에 설정한 후 1 → 2 → 3 순서로 진행합니다. 최신 Google Cloud CLI와 Bash가 필요합니다. 1~3단계 명령 실행에는 Python·Terraform 설치가 필요하지 않습니다. 배포 설정은 [초기 Cloud Build](03.cloudbuild/bootstrap-build.yaml), [Cloud Run 환경변수](07.sandbox_request_api/provisioner-env.yaml), [Workflows 템플릿](07.sandbox_request_api/workflow.template.yaml)에서 관리합니다. 이후 과제별 자동화의 Python 프로그램은 유지합니다.
 
 | 표시 이름 | 실제 서비스 계정 ID | 용도 |
 |---|---|---|
