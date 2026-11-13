@@ -1,0 +1,42 @@
+main:
+  params: [approval]
+  steps:
+    - configure:
+        assign:
+          - project: ${sys.get_env("GOOGLE_CLOUD_PROJECT_ID")}
+          - region: ${sys.get_env("SBX_REGION")}
+    - deploy:
+        call: googleapis.cloudbuild.v1.projects.locations.builds.create
+        args:
+          parent: ${"projects/" + project + "/locations/" + region}
+          projectId: ${project}
+          connector_params:
+            timeout: 7500
+          body:
+            serviceAccount: ${sys.get_env("SBX_RUNNER_SA")}
+            timeout: 6600s
+            options:
+              logging: CLOUD_LOGGING_ONLY
+              pool:
+                name: ${sys.get_env("SBX_WORKER_POOL")}
+            steps:
+              - name: ${sys.get_env("SBX_RUNNER_IMAGE")}
+                entrypoint: python3
+                args:
+                  - /opt/sandbox/deploy_shared_group.py
+                  - ${approval.group}
+                  - ${string(approval.generation)}
+                  - ${approval.sha256}
+                env:
+                  - ${"SBX_GKE_PROJECT=" + project}
+                  - ${"GCP_REGION=" + region}
+                  - ${"SHARED_GKE_CLUSTER=" + sys.get_env("SBX_GKE_CLUSTER")}
+                  - ${"GKE_ENDPOINT_MODE=" + sys.get_env("SBX_GKE_ENDPOINT_MODE")}
+                  - ${"SHARED_REQUEST_BUCKET=" + sys.get_env("SBX_REQUEST_BUCKET")}
+                  - ${"JUPYTER_CHART_URI=" + sys.get_env("SBX_CHART_URI")}
+                  - ${"JUPYTER_CHART_VERSION=" + sys.get_env("SBX_CHART_VERSION")}
+                  - ${"SHARED_URL_MAP_NAME=" + sys.get_env("SBX_URL_MAP")}
+                  - SHARED_BUILD_ID=$BUILD_ID
+        result: build
+    - done:
+        return: ${build}

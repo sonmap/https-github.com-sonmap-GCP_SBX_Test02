@@ -1,6 +1,6 @@
 # GKE 공유 샌드박스 배포
 
-Test02의 그룹 공유 배포는 운영자가 승인된 구성 파일로 수행합니다. 기존 Test01 요청 API·Workflows에는 연결되어 있지 않습니다. 두 배포 경로에서 같은 과제 네임스페이스를 함께 관리하지 마세요.
+Test02의 그룹 공유 배포는 2차 Sandbox 구축 업무입니다. 포털이 그룹 구성을 승인한 뒤 [그룹 공유 배포 Workflow](../01.docs/02-sandbox-deploy.md#그룹-공유-sandbox-자동-배포)를 호출하면 Private Pool에서 Hub·Proxy, 과제 Notebook과 내부 ALB를 적용합니다. 기존 과제별 Workflow와는 별도입니다. 과제 Namespace는 한 배포 경로에서 관리합니다.
 
 | 범위 | 구성 |
 | --- | --- |
@@ -26,7 +26,11 @@ Test02의 그룹 공유 배포는 운영자가 승인된 구성 파일로 수행
 
 운영 이관용 이미지 태그·후보 빌드 파일은 [Notebook 이미지 운영 릴리스](../04.Jupiter-setup-image/README.md#notebook-이미지-운영-릴리스)에서 관리합니다.
 
-## 1. 공통 인프라와 그룹 준비
+## 수동 점검과 복구
+
+아래 명령은 운영자가 단계별로 직접 적용해야 하는 점검·복구에 사용합니다. 자동 배포의 계정 Secret Manager 등록 방법은 [2차 배포 문서](../01.docs/02-sandbox-deploy.md#그룹-공유-sandbox-자동-배포)에 있습니다.
+
+### 1. 공통 인프라와 그룹 준비
 
 - VPC·GKE·내부 ALB·DNS·인증서는 기존 Foundation 절차로 준비합니다. 동일 ALB에 그룹 DNS 세 개를 등록하고 인증서가 세 이름을 포함하도록 구성합니다. 사내 DNS에서 각 이름은 내부 ALB VIP를 가리킵니다.
 - 관리 VM `infra-son01`에서 [Helm 차트 4.2.0 수동 반입 명령](../01.docs/01-infra-setup.md#infra-son01에서-helm-차트-수동-반입)을 실행합니다. Hub·Proxy 컨테이너 이미지는 같은 문서의 기본 이미지 복사 절차에서 준비합니다. 이후 배포 환경에서 AR, 사설 GKE API, Filestore에 접근할 수 있어야 합니다.
@@ -64,7 +68,7 @@ python3 12.sandbox_shared/shared_sandbox.py "$GROUP_CONFIG" alb \
   --context "$CTX" --project "$GKE_PROJECT" --region asia-northeast3 --url-map "$SHARED_URL_MAP"
 ```
 
-## 2. 과제와 데이터 배포
+### 2. 과제와 데이터 배포
 
 1. 신규 구성에서는 과제별 Filestore 볼륨과 RWX PVC를 준비하고 PV의 reclaim policy를 `Retain`으로 설정합니다. 기존 공유 Filestore를 사용할 경우 과제별 PVC와 전용 디렉터리를 준비하고 `sub_path`로 지정합니다. `sub_path`는 사전에 만들어야 하며, 같은 디렉터리를 여러 과제에 할당하면 안 됩니다. 여러 PVC에서 같은 Filestore 공유를 참조하면 PVC에 표시되는 `100Gi`는 공유 내 디렉터리별 용량 제한을 만들지 않습니다. 실제 공유 총사용량을 운영자가 모니터링합니다.
 2. 동적 생성이 필요하면 `storage.storage_class`에 사전에 검증한 Filestore CSI RWX StorageClass를 지정합니다. 이 모드의 기본 요청값은 `100Gi`이고 선택한 Filestore 티어의 최소 용량을 충족해야 합니다. 기존 PVC를 참조할 때는 `storage_class`를 생략합니다.
@@ -84,7 +88,7 @@ kubectl --context "$CTX" apply -f /tmp/sbx-task.json
 
 신규 Namespace에서 서버 dry-run을 하려면 해당 Namespace를 먼저 생성하세요. 기존 PVC 모드에서도 PVC는 해당 Namespace에 미리 생성합니다. 내부 ALB 접근, GKE Workload Identity, AR pull 주체의 Reader 권한은 인프라 준비 범위입니다. Notebook은 Autopilot의 Balanced compute class를 선택합니다. 실제 허용 리소스와 Pod IP 여유는 GKE에서 확인합니다.
 
-## 3. 중지·재개와 운영 릴리스
+### 3. 중지·재개와 운영 릴리스
 
 ```bash
 python3 12.sandbox_shared/shared_sandbox.py "$GROUP_CONFIG" stop "$TASK" --context "$CTX"
@@ -95,7 +99,7 @@ python3 12.sandbox_shared/shared_sandbox.py "$GROUP_CONFIG" start "$TASK" --cont
 
 승인된 이미지 digest에 운영 태그를 붙이거나 라이브러리 변경으로 후보 이미지를 빌드할 때는 [Notebook 이미지 운영 릴리스](../04.Jupiter-setup-image/README.md#notebook-이미지-운영-릴리스)를 따릅니다. Git에 있는 Python 소스는 기존 승인 절차에서 배치 Filestore로 이관합니다. 운영 릴리스 기록에는 소스 리비전, Filestore 배치 경로, AR digest와 버전 태그를 함께 기록합니다. 배치 호출은 기존 Central-1 `run-gke.sh` → `client-gke` → GKE #3 경로에서 수행합니다.
 
-## 4. 전환 확인 항목
+### 4. 전환 확인 항목
 
 1. 기존 AR 이미지를 digest로 지정하고 `python`과 `jupyterhub-singleuser`가 배포 UID에서 실행되는지 확인합니다. 이미지의 JupyterHub single-user 패키지 호환성도 확인합니다. 이미지의 VM용 시작 명령은 이 배포에서 재정의합니다.
 2. 승인된 5개 이메일과 각 테스트 비밀번호로 동시에 로그인하여 동일한 과제 Pod에 연결되고, 각 홈 디렉터리가 표시되는지 확인합니다. 타 과제의 named server는 거부되어야 합니다.

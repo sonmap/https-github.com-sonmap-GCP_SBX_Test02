@@ -21,7 +21,7 @@ steps:
       - ${_AUTOMATION_IMAGE_REPO}:${_RELEASE_ID}
       - -t
       - ${_AUTOMATION_IMAGE_REPO}:latest
-      - 09.sandbox_gke_deployer
+      - .
   - name: gcr.io/cloud-builders/docker
     id: push-automation-runner-release
     args: ["push", "${_AUTOMATION_IMAGE_REPO}:${_RELEASE_ID}"]

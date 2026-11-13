@@ -9,7 +9,7 @@
 | 기존 Workflows 경로 | [OAuth 설정](#4-oauth-값-등록), [그룹 권한](reference/cloud-identity-group-terraform.md), [Private Pool 점검](reference/cloudbuild-private-gke-vpn-design.md), [플랫폼 릴리스](#5-플랫폼-릴리스-게시) |
 | 이미지 준비 | [Helm 차트와 기본 이미지](#6-chart와-기본-이미지-미러링) → [표준 Notebook 이미지](#7-notebook-표준-이미지-빌드) |
 | 접속 검증 | [관리 VM에서 GKE 접속](#gke와-내부-https-접속-확인), [내부 HTTPS·DNS](reference/sbx03-https-certificate-runbook.md) |
-| 과제 배포 | [그룹 공유 PoC](../12.sandbox_shared/README.md) 또는 [기존 Workflows 배포](02-sandbox-deploy.md) |
+| 과제 배포 | [그룹 공유 Sandbox 자동 배포](02-sandbox-deploy.md#그룹-공유-sandbox-자동-배포) 또는 [기존 Workflows 배포](02-sandbox-deploy.md) |
 
 그룹 공유 PoC만 구성하는 환경에서 공통 자원을 준비할 때는 기존 자동 배포용 Cloud Run·Workflows와 Google OAuth 구간을 구분해 적용합니다. 기존 환경에서는 자원 조회 결과를 확인한 뒤 필요한 생성·갱신 명령만 실행합니다.
 

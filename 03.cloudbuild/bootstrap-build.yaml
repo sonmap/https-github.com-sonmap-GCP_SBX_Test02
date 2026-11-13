@@ -2,9 +2,11 @@ steps:
 - name: gcr.io/cloud-builders/docker
   args:
   - build
+  - -f
+  - 09.sandbox_gke_deployer/Dockerfile
   - -t
   - asia-northeast3-docker.pkg.dev/gcp-sbx-edp-gke01/ar-sbxtest01-platform/sbxtest01-automation-runner:bootstrap
-  - 09.sandbox_gke_deployer
+  - .
 - name: gcr.io/cloud-builders/docker
   args:
   - build
