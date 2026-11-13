@@ -115,3 +115,29 @@ python -m venv --system-site-packages "$VENV"
 ```
 
 각 명령이 성공한 뒤 다음 명령을 실행합니다. Notebook에서 새 커널을 선택하고 `import sklearn`을 실행해 확인합니다. 가상환경은 `--system-site-packages`로 공통 이미지의 기존 라이브러리도 볼 수 있습니다. 추가 패키지는 해당 사용자 환경에 설치되며 공용 이미지에 반영하려면 운영자가 새 이미지를 빌드합니다.
+
+## Notebook 이미지 운영 릴리스
+
+그룹 공유 PoC의 승인 이미지가 준비된 이후, 운영 이관이 있을 때만 사용합니다.
+
+| 파일 | 실행 시점과 역할 |
+|---|---|
+| [release-image.sh](release-image.sh) | 운영자가 승인한 기존 이미지 digest에 운영 태그를 붙입니다. 태그가 다른 digest를 가리키면 종료합니다. |
+| [Dockerfile.release](Dockerfile.release) | 승인된 라이브러리 변경이 있을 때 베이스 이미지와 해시가 포함된 `requirements.lock`으로 후보 이미지를 만듭니다. |
+| [notebook-candidate-release.yaml](../03.cloudbuild/notebook-candidate-release.yaml) | 운영자가 후보 이미지 빌드를 Cloud Build에 제출할 때 읽는 설정입니다. |
+
+이미지 내용이 같으면 Central-1 또는 승인된 운영 환경에서 태그만 게시합니다. 릴리스마다 새 버전 태그를 지정합니다. 동시 릴리스 충돌은 AR immutable tags 또는 포털의 단일 승인 실행으로 관리합니다.
+
+```bash
+bash 04.Jupiter-setup-image/release-image.sh "$APPROVED_IMAGE_DIGEST" "$RELEASE_TAG"
+```
+
+라이브러리가 바뀌면 승인된 빌드 컨텍스트에 해시가 포함된 `requirements.lock`을 준비합니다. 다음 예시에서 `APPROVED_BUILD_CONTEXT`는 그 디렉터리입니다. 후보 태그로 빌드하고 GKE에서 검증한 새 digest에 운영 태그를 붙입니다.
+
+```bash
+cp 04.Jupiter-setup-image/Dockerfile.release "$APPROVED_BUILD_CONTEXT/Dockerfile.release"
+gcloud builds submit "$APPROVED_BUILD_CONTEXT" \
+  --project="$BUILD_PROJECT" --region=asia-northeast3 \
+  --config=03.cloudbuild/notebook-candidate-release.yaml \
+  --substitutions="_BASE_IMAGE=$APPROVED_BASE_DIGEST,_CANDIDATE_IMAGE=$CANDIDATE_TAG,_NOTEBOOK_UID=1000"
+```

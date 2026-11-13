@@ -13,6 +13,20 @@ Test02의 그룹 공유 배포는 운영자가 승인된 구성 파일로 수행
 
 표준 이미지 빌드와 개발자 추가 패키지 설치 흐름은 [Mermaid와 GCS 반입 명령](../04.Jupiter-setup-image/README.md#개발자-추가-패키지-gcs-경유)을 참고합니다.
 
+## 파일별 용도와 필요 여부
+
+| 파일 | 용도 | 누가 언제 사용하나요? | 필요 여부 |
+|---|---|---|---|
+| [README.md](README.md) | 그룹·과제 배포, 로컬 로그인, PVC, 중지·재개 명령 | 운영자가 배포 순서와 확인 항목을 확인할 때 | 운영 안내 |
+| [group.example.json](group.example.json) | 그룹 DNS, 과제 명단, 전용 GSA, 이미지 digest, PVC 입력 예시 | 운영자가 그룹별 실제 승인 JSON을 작성할 때 복사 | 입력 예시. 배포에는 실제 승인 JSON 사용 |
+| [shared_sandbox.py](shared_sandbox.py) | Helm 값·과제 리소스 생성, ALB 연결, 과제 시작·중지 | 운영자가 관리 VM에서 해당 작업을 실행할 때 | 그룹 공유 배포 실행 파일 |
+| [prepare_test_accounts.py](prepare_test_accounts.py) | 테스트 계정 비밀번호 해시 파일 작성 | 운영자가 로컬 계정을 처음 등록하거나 비밀번호를 바꿀 때 | 로컬 로그인 초기 설정·변경 시 |
+| [test_passwords.py](test_passwords.py) | 테스트 계정 비밀번호 해시 생성·검증 | 계정 준비 도구와 Hub 설정이 호출 | 로컬 로그인 실행 의존성 |
+| [hub_spawner.py](hub_spawner.py) | 그룹 Hub 로그인과 승인 멤버의 과제 서버 연결 | Helm 설정에 포함되어 Hub가 실행할 때 | 그룹 공유 배포 실행 의존성 |
+| [notebook_slot.py](notebook_slot.py) | 과제 Pod에서 멤버별 Jupyter 서버 실행 | 과제 매니페스트에 포함되어 Notebook 컨테이너가 시작할 때 | 그룹 공유 배포 실행 의존성 |
+
+운영 이관용 이미지 태그·후보 빌드 파일은 [Notebook 이미지 운영 릴리스](../04.Jupiter-setup-image/README.md#notebook-이미지-운영-릴리스)에서 관리합니다.
+
 ## 1. 공통 인프라와 그룹 준비
 
 - VPC·GKE·내부 ALB·DNS·인증서는 기존 Foundation 절차로 준비합니다. 동일 ALB에 그룹 DNS 세 개를 등록하고 인증서가 세 이름을 포함하도록 구성합니다. 사내 DNS에서 각 이름은 내부 ALB VIP를 가리킵니다.
@@ -80,16 +94,7 @@ python3 12.sandbox_shared/shared_sandbox.py "$GROUP_CONFIG" start "$TASK" --cont
 
 `stop`은 Deployment를 0으로 조정하고 멤버 세션 데이터를 지웁니다. `start`는 Deployment를 다시 1로 조정합니다. PVC는 두 명령의 대상이 아니며 사용자가 다시 로그인해 서버를 열면 같은 파일을 읽습니다. Hub idle culler는 60분 후 유휴 멤버 서버를 종료합니다. 과제 Pod 자체의 운영시간 종료는 포털 또는 승인된 스케줄러가 `stop`을 호출해야 합니다.
 
-- **기존 digest 승인**. Central-1 VM이나 포털이 호출하는 승인된 운영 실행 환경에서 `bash 12.sandbox_shared/release-image.sh "$APPROVED_IMAGE_DIGEST" "$RELEASE_TAG"`를 실행합니다. 기존과 동일한 이미지에 운영 버전 태그를 붙입니다. 릴리스에는 재사용하지 않는 버전 태그를 지정합니다. 태그가 다른 digest를 가리키면 도구가 종료합니다. 여러 운영자가 동시에 릴리스하는 환경은 AR의 immutable tags 또는 포털의 단일 승인 실행으로 충돌을 방지합니다.
-- **라이브러리 변경 승인**. 승인된 AR 베이스 digest, 해시가 있는 `requirements.lock`, `Dockerfile.release`를 별도 빌드 컨텍스트에 준비합니다. 기존 승인된 Cloud Build 실행 계정과 필요 시 Private Pool을 사용합니다. 후보 태그로 빌드하고 GKE 테스트 후 확인한 새 digest에 운영 태그를 붙입니다.
-- Git에 있는 Python 소스는 기존 승인 절차에서 배치 Filestore에 이관합니다. 운영 릴리스 기록에는 소스 리비전, Filestore 배치 경로, AR digest와 버전 태그를 함께 기록합니다. 배치 호출은 기존 Central-1 `run-gke.sh` → `client-gke` → GKE #3 경로에서 수행합니다. 외부 포털과 배치 호출 코드 변경은 이 저장소 밖의 작업입니다.
-
-```bash
-gcloud builds submit "$APPROVED_BUILD_CONTEXT" \
-  --project="$BUILD_PROJECT" --region=asia-northeast3 \
-  --config=12.sandbox_shared/cloudbuild-release.yaml \
-  --substitutions="_BASE_IMAGE=$APPROVED_BASE_DIGEST,_CANDIDATE_IMAGE=$CANDIDATE_TAG,_NOTEBOOK_UID=1000"
-```
+승인된 이미지 digest에 운영 태그를 붙이거나 라이브러리 변경으로 후보 이미지를 빌드할 때는 [Notebook 이미지 운영 릴리스](../04.Jupiter-setup-image/README.md#notebook-이미지-운영-릴리스)를 따릅니다. Git에 있는 Python 소스는 기존 승인 절차에서 배치 Filestore로 이관합니다. 운영 릴리스 기록에는 소스 리비전, Filestore 배치 경로, AR digest와 버전 태그를 함께 기록합니다. 배치 호출은 기존 Central-1 `run-gke.sh` → `client-gke` → GKE #3 경로에서 수행합니다.
 
 ## 4. 전환 확인 항목
 
