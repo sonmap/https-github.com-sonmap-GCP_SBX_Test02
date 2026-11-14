@@ -144,16 +144,16 @@ gcloud storage ls \
 
 #### 2-1. 실제 승인값 설정
 
-아래 블록에서 빈 값에 실제 승인 번호·시각·종료일·사용자 이메일을 넣고 실행합니다. 승인시각은 시간대를 포함한 ISO 8601, 종료일은 `YYYY-MM-DD` 형식입니다. 현재 시험에서 확인한 릴리스는 `git-0ce39d7333eb`입니다. 다른 릴리스를 사용한다면 1번에서 조회한 ID로 바꿉니다. 새 요청에는 고유한 `REQUEST_ID`를 사용합니다.
+아래 값으로 로컬 요청 JSON 생성을 시험할 수 있습니다. GCS 게시 전에는 승인 번호·시각·종료일을 실제 승인값으로 바꾸고 사용자 이메일이 승인 내역과 일치하는지 확인한 뒤 2-2를 다시 실행합니다. 3번 게시 명령은 `EXAMPLE-`로 시작하는 승인 번호를 거부합니다. 승인시각은 시간대를 포함한 ISO 8601, 종료일은 `YYYY-MM-DD` 형식입니다. 현재 시험에서 확인한 릴리스는 `git-0ce39d7333eb`입니다. 다른 릴리스를 사용한다면 1번에서 조회한 ID로 바꿉니다. 새 요청에는 고유한 `REQUEST_ID`를 사용합니다.
 
 ```bash
 export RELEASE_ID="git-0ce39d7333eb"
 export REQUEST_ID="REQ-20261114-SBX03-001"
-export APPROVAL_ID=""
-export APPROVED_AT=""
-export EXPIRES_ON=""
-export MEMBER1=""
-export MEMBER2=""
+export APPROVAL_ID="EXAMPLE-APPROVAL-SBX03-001"
+export APPROVED_AT="2026-11-14T16:30:00+09:00"
+export EXPIRES_ON="2026-11-30"
+export MEMBER1="user01@sonmap.net"
+export MEMBER2="user02@sonmap.net"
 ```
 
 #### 2-2. 요청 파일 생성
