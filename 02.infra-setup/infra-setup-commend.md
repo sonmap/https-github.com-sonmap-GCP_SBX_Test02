@@ -1536,35 +1536,7 @@ unset OAUTH_CLIENT_ID OAUTH_CLIENT_SECRET
 
 ## 5. 플랫폼 릴리스 게시
 
-플랫폼 운영자가 공통 인프라 초기 구성 후, 또는 요청 API·GKE 배포 Runner·Terraform 소스를 새 버전으로 게시할 때 관리 VM에서 실행합니다. 게시 과정에서 Cloud Run Provisioner가 새 버전으로 갱신됩니다.
-
-```bash
-export SBX_GKE_PROJECT="gcp-sbx-edp-gke01"
-# Test02 저장소 루트에서 실행합니다.
-export ADMIN_ACCOUNT="son@sonmap.net"
-export REGION="asia-northeast3"
-export TF_MANAGER="tf-manager@${SBX_GKE_PROJECT}.iam.gserviceaccount.com"
-export TF_MANAGER_RESOURCE="projects/${SBX_GKE_PROJECT}/serviceAccounts/${TF_MANAGER}"
-export BUILD_STAGING_BUCKET="${SBX_GKE_PROJECT}-sbxtest01-build-source"
-unset CLOUDSDK_AUTH_IMPERSONATE_SERVICE_ACCOUNT
-
-# 로컬 수정이 있으면 아래 Build 제출을 실행하지 않습니다.
-export COMMIT_SHA="$(git rev-parse HEAD)"
-export RELEASE_ID="git-$(git rev-parse HEAD | cut -c1-12)"
-if [ -z "$(git status --porcelain)" ]; then
-  # 실행 위치 infra-son01 | 대상 ${SBX_GKE_PROJECT} | 계정 ${ADMIN_ACCOUNT} | 가장 ${TF_MANAGER} | 워크로드 실행 ${TF_MANAGER}
-  gcloud builds submit . --project="${SBX_GKE_PROJECT}" --region="${REGION}" \
-    --account="${ADMIN_ACCOUNT}" --impersonate-service-account="${TF_MANAGER}" \
-    --service-account="${TF_MANAGER_RESOURCE}" \
-    --gcs-source-staging-dir="gs://${BUILD_STAGING_BUCKET}/source" \
-    --config=03.sandbox_deploy/03.3.gke/cloudbuild/platform-release.yaml \
-    --substitutions="_RELEASE_ID=${RELEASE_ID},_COMMIT_SHA=${COMMIT_SHA}"
-else
-  echo "로컬 변경을 커밋하거나 정리한 뒤 다시 실행하세요."
-fi
-```
-
-Build SUCCESS 후 bundles 버킷의 platform-releases/${RELEASE_ID}/release.json을 확인합니다.
+실제 Sandbox 자동 배포에 사용할 릴리스는 [2차 Sandbox 사전준비](../03.sandbox_deploy/README.md#0-1-사전준비-플랫폼-릴리스-게시)에서 게시합니다.
 
 ## 6. Chart와 기본 이미지 미러링
 
@@ -1814,7 +1786,7 @@ kubectl get pods -A
 **수행 위치** · `infra-son01`의 Test02 저장소 루트  
 **수행 계정** · `son@sonmap.net`으로 GKE와 Artifact Registry에 접속
 
-이 절은 관리 VM에서 직접 Helm으로 설치하는 경로입니다. Private Pool과 5절 플랫폼 릴리스 게시는 보류한 상태에서 진행할 수 있습니다.
+이 절은 관리 VM에서 직접 Helm으로 설치하는 경로입니다. Private Pool과 2차 Sandbox의 플랫폼 릴리스 게시는 보류한 상태에서 진행할 수 있습니다.
 
 ### 8-1. GKE DNS 접속 확인
 
