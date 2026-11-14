@@ -375,13 +375,36 @@ gcloud iam service-accounts add-iam-policy-binding \
   --member="serviceAccount:${TF_MANAGER}" --role=roles/iam.serviceAccountUser --condition=None \
   --account="${ADMIN_ACCOUNT}"
 
-# ── 선택: 신규 과제 프로젝트의 Billing 연결 권한 ──
-# 신규 과제 프로젝트를 생성할 때 BILLING_ACCOUNT에 실제 ID를 입력합니다.
-# 해당 결제 계정의 IAM 변경 권한(billing.accounts.setIamPolicy)이 있는 VPC 관리자가 실행합니다.
-# 실행 위치 infra-son01 | 대상 결제 계정 ${BILLING_ACCOUNT} | 계정 ${VPC_ADMIN_ACCOUNT}
-# gcloud billing accounts add-iam-policy-binding "${BILLING_ACCOUNT}" \
-#   --member="serviceAccount:${TF_MANAGER}" --role=roles/billing.user --account="${VPC_ADMIN_ACCOUNT}"
+```
 
+#### 선택 · 신규 과제 프로젝트의 Billing 연결 권한
+
+결제 계정의 IAM 변경 권한(`billing.accounts.setIamPolicy`)이 있는 VPC 관리자가 실행합니다. 목록에서 활성 결제 계정을 확인한 뒤 ID를 입력합니다.
+
+```bash
+# 실행 위치 infra-son01 | 계정 ${VPC_ADMIN_ACCOUNT}
+(
+  VPC_ADMIN_ACCOUNT="${VPC_ADMIN_ACCOUNT:-admin@sonmap.net}"
+  : "${TF_MANAGER:?공통 변수 설정에서 TF_MANAGER를 설정하세요.}"
+
+  gcloud billing accounts list \
+    --account="${VPC_ADMIN_ACCOUNT}" \
+    --format='table(name.basename():label=BILLING_ACCOUNT_ID,displayName,open)' || exit 1
+
+  read -r -p '사용할 OPEN=True 결제 계정 ID (Enter로 건너뛰기): ' BILLING_ACCOUNT || exit 1
+  [[ -n "${BILLING_ACCOUNT}" ]] || exit 0
+  if [[ ! "${BILLING_ACCOUNT}" =~ ^[[:xdigit:]]{6}(-[[:xdigit:]]{6}){2}$ ]]; then
+    echo '목록의 BILLING_ACCOUNT_ID를 XXXXXX-XXXXXX-XXXXXX 형식으로 입력하세요.' >&2
+    exit 1
+  fi
+
+  gcloud billing accounts add-iam-policy-binding "${BILLING_ACCOUNT}" \
+    --member="serviceAccount:${TF_MANAGER}" \
+    --role=roles/billing.user --account="${VPC_ADMIN_ACCOUNT}"
+)
+```
+
+```bash
 # ── Cloud Identity 그룹 관리자 역할 직접 부여에 사용할 서비스 계정 Unique ID ──
 # 출력값은 tf-manager 서비스 계정의 숫자형 고유 ID입니다.
 # Workspace 최고 관리자는 이 ID로 tf-manager에 Groups Administrator 역할을 직접 부여합니다.
