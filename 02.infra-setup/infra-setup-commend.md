@@ -626,13 +626,20 @@ gcloud compute firewall-rules create fw-sbxtest01-ilb-proxy \
 
 확인한 실제 서브넷 이름을 변수에 반영하고 2-1절 IAM을 적용합니다. 두 서비스 에이전트 주소에 들어가는 프로젝트 번호는 `gcp-sbx-edp-gke01`의 숫자 번호입니다. 위에서 출력된 프로젝트 번호가 숫자로 확인되면 아래 명령을 번호 순서대로 하나씩 실행합니다. 오류가 나오면 해당 명령의 입력값을 확인한 뒤 이어서 진행합니다.
 
-##### 7-1. 서비스 에이전트 변수 선언
+##### 7-1. 서비스 에이전트 변수 선언 및 확인
+
+7-2 이후 명령과 같은 터미널에서 실행합니다. 새 Cloud Shell을 열었으면 2-2절 첫 변수 선언 블록부터 다시 실행합니다. `SBX_PROJECT_NUMBER`에는 2-3절에서 조회한 숫자만 넣습니다.
 
 ```bash
 # 수행 위치: infra-son01 또는 Cloud Shell | 수행 계정: VPC_ADMIN_ACCOUNT (예: admin@sonmap.net) | 대상: gcp-prod-edp-hub-vpchost
+# 실행 예시: export SBX_PROJECT_NUMBER="프로젝트팀에서 확인한 숫자 번호"
 export GKE_AGENT="service-${SBX_PROJECT_NUMBER}@container-engine-robot.iam.gserviceaccount.com"
 export GOOGLE_APIS_AGENT="${SBX_PROJECT_NUMBER}@cloudservices.gserviceaccount.com"
+printf '프로젝트 번호: %s\nGKE 서비스 에이전트: %s\nGoogle APIs 서비스 에이전트: %s\n' \
+  "$SBX_PROJECT_NUMBER" "$GKE_AGENT" "$GOOGLE_APIS_AGENT"
 ```
+
+프로젝트 번호가 비어 있거나 이메일이 `service-@`로 시작하면 번호를 확인하고 7-1을 다시 실행합니다. 7-3에서 `Invalid service account ()`가 나오면 같은 터미널에서 `echo "$GKE_AGENT"`로 이메일이 설정됐는지 확인합니다.
 
 ##### 7-2. GKE 서브넷 · Terraform 서비스 계정
 
@@ -649,7 +656,7 @@ gcloud compute networks subnets add-iam-policy-binding "$MAIN_SUBNET" \
 # 수행 위치: infra-son01 또는 Cloud Shell | 수행 계정: VPC_ADMIN_ACCOUNT (예: admin@sonmap.net) | 대상: gcp-prod-edp-hub-vpchost
 gcloud compute networks subnets add-iam-policy-binding "$MAIN_SUBNET" \
   --project="$HOST" --region="$REGION" --account="$VPC_ADMIN_ACCOUNT" \
-  --member="serviceAccount:$GKE_AGENT" --role=roles/compute.networkUser
+  --member="serviceAccount:${GKE_AGENT:?7-1 단계에서 GKE_AGENT를 먼저 선언하세요}" --role=roles/compute.networkUser
 ```
 
 ##### 7-4. GKE 서브넷 · Google APIs 서비스 에이전트
