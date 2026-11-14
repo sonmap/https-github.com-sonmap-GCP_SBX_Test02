@@ -10,6 +10,7 @@
 **수행 계정** · `son@sonmap.net`
 
 0. [실행 환경 확인](#0-실행-환경과-준비-상태-확인)
+   - [0-1. 사전준비 · 플랫폼 릴리스 게시](#0-1-사전준비-플랫폼-릴리스-게시)
 1. [릴리스 조회](#1-게시된-릴리스-조회)
 2. [요청 JSON 생성](#2-요청-json-생성)
 3. [GCS 게시](#3-승인-요청-게시)
@@ -34,6 +35,59 @@ kubectl get storageclass standard-rwo
 
 GKE 노드가 `Ready`이고 `standard-rwo`가 조회되는지 확인합니다. 1차에서 완료한 `sbx03-smoke`는 기동 확인용입니다. 실제 `sbx03` Namespace와 서비스 계정은 아래 Workflow가 준비합니다. 신규 프로젝트 생성에 필요한 조직·결제·Workspace 권한은 [sbx03 관리자 준비](../02.infra-setup/reference/sbx03-new-project-runbook.md#1-최초-관리자-준비-수동)에서 확인합니다. 승인 번호·시각·종료일·사용자 이메일을 확보한 뒤 1번으로 진행합니다.
 
+#### 0-1. 사전준비 · 플랫폼 릴리스 게시
+
+**수행 위치** · `infra-son01`의 Test02 저장소 루트  
+**수행 계정** · `son@sonmap.net`으로 로그인하고 `tf-manager`로 가장
+
+플랫폼 운영자가 배포에 사용할 Terraform ZIP과 `release.json`을 `bundles` 버킷에 게시합니다. Runner·Provisioner 이미지도 게시하고, Cloud Run Provisioner를 갱신합니다. 이후 포털 또는 시험 운영자는 이 릴리스를 참조하는 과제별 `request.json`을 별도로 작성해 `requests` 버킷에 게시합니다.
+
+먼저 승인된 릴리스가 있는지 확인합니다.
+
+```bash
+gcloud storage ls \
+  'gs://gcp-sbx-edp-gke01-sbxtest01-bundles/platform-releases/*/release.json' \
+  --account=son@sonmap.net
+```
+
+사용할 릴리스가 조회되면 1번으로 진행합니다. `One or more URLs matched no objects`가 나오거나 승인된 새 버전이 필요하면 아래 게시 절차를 실행합니다.
+
+**게시 전 확인** · `03.sandbox_deploy/03.1.request/provisioner-env.yaml`의 `CLOUD_IDENTITY_CUSTOMER_ID`가 `__SET_CUSTOMER_ID__`이면 Cloud Build가 중단됩니다. [sbx03 릴리스 설정](../02.infra-setup/reference/sbx03-new-project-runbook.md#2-코드-동기화와-새-릴리스-수동)에 따라 확인한 Customer ID를 반영합니다. 아래 명령은 깨끗한 Git 작업 트리의 커밋을 게시하므로, 설정을 수정했다면 승인된 배포용 커밋에 포함한 후 실행합니다.
+
+```bash
+export SBX_GKE_PROJECT="gcp-sbx-edp-gke01"
+# Test02 저장소 루트에서 실행합니다.
+export ADMIN_ACCOUNT="son@sonmap.net"
+export REGION="asia-northeast3"
+export TF_MANAGER="tf-manager@${SBX_GKE_PROJECT}.iam.gserviceaccount.com"
+export TF_MANAGER_RESOURCE="projects/${SBX_GKE_PROJECT}/serviceAccounts/${TF_MANAGER}"
+export BUILD_STAGING_BUCKET="${SBX_GKE_PROJECT}-sbxtest01-build-source"
+unset CLOUDSDK_AUTH_IMPERSONATE_SERVICE_ACCOUNT
+
+# 로컬 수정이 있으면 아래 Build 제출을 실행하지 않습니다.
+export COMMIT_SHA="$(git rev-parse HEAD)"
+export RELEASE_ID="git-$(git rev-parse HEAD | cut -c1-12)"
+if [ -z "$(git status --porcelain)" ]; then
+  # 실행 위치 infra-son01 | 대상 ${SBX_GKE_PROJECT} | 계정 ${ADMIN_ACCOUNT} | 가장 ${TF_MANAGER} | 워크로드 실행 ${TF_MANAGER}
+  gcloud builds submit . --project="${SBX_GKE_PROJECT}" --region="${REGION}" \
+    --account="${ADMIN_ACCOUNT}" --impersonate-service-account="${TF_MANAGER}" \
+    --service-account="${TF_MANAGER_RESOURCE}" \
+    --gcs-source-staging-dir="gs://${BUILD_STAGING_BUCKET}/source" \
+    --config=03.sandbox_deploy/03.3.gke/cloudbuild/platform-release.yaml \
+    --substitutions="_RELEASE_ID=${RELEASE_ID},_COMMIT_SHA=${COMMIT_SHA}"
+else
+  echo "로컬 변경을 커밋하거나 정리한 뒤 다시 실행하세요."
+fi
+```
+
+Cloud Build가 `SUCCESS`이면 게시한 파일을 확인한 뒤 1번으로 진행합니다.
+
+```bash
+gcloud storage cat \
+  "gs://gcp-sbx-edp-gke01-sbxtest01-bundles/platform-releases/${RELEASE_ID}/release.json" \
+  --account=son@sonmap.net
+```
+
 ### 1. 게시된 릴리스 조회
 
 **수행 이유** · 이번 배포에 사용할 Terraform 소스 버전을 고르기 위해서입니다. `release.json`에서 ZIP 경로(`archive_uri`), GCS 객체 버전(`generation`), 파일 해시(`sha256`)를 가져옵니다. 이 세 값으로 승인 요청에 배포할 ZIP을 정확히 지정합니다.
@@ -44,7 +98,7 @@ gcloud storage ls \
   --account=son@sonmap.net
 ```
 
-목록에서 이번 시험에 사용할 릴리스 ID를 확인합니다. 릴리스가 없으면 [1차 작업서 5절](../02.infra-setup/infra-setup-commend.md#5-플랫폼-릴리스-게시)에서 먼저 게시합니다.
+목록에서 이번 시험에 사용할 릴리스 ID를 확인합니다. 릴리스가 없으면 [0-1 사전준비](#0-1-사전준비-플랫폼-릴리스-게시)에서 먼저 게시합니다.
 
 ### 2. 요청 JSON 생성
 
