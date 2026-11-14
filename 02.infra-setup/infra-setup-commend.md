@@ -507,7 +507,7 @@ gcloud compute networks subnets list --project="$HOST" --account="$VPC_ADMIN_ACC
 
 **Kubernetes Service 대역** · `subnet-prod-sbx-svc-01`을 사용자 관리 Service 보조 범위로 쓰려면 별도 CIDR을 확정해야 합니다. `10.252.0.0/24`는 이미 노드 Primary이고, 그 안의 `10.252.0.0/28`도 노드 대역과 겹칩니다.
 
-#### 1. GKE 서브넷이 없는 경우 · 신규 생성
+#### 1. GKE 서브넷 신규 생성
 
 앞의 조회에서 `$MAIN_SUBNET`이 없고 CIDR 승인이 완료되면 아래 생성 명령을 실행합니다. `--secondary-range`로 Pod 보조 범위도 함께 생성됩니다. **생성에 성공하면 2번을 건너뛰고 3번에서 확인합니다.**
 
@@ -517,7 +517,7 @@ gcloud compute networks subnets create "$MAIN_SUBNET" \
   --range="$NODE_CIDR" --secondary-range="$POD_RANGE=$POD_CIDR"
 ```
 
-#### 2. GKE 서브넷이 있는 경우 · 기존 서브넷 재사용
+#### 2. 기존 서브넷에 Pod 보조 범위 추가
 
 - **Primary CIDR과 Pod 보조 범위가 모두 일치** · 기존 서브넷을 재사용합니다.
 - **Primary CIDR은 일치하고 Pod 보조 범위만 없음** · CIDR 승인 후 아래 명령으로 보조 범위를 추가합니다.
