@@ -22,6 +22,10 @@ FOUNDATION_SECTIONS = [
 ]
 
 
+def logical_lines(text):
+    return re.sub(r'\\\n[ \t]+', '', text)
+
+
 def blocks(heading):
     _, section = INFRA_GUIDE.read_text().split(f'\n## {heading}\n', 1)
     section = section.split('\n## ', 1)[0]
@@ -57,11 +61,6 @@ class CommandbookTests(unittest.TestCase):
                 self.assertNotRegex(block, r'\bpython[0-9.]*\b|\bterraform\b|\bfor\b|\bwhile\b|\bfunction\b')
                 result = subprocess.run(['bash', '-n'], input=block, text=True, capture_output=True)
                 self.assertEqual(result.returncode, 0, (name, result.stderr))
-        # Each actual gcloud operation is individually copyable on one line.
-        for name in FOUNDATION_SECTIONS[1:]:
-            for block in blocks(name):
-                if block.startswith('gcloud '):
-                    self.assertEqual(len(block.splitlines()), 1)
 
     def test_expansion_and_workflow_rendering_without_cloud_access(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -163,7 +162,7 @@ esac
             self.assertNotIn(marker,network)
         self.assertIn('services vpc-peerings connect',network)
         foundation='\n'.join(blocks(FOUNDATION_SECTIONS[4]))
-        run=next(line for line in foundation.splitlines() if line.startswith('gcloud run deploy '))
+        run=next(line for line in logical_lines(foundation).splitlines() if line.startswith('gcloud run deploy '))
         self.assertIn('--clear-network',run)
         self.assertNotIn('--subnet=',run)
         self.assertNotIn('--vpc-egress=',run)

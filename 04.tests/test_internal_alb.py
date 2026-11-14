@@ -1,5 +1,6 @@
 import importlib.util
 import json
+import re
 import os
 import unittest
 from pathlib import Path
@@ -72,6 +73,7 @@ class InternalAlbTests(unittest.TestCase):
 
     def test_foundation_uses_shared_vpc_internal_vip_and_proxy_subnet(self):
         guide = (ROOT / "02.infra-setup/infra-setup-commend.md").read_text()
+        guide = re.sub(r'\\\n[ \t]+', '', guide)
         network = guide.split("\n## 2. Shared VPC와 네트워크\n", 1)[1].split("\n## ", 1)[0]
         foundation = guide.split("\n## 3. 공통 기반\n", 1)[1].split("\n## ", 1)[0]
         self.assertIn("--purpose=REGIONAL_MANAGED_PROXY --role=ACTIVE", network)
