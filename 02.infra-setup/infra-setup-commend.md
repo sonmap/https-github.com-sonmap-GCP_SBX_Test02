@@ -451,22 +451,27 @@ Pod 보조 범위는 GKE 서브넷 IAM을 따릅니다. ALB 프록시 전용 서
 
 ## 2-2. Shared VPC 운영팀 실행 명령
 
-아래 명령은 `gcp-prod-edp-hub-vpchost`의 네트워크 및 IAM 변경 권한을 가진 운영팀이 실행합니다. `VPC_ADMIN_ACCOUNT`와 `SBX_PROJECT_NUMBER`는 실제 작업 계정과 프로젝트팀에서 받은 번호를 입력합니다.
+아래 명령은 `gcp-prod-edp-hub-vpchost`의 네트워크 및 IAM 변경 권한을 가진 운영팀이 실행합니다. `VPC_ADMIN_ACCOUNT`에 실제 작업 계정을 적고 아래 선언을 실행합니다. 프로젝트 번호는 `gcloud`로 조회합니다. 운영팀 계정으로 서비스 프로젝트를 조회할 수 없으면 2-3절의 프로젝트팀 조회 결과를 받아 `export SBX_PROJECT_NUMBER=` 뒤에 숫자 번호를 직접 넣습니다.
 
 ```bash
-read -r -p 'Shared VPC 운영팀 계정: ' VPC_ADMIN_ACCOUNT
-read -r -p 'gcp-sbx-edp-gke01 프로젝트 번호: ' SBX_PROJECT_NUMBER
-HOST=gcp-prod-edp-hub-vpchost
-NETWORK=vpc-prod-edp-hub
-REGION=asia-northeast3
-MAIN_SUBNET=subnet-prod-sbx-gke-01
-VIP_SUBNET=subnet-prod-edp-alb-frontend-an3
-PROXY_SUBNET=subnet-prod-sbx-ilb-proxy
-NODE_CIDR=10.252.0.0/24
-POD_RANGE=subnet-prod-sbx-pod-01
-POD_CIDR=100.64.128.0/19
-PROXY_CIDR=172.31.111.64/26
-TF_MANAGER=tf-manager@gcp-sbx-edp-gke01.iam.gserviceaccount.com
+export VPC_ADMIN_ACCOUNT="admin@sonmap.net"
+export SBX_GKE_PROJECT="gcp-sbx-edp-gke01"
+
+SBX_PROJECT_NUMBER="$(gcloud projects describe "$SBX_GKE_PROJECT" \
+  --account="$VPC_ADMIN_ACCOUNT" --format='value(projectNumber)')"
+export SBX_PROJECT_NUMBER
+echo "$SBX_PROJECT_NUMBER"
+export HOST="gcp-prod-edp-hub-vpchost"
+export NETWORK="vpc-prod-edp-hub"
+export REGION="asia-northeast3"
+export MAIN_SUBNET="subnet-prod-sbx-gke-01"
+export VIP_SUBNET="subnet-prod-edp-alb-frontend-an3"
+export PROXY_SUBNET="subnet-prod-sbx-ilb-proxy"
+export NODE_CIDR="10.252.0.0/24"
+export POD_RANGE="subnet-prod-sbx-pod-01"
+export POD_CIDR="100.64.128.0/19"
+export PROXY_CIDR="172.31.111.64/26"
+export TF_MANAGER="tf-manager@gcp-sbx-edp-gke01.iam.gserviceaccount.com"
 
 gcloud compute networks describe "$NETWORK" --project="$HOST" --account="$VPC_ADMIN_ACCOUNT"
 gcloud compute networks subnets list --project="$HOST" --account="$VPC_ADMIN_ACCOUNT" \
@@ -517,11 +522,11 @@ gcloud compute firewall-rules create fw-sbxtest01-ilb-proxy \
   --source-ranges="$PROXY_CIDR" --destination-ranges="$POD_CIDR"
 ```
 
-확인한 실제 서브넷 이름을 변수에 반영하고 2-1절 IAM을 적용합니다. 두 서비스 에이전트 주소에 들어가는 프로젝트 번호는 `gcp-sbx-edp-gke01`의 숫자 번호입니다. 아래 명령은 번호 순서대로 하나씩 실행합니다. 오류가 나오면 해당 명령의 입력값을 확인한 뒤 이어서 진행합니다.
+확인한 실제 서브넷 이름을 변수에 반영하고 2-1절 IAM을 적용합니다. 두 서비스 에이전트 주소에 들어가는 프로젝트 번호는 `gcp-sbx-edp-gke01`의 숫자 번호입니다. 위에서 출력된 프로젝트 번호가 숫자로 확인되면 아래 명령을 번호 순서대로 하나씩 실행합니다. 오류가 나오면 해당 명령의 입력값을 확인한 뒤 이어서 진행합니다.
 
 ```bash
-GKE_AGENT="service-${SBX_PROJECT_NUMBER}@container-engine-robot.iam.gserviceaccount.com"
-GOOGLE_APIS_AGENT="${SBX_PROJECT_NUMBER}@cloudservices.gserviceaccount.com"
+export GKE_AGENT="service-${SBX_PROJECT_NUMBER}@container-engine-robot.iam.gserviceaccount.com"
+export GOOGLE_APIS_AGENT="${SBX_PROJECT_NUMBER}@cloudservices.gserviceaccount.com"
 
 # 1. GKE 서브넷 · Terraform 서비스 계정
 gcloud compute networks subnets add-iam-policy-binding "$MAIN_SUBNET" \
@@ -567,7 +572,7 @@ gcloud compute networks subnets get-iam-policy "$VIP_SUBNET" \
 Cloud Build Private Pool 경로를 사용하는 경우, 운영팀에서 기존 PSA 예약 범위와 피어링을 확인합니다. 예약 범위 및 연결이 모두 없는 신규 구성에서는 대역 승인과 Service Networking API 및 서비스 에이전트 준비 후 생성 명령을 실행합니다. 기존 피어링이 있으면 현재 할당 범위를 확인하고 운영팀 절차에 따라 조정합니다.
 
 ```bash
-PSA_NAME=psa-prod-edp-cloudbuild
+export PSA_NAME="psa-prod-edp-cloudbuild"
 gcloud compute addresses describe "$PSA_NAME" --global --project="$HOST" --account="$VPC_ADMIN_ACCOUNT"
 gcloud services vpc-peerings list --project="$HOST" --network="$NETWORK" \
   --service=servicenetworking.googleapis.com --account="$VPC_ADMIN_ACCOUNT"
@@ -587,9 +592,9 @@ gcloud services vpc-peerings connect --project="$HOST" --network="$NETWORK" \
 `gcp-sbx-edp-gke01` 관리자는 1절의 프로젝트 API 활성화와 서비스 에이전트 준비를 수행합니다. 운영팀에 요청하기 전에 아래 명령으로 서비스 프로젝트 번호와 연결된 호스트를 확인합니다.
 
 ```bash
-ADMIN_ACCOUNT=son@sonmap.net
-SBX_GKE_PROJECT=gcp-sbx-edp-gke01
-TF_MANAGER=tf-manager@gcp-sbx-edp-gke01.iam.gserviceaccount.com
+export ADMIN_ACCOUNT="son@sonmap.net"
+export SBX_GKE_PROJECT="gcp-sbx-edp-gke01"
+export TF_MANAGER="tf-manager@gcp-sbx-edp-gke01.iam.gserviceaccount.com"
 
 gcloud projects describe "$SBX_GKE_PROJECT" \
   --account="$ADMIN_ACCOUNT" --format='value(projectNumber)'
