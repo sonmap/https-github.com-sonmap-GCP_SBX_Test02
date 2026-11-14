@@ -17,6 +17,86 @@ flowchart TD
 
 현재 저장소의 시험 절차에서는 **승인 JSON을 저장한 뒤 1~2절의 명령으로 시작**합니다. 목표 흐름에서 자동으로 시작하려면 GCS 객체 생성 이벤트를 Workflows 입력 형식으로 연결하고, `approved/` 경로와 객체 세대 번호·SHA256을 처리하는 연동이 필요합니다.
 
+## 0. 운영자가 sbx03 승인 JSON 작성 및 게시
+
+포털에서 게시할 수 없는 경우 승인 내역을 확인한 시험 운영자가 직접 작성합니다.
+
+- **수행 위치** · `infra-son01`의 Test02 저장소 루트
+- **수행 계정** · `son@sonmap.net`
+
+### 0-1. 게시된 릴리스 조회
+
+```bash
+gcloud storage ls \
+  'gs://gcp-sbx-edp-gke01-sbxtest01-bundles/platform-releases/*/release.json' \
+  --account=son@sonmap.net
+```
+
+목록에서 이번 시험에 사용할 릴리스 ID를 확인합니다. 릴리스가 없으면 [1차 작업서 5절](../../02.infra-setup/infra-setup-commend.md#5-플랫폼-릴리스-게시)에서 먼저 게시합니다.
+
+### 0-2. 요청 JSON 생성
+
+아래 값을 실제 승인 정보와 릴리스 ID로 바꿉니다. 신규 프로젝트 생성 예시입니다. 프로젝트가 이미 있으면 기존 프로젝트와 Terraform 상태를 확인해 [요청 작성 규칙](request-format/README.md)에 따라 재사용 설정을 결정합니다.
+
+```bash
+export RELEASE_ID="실제-릴리스-ID"
+export REQUEST_ID="REQ-20261114-SBX03-001"
+export APPROVAL_ID="실제-내부-승인번호"
+export APPROVED_AT="실제-승인시각-ISO8601"
+export EXPIRES_ON="실제-종료일-YYYY-MM-DD"
+export MEMBER1="user01@sonmap.net"
+export MEMBER2="user02@sonmap.net"
+
+mkdir -p .local
+gcloud storage cp \
+  "gs://gcp-sbx-edp-gke01-sbxtest01-bundles/platform-releases/${RELEASE_ID}/release.json" \
+  .local/sbx03-release.json --account=son@sonmap.net &&
+jq -ne --slurpfile release .local/sbx03-release.json '
+  {
+    schema_version: "1.0",
+    action: "CREATE",
+    request_id: env.REQUEST_ID,
+    approval: {status: "APPROVED", approval_id: env.APPROVAL_ID, approved_at: env.APPROVED_AT},
+    task: {name: "sbx03", display_name: "Sandbox sbx03", expires_on: env.EXPIRES_ON},
+    identity: {
+      group_email: "pgrp-gcp-dev-sbx03@sonmap.net",
+      members: [env.MEMBER1, env.MEMBER2],
+      create_jupyter_gsa: true
+    },
+    project: {
+      create_project: true, project_id: "gcp-sbx-edp-sbx03",
+      project_name: "Sandbox sbx03", billing_account: "019BE7-53DD39-AF5098",
+      org_id: "51654893849"
+    },
+    network: {
+      required: false, host_project_id: "gcp-prod-edp-hub-vpchost",
+      network_name: "vpc-prod-edp-hub", region: "asia-northeast3", shared_vpc_join: false
+    },
+    data: {bigquery_dataset: "sbx03_main", gcs_bucket: "gcp-sbx-edp-sbx03-sbx03-data"},
+    gke: {
+      project_id: "gcp-sbx-edp-gke01", cluster_name: "gke-sbx-main-an3",
+      location: "asia-northeast3", namespace: "sbx03", jupyter_domain: "jupyter-sbx03.sonmap.net"
+    },
+    source: ($release[0] | {release_id, archive_uri, generation, sha256})
+  }
+' > ".local/${REQUEST_ID}.json"
+```
+
+데이터레이크 조회 권한이 필요한 경우 승인 범위와 관리자 위임을 확인한 뒤 `data.datalake_datasets`에 추가합니다.
+
+### 0-3. 승인 요청 게시
+
+`jq . ".local/${REQUEST_ID}.json"`으로 승인 정보, 사용자, 프로젝트와 릴리스 메타데이터를 확인한 뒤 게시합니다.
+
+```bash
+gcloud storage cp --if-generation-match=0 \
+  ".local/${REQUEST_ID}.json" \
+  "gs://gcp-sbx-edp-gke01-sbxtest01-requests/approved/${REQUEST_ID}/request.json" \
+  --account=son@sonmap.net
+```
+
+게시 후 [1절](#1-승인-요청-읽기)에서 같은 ID로 승인 JSON과 Workflow 입력 파일을 검증합니다. Private Pool이 보류 중이면 입력 검증까지 진행합니다.
+
 ## 1. 승인 요청 읽기
 
 ```mermaid
@@ -30,7 +110,7 @@ flowchart TD
     C --> I["sbx03-workflow-input.json"]
 ```
 
-포털이 GCS에 저장한 **승인된 요청 ID**를 입력합니다. 신규 프로젝트 사전 권한과 승인 JSON이 아직 준비되지 않았다면 [sbx03 신규 과제 절차 1~3절](../../02.infra-setup/reference/sbx03-new-project-runbook.md)을 먼저 따릅니다. 같은 `sbx03`을 재배포할 때는 포털에서 새 요청 ID를 발급받습니다.
+GCS에 게시된 **승인된 요청 ID**를 지정합니다. 포털 게시가 어렵다면 0절을 사용합니다. 신규 프로젝트 사전 권한과 승인 JSON이 아직 준비되지 않았다면 [sbx03 신규 과제 절차 1~3절](../../02.infra-setup/reference/sbx03-new-project-runbook.md)을 먼저 따릅니다. 같은 `sbx03`을 재배포할 때는 새 요청 ID를 사용합니다.
 
 **수행 위치** · `infra-son01`의 Test02 저장소 루트  
 **수행 계정** · `son@sonmap.net`
@@ -42,7 +122,7 @@ gcloud storage ls 'gs://gcp-sbx-edp-gke01-sbxtest01-requests/approved/*/request.
   --account=son@sonmap.net
 ```
 
-포털에서 승인받은 `sbx03` 요청에 해당하는 경로에서 `approved/`와 `/request.json` 사이의 ID를 확인합니다. 해당 요청이 목록에 없으면 포털 담당자에게 승인 JSON이 게시됐는지 확인합니다.
+내부 승인을 받은 `sbx03` 요청에 해당하는 경로에서 `approved/`와 `/request.json` 사이의 ID를 확인합니다. 해당 요청이 목록에 없으면 포털 담당자에게 승인 JSON이 게시됐는지 확인합니다.
 
 아래 블록의 `REQUEST_ID`를 실제 ID로 바꾼 뒤 같은 Bash 셸에서 실행합니다. 성공하면 검증된 입력 파일을 만듭니다. 다운로드나 검증이 실패하면 파일을 새로 만들지 않습니다.
 
