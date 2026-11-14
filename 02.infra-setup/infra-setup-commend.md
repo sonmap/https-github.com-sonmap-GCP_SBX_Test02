@@ -479,7 +479,9 @@ gcloud compute networks subnets list --project="$HOST" --account="$VPC_ADMIN_ACC
   --format='table(name,ipCidrRange,purpose,role,secondaryIpRanges)'
 ```
 
-GKE 서브넷이 없는 경우 CIDR 승인 후 생성합니다. 기존 서브넷이면 목록의 Primary 및 Pod Secondary 범위를 확인하고 재사용합니다.
+#### 1. GKE 서브넷이 없는 경우 · 신규 생성
+
+앞의 조회에서 `$MAIN_SUBNET`이 없고 CIDR 승인이 완료되면 아래 생성 명령을 실행합니다.
 
 ```bash
 gcloud compute networks subnets create "$MAIN_SUBNET" \
@@ -487,7 +489,11 @@ gcloud compute networks subnets create "$MAIN_SUBNET" \
   --range="$NODE_CIDR" --secondary-range="$POD_RANGE=$POD_CIDR"
 ```
 
-기존 GKE 서브넷에 Pod 보조 범위가 없으면 승인된 대역으로 아래 명령을 실행합니다.
+#### 2. GKE 서브넷이 있는 경우 · 기존 서브넷 재사용
+
+- **Primary CIDR과 Pod 보조 범위가 모두 일치** · 기존 서브넷을 재사용합니다.
+- **Primary CIDR은 일치하고 Pod 보조 범위만 없음** · CIDR 승인 후 아래 명령으로 보조 범위를 추가합니다.
+- **Primary CIDR 또는 기존 Pod 보조 범위가 계획과 다름** · Shared VPC 운영팀과 사용할 범위를 먼저 확인합니다.
 
 ```bash
 gcloud compute networks subnets update "$MAIN_SUBNET" --project="$HOST" \
