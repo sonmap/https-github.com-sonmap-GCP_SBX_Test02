@@ -12,7 +12,7 @@
 0. [실행 환경 확인](#0-실행-환경과-준비-상태-확인)
    - [0-1. 사전준비 · 플랫폼 릴리스 게시](#0-1-사전준비-플랫폼-릴리스-게시)
 1. [릴리스 조회](#1-게시된-릴리스-조회)
-2. [요청 JSON 생성](#2-요청-json-생성)
+2. [요청 JSON 생성](#2-요청-json-생성) · [종료된 빌드 재시도](#2-3-종료된-빌드-재시도)
 3. [GCS 게시](#3-승인-요청-게시)
 4. [게시 결과와 Workflow 입력 검증](#4-게시-결과와-workflow-입력-검증)
 
@@ -207,6 +207,40 @@ jq -ne --slurpfile release .local/sbx03-release.json '
 
 데이터레이크 조회 권한이 필요한 경우 승인 범위와 관리자 위임을 확인한 뒤 `data.datalake_datasets`에 추가합니다.
 
+#### 2-3. 종료된 빌드 재시도
+
+이번 시험처럼 Private Pool 머신 타입을 변경한 뒤 재시도할 때 사용합니다. 이전 상위·하위 빌드가 종료됐고 배포가 실패·취소됐는지 7번의 Cloud Build 조회로 확인합니다. 기존 승인이 같은 배포 범위의 재시도에 적용되는 경우, 아래 명령은 GCS의 `-001` 승인 JSON에서 요청 ID만 `-002`로 바꿉니다. 다른 재시도라면 `PREVIOUS_REQUEST_ID`와 `REQUEST_ID`를 실제 값으로 바꿉니다.
+
+```bash
+# 수행 위치: infra-son01의 Test02 저장소 루트 | 수행 계정: son@sonmap.net
+export PREVIOUS_REQUEST_ID="REQ-20261114-SBX03-001"
+export REQUEST_ID="REQ-20261114-SBX03-002"
+REQUEST_FILE=".local/${REQUEST_ID}.json"
+
+mkdir -p .local &&
+(
+  set -o pipefail
+  gcloud storage cat \
+    "gs://gcp-sbx-edp-gke01-sbxtest01-requests/approved/${PREVIOUS_REQUEST_ID}/request.json" \
+    --account=son@sonmap.net |
+  jq -e --arg previous "$PREVIOUS_REQUEST_ID" --arg next "$REQUEST_ID" '
+    select(.request_id == $previous and .approval.status == "APPROVED"
+      and .task.name == "sbx03" and $previous != $next)
+    | .request_id = $next
+  '
+) > "${REQUEST_FILE}.tmp" &&
+mv -- "${REQUEST_FILE}.tmp" "$REQUEST_FILE" &&
+export RELEASE_ID="$(jq -r '.source.release_id' "$REQUEST_FILE")" \
+       APPROVAL_ID="$(jq -r '.approval.approval_id' "$REQUEST_FILE")" \
+       APPROVED_AT="$(jq -r '.approval.approved_at' "$REQUEST_FILE")" \
+       EXPIRES_ON="$(jq -r '.task.expires_on' "$REQUEST_FILE")" \
+       MEMBER1="$(jq -r '.identity.members[0]' "$REQUEST_FILE")" \
+       MEMBER2="$(jq -r '.identity.members[1]' "$REQUEST_FILE")" &&
+jq -r '.request_id' "$REQUEST_FILE"
+```
+
+`REQ-20261114-SBX03-002`가 출력되면 같은 터미널에서 **3번 → 4번 → 5번 확인 → 6번 실행**으로 진행합니다. 2-1의 예시 블록을 다시 실행하면 `-001`과 예시 승인값으로 돌아갑니다.
+
 ### 3. 승인 요청 게시
 
 실제 시험 배포가 승인됐다면 담당자가 승인한 메일·티켓·결재 기록의 번호와 완료 시각을 2-1의 `APPROVAL_ID`, `APPROVED_AT`에 사용합니다. 2-2로 JSON을 다시 생성한 뒤 아래 게시 명령을 실행합니다. 승인 기록이 아직 없고 GCS 읽기·쓰기만 확인하려면 [승인 전 GCS 읽기·쓰기 시험](#승인-전-gcs-읽기쓰기-시험)으로 이동합니다.
@@ -243,7 +277,7 @@ gcloud storage cp --if-generation-match=0 \
   --account=son@sonmap.net
 ```
 
-**게시 완료 확인** · `jq`의 `true`와 GCS 복사 성공을 모두 확인한 뒤 4번으로 진행합니다. `412`가 나오면 `approved/`에 동일 요청 ID의 객체가 있는지 먼저 확인합니다. 기존 객체가 이번 승인 요청과 일치하면 해당 객체로 4번을 진행하고, 별도 요청이라면 새 요청 ID로 2-2부터 다시 실행합니다.
+**게시 완료 확인** · `jq`의 `true`와 GCS 복사 성공을 모두 확인한 뒤 4번으로 진행합니다. `412`가 나오면 `approved/`에 동일 요청 ID의 객체가 있는지 먼저 확인합니다. 기존 객체가 이번 승인 요청과 일치하면 해당 객체로 4번을 진행하고, 이번 재시도인데 복사 로그에 이전 `-001` 경로가 보이면 [2-3](#2-3-종료된-빌드-재시도)에서 새 `-002` 요청을 만든 뒤 3번을 다시 실행합니다.
 
 #### 승인 전 GCS 읽기·쓰기 시험
 
