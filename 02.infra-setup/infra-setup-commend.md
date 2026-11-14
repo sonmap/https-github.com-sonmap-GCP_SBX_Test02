@@ -18,10 +18,10 @@
 |---|---|
 | 준비 | [공통 변수](#0-공통-변수) |
 | 공통 인프라 | [API·IAM](#1-api와-관리자-권한) → [Shared VPC](#2-shared-vpc와-네트워크) → [서브넷 IAM](#2-1-서브넷별-iam) → [GKE·AR·ALB](#3-공통-기반) |
-| 기존 Workflows 경로 | [OAuth 설정](#4-oauth-값-등록), [그룹 권한](reference/cloud-identity-group-terraform.md), [Private Pool 점검](reference/cloudbuild-private-gke-vpn-design.md), [플랫폼 릴리스](#5-플랫폼-릴리스-게시) |
-| 이미지 준비 | [Helm 차트와 기본 이미지](#6-chart와-기본-이미지-미러링) → [표준 Notebook 이미지](#7-notebook-표준-이미지-빌드) |
+| 기존 Workflows 경로 | [OAuth 설정](#4-oauth-값-등록), [그룹 권한](#5-그룹-관리-사전-설정), [Private Pool 점검](reference/cloudbuild-private-gke-vpn-design.md), [플랫폼 릴리스](#6-플랫폼-릴리스-게시) |
+| 이미지 준비 | [Helm 차트와 기본 이미지](#7-chart와-기본-이미지-미러링) → [표준 Notebook 이미지](#8-notebook-표준-이미지-빌드) |
 | 접속 검증 | [관리 VM에서 GKE 접속](#gke와-내부-https-접속-확인), [내부 HTTPS·DNS](reference/sbx03-https-certificate-runbook.md) |
-| 수동 설치 | [JupyterHub 수동 설치 및 접속 확인](#8-jupyterhub-수동-설치-및-접속-확인) |
+| 수동 설치 | [JupyterHub 수동 설치 및 접속 확인](#9-jupyterhub-수동-설치-및-접속-확인) |
 | 과제 배포 | [그룹 공유 Sandbox 자동 배포](../03.sandbox_deploy/README.md#그룹-공유-sandbox-자동-배포) 또는 [기존 Workflows 배포](../03.sandbox_deploy/03.1.request/legacy-deploy.md) |
 
 그룹 공유 PoC만 구성하는 환경에서 공통 자원을 준비할 때는 기존 자동 배포용 Cloud Run·Workflows와 Google OAuth 구간을 구분해 적용합니다. 기존 환경에서는 자원 조회 결과를 확인한 뒤 필요한 생성·갱신 명령만 실행합니다.
@@ -35,7 +35,7 @@
 | [platform-release.yaml](../03.sandbox_deploy/03.3.gke/cloudbuild/platform-release.yaml) | 승인된 플랫폼 버전을 게시할 때 API·Runner 이미지를 만들고 Cloud Run을 갱신합니다. |
 | [publish-sandbox-source.sh](../03.sandbox_deploy/03.3.gke/cloudbuild/publish-sandbox-source.sh) | 플랫폼 릴리스가 자동 호출해 Terraform ZIP을 GCS에 게시합니다. |
 
-Private Pool 접속은 [점검 절차](reference/cloudbuild-private-gke-vpn-design.md)에서 확인합니다. 표준 Notebook 이미지는 [7번 관리 VM 빌드](#7-notebook-표준-이미지-빌드)를 사용하고, 의존성 변경으로 별도 후보 이미지가 필요할 때는 [Notebook 운영 릴리스](../03.sandbox_deploy/03.3.gke/notebook-image/README.md#notebook-이미지-운영-릴리스)를 사용합니다.
+Private Pool 접속은 [점검 절차](reference/cloudbuild-private-gke-vpn-design.md)에서 확인합니다. 표준 Notebook 이미지는 [8번 관리 VM 빌드](#8-notebook-표준-이미지-빌드)를 사용하고, 의존성 변경으로 별도 후보 이미지가 필요할 때는 [Notebook 운영 릴리스](../03.sandbox_deploy/03.3.gke/notebook-image/README.md#notebook-이미지-운영-릴리스)를 사용합니다.
 
 ## 0. 공통 변수
 
@@ -407,6 +407,30 @@ gcloud iam service-accounts describe "${TF_MANAGER}" --project="${SBX_GKE_PROJEC
   --account="${ADMIN_ACCOUNT}" --format='value(uniqueId)'
 ```
 
+**이 ID로 수행할 작업 (gcloud 불가)** · Workspace 최고 관리자가 [admin.google.com](https://admin.google.com)에서 **계정 → 관리자 역할 → 그룹 관리자 → 서비스 계정 탭**에 위 uniqueId를 할당합니다. 자세한 절차는 [5. 그룹 관리 사전 설정](#5-그룹-관리-사전-설정)에 있습니다.
+
+GCP 프로젝트 IAM 역할로는 대체되지 않습니다. Cloud Identity 그룹은 GCP가 아니라 Workspace 디렉터리에 생성되므로, `roles/iam.serviceAccountAdmin`이나 `roles/resourcemanager.projectIamAdmin`을 부여해도 디렉터리 권한은 생기지 않습니다.
+
+누락 시 2차 배포에서 다음과 같이 실패합니다.
+
+```text
+google_cloud_identity_group.sandbox: Creation errored after 20m1s
+Error: Error waiting to create Group: got pending status "not found"
+```
+
+**부여 확인** · 반영에 몇 분 걸립니다. 권한 오류 없이 목록이 반환되면 완료입니다.
+
+```bash
+gcloud identity groups search \
+  --organization=51654893849 \
+  --labels=cloudidentity.googleapis.com/groups.discussion_forum \
+  --account=son@sonmap.net \
+  --impersonate-service-account=tf-manager@gcp-sbx-edp-gke01.iam.gserviceaccount.com \
+  --format='table(groupKey.id)'
+```
+
+`The caller does not have permission`이 나오면 아직 역할이 부여되지 않은 상태입니다.
+
 ## 2. Shared VPC와 네트워크
 
 기존 `vpc-prod-edp-hub`를 사용합니다. 호스트 `gcp-prod-edp-hub-vpchost`는 Shared VPC로 활성화되어 있고, 서비스 프로젝트 `gcp-sbx-edp-gke01`의 연결도 확인했습니다. Sandbox 프로젝트팀은 서비스 프로젝트에서 준비와 조회를 수행하고, 호스트 서브넷·방화벽·PSA·IAM 변경은 Shared VPC 운영팀에 요청합니다.
@@ -512,6 +536,113 @@ gcloud compute networks subnets list --project="$HOST" --account="$VPC_ADMIN_ACC
 **컨트롤 플레인용 서브넷** · Shared VPC 운영팀이 5번에서 `10.253.3.16/28` 서브넷을 준비합니다. 향후 신규 클러스터에서 이 서브넷을 사용하려면 `--private-endpoint-subnetwork`로 지정합니다. 해당 서브넷의 CIDR을 `--master-ipv4-cidr` 값으로 사용하면 기존 서브넷 대역과 겹칩니다.
 
 **Kubernetes Service 대역** · `subnet-prod-sbx-svc-01`을 사용자 관리 Service 보조 범위로 쓰려면 별도 CIDR을 확정해야 합니다. `10.252.0.0/24`는 이미 노드 Primary이고, 그 안의 `10.252.0.0/28`도 노드 대역과 겹칩니다.
+
+#### 0. Private Google Access와 Private DNS (선행 필수)
+
+폐쇄망에서 Private Node GKE를 쓰려면 노드가 Google 레지스트리에 닿을 경로가 먼저 있어야 합니다. 이 단계를 건너뛰면 클러스터 생성은 성공해도 노드가 `NotReady`로 남고, 파드는 계속 `Pending`입니다. GKE 시스템 이미지(pause, cilium)는 내부 AR로 미러링할 수 없고 Autopilot은 containerd 설정도 바꿀 수 없으므로, 네트워크에서 해결해야 합니다.
+
+`restricted.googleapis.com`(199.36.153.4/30)은 인터넷에서 라우팅되지 않는 대역이며 VPC-SC 지원 API만 노출합니다. `--next-hop-gateway=default-internet-gateway`는 이름과 달리 인터넷 송신을 열지 않습니다. 노드에 외부 IP가 없으면 이 경로로는 나가지 못합니다.
+
+**0-1. 현재 상태 조회**
+
+```bash
+# 수행 위치: infra-son01 또는 Cloud Shell | 수행 계정: VPC_ADMIN_ACCOUNT | 대상: gcp-prod-edp-hub-vpchost
+gcloud dns managed-zones list --project="$HOST" --account="$VPC_ADMIN_ACCOUNT"
+gcloud dns policies list --project="$HOST" --account="$VPC_ADMIN_ACCOUNT"
+gcloud compute routes list --project="$HOST" --account="$VPC_ADMIN_ACCOUNT" \
+  --filter="destRange~199.36.153"
+gcloud compute networks subnets describe "$MAIN_SUBNET" \
+  --project="$HOST" --region="$REGION" --account="$VPC_ADMIN_ACCOUNT" \
+  --format='yaml(name,ipCidrRange,privateIpGoogleAccess)'
+```
+
+이미 zone과 route가 있으면 0-2의 서브넷 PGA만 적용합니다. DNS 정책이 조회되면 온프레미스 DNS 포워딩이 걸려 있을 수 있으므로, private zone 대신 사내 DNS에 레코드를 등록해야 하는지 담당자와 확인합니다.
+
+**0-2. 서브넷 Private Google Access 활성화**
+
+```bash
+gcloud compute networks subnets update "$MAIN_SUBNET" \
+  --project="$HOST" --region="$REGION" --account="$VPC_ADMIN_ACCOUNT" \
+  --enable-private-ip-google-access
+```
+
+**0-3. restricted VIP 라우트**
+
+```bash
+gcloud compute routes create rt-prod-edp-restricted-googleapis \
+  --project="$HOST" --network="$NETWORK" --account="$VPC_ADMIN_ACCOUNT" \
+  --destination-range=199.36.153.4/30 \
+  --next-hop-gateway=default-internet-gateway --priority=1000
+```
+
+**0-4. Private DNS 존과 레코드**
+
+`gcr.io`는 GKE 시스템 이미지, `pkg.dev`는 내부 AR(Helm 차트·Notebook 이미지), `googleapis.com`은 나머지 API 경로입니다. 셋 중 하나라도 빠지면 배포 중 다른 지점에서 같은 타임아웃이 납니다.
+
+```bash
+export PGA_IPS="199.36.153.4,199.36.153.5,199.36.153.6,199.36.153.7"
+
+for Z in googleapis.com gcr.io pkg.dev; do
+  gcloud dns managed-zones create "zone-$(echo $Z | tr '.' '-')" \
+    --project="$HOST" --account="$VPC_ADMIN_ACCOUNT" \
+    --dns-name="$Z." --visibility=private \
+    --networks="$NETWORK" --description="Private Google Access"
+done
+
+gcloud dns record-sets create restricted.googleapis.com. --project="$HOST" \
+  --zone=zone-googleapis-com --type=A --ttl=300 --rrdatas="$PGA_IPS" \
+  --account="$VPC_ADMIN_ACCOUNT"
+gcloud dns record-sets create "*.googleapis.com." --project="$HOST" \
+  --zone=zone-googleapis-com --type=CNAME --ttl=300 \
+  --rrdatas=restricted.googleapis.com. --account="$VPC_ADMIN_ACCOUNT"
+
+gcloud dns record-sets create gcr.io. --project="$HOST" --zone=zone-gcr-io \
+  --type=A --ttl=300 --rrdatas="$PGA_IPS" --account="$VPC_ADMIN_ACCOUNT"
+gcloud dns record-sets create "*.gcr.io." --project="$HOST" --zone=zone-gcr-io \
+  --type=CNAME --ttl=300 --rrdatas=gcr.io. --account="$VPC_ADMIN_ACCOUNT"
+
+gcloud dns record-sets create pkg.dev. --project="$HOST" --zone=zone-pkg-dev \
+  --type=A --ttl=300 --rrdatas="$PGA_IPS" --account="$VPC_ADMIN_ACCOUNT"
+gcloud dns record-sets create "*.pkg.dev." --project="$HOST" --zone=zone-pkg-dev \
+  --type=CNAME --ttl=300 --rrdatas=pkg.dev. --account="$VPC_ADMIN_ACCOUNT"
+```
+
+**0-5. EGRESS 방화벽 (deny-all이 있는 경우에만)**
+
+6-1의 조회에서 커스텀 EGRESS 규칙이 없으면 기본 `default-egress-allow`가 적용되므로 이 명령은 건너뜁니다.
+
+```bash
+gcloud compute firewall-rules create fw-prod-edp-egress-restricted-vip \
+  --project="$HOST" --network="$NETWORK" --account="$VPC_ADMIN_ACCOUNT" \
+  --direction=EGRESS --priority=900 --action=ALLOW --rules=tcp:443 \
+  --destination-ranges=199.36.153.4/30
+```
+
+**0-6. 확인**
+
+클러스터가 이미 있으면 노드가 2~5분 내 `Ready`로 바뀝니다. 10분이 지나도 `NotReady`면 해당 노드를 삭제해 새로 받습니다.
+
+```bash
+# 수행 위치: infra-son01 | 수행 계정: son@sonmap.net
+dig +short asia-northeast3-artifactregistry.gcr.io
+kubectl get nodes
+```
+
+`dig` 결과가 `199.36.153.x`이면 정상입니다. `infra-son01`이 다른 VPC에 있으면 공인 IP가 그대로 나올 수 있으므로 최종 판단은 `kubectl get nodes`로 합니다.
+
+**증상 대조** · 이 단계를 누락하면 다음과 같이 나타납니다.
+
+```text
+Warning  FailedCreatePodSandBox  kubelet  failed to pull image
+"asia-northeast3-artifactregistry.gcr.io/.../pause:3.8":
+dial tcp 142.251.169.82:443: i/o timeout
+
+Ready  False  KubeletNotReady  container runtime network not ready:
+NetworkReady=false reason:NetworkPluginNotReady message:Network plugin
+returns error: cni plugin not initialized
+```
+
+타임아웃 IP가 `142.x` · `172.x` · `192.178.x`이면 공인 IP로 해석되고 있다는 뜻입니다. `199.36.153.x`가 아니면 이 절이 적용되지 않은 상태입니다.
 
 #### 1. GKE 서브넷 신규 생성
 
@@ -1179,7 +1310,7 @@ gcloud container clusters create-auto "${MAIN_CLUSTER}" --project="${SBX_GKE_PRO
 
 #### 19-1. 수동 작업 · infra-son01에서 Helm 차트 반입 및 이미지 빌드
 
-**1. Helm 차트 반입** · [6절의 Helm 차트 수동 반입](#infra-son01에서-helm-차트-수동-반입) 명령을 먼저 실행합니다. `infra-son01`에서 `son@sonmap.net`으로 AR에 로그인하고, 공식 저장소에서 JupyterHub `4.2.0`을 내려받아 `helm push`로 게시합니다. `helm show chart`에서 이미 확인되는 버전은 재사용합니다.
+**1. Helm 차트 반입** · [7절의 Helm 차트 수동 반입](#infra-son01에서-helm-차트-수동-반입) 명령을 먼저 실행합니다. `infra-son01`에서 `son@sonmap.net`으로 AR에 로그인하고, 공식 저장소에서 JupyterHub `4.2.0`을 내려받아 `helm push`로 게시합니다. `helm show chart`에서 이미 확인되는 버전은 재사용합니다.
 
 **2. AR 로그인 및 이미지 빌드** · `infra-son01`의 Test02 저장소 루트에서 실행합니다. Docker가 설치되어 있고, `son@sonmap.net`에 AR 업로드 권한이 있어야 합니다.
 
@@ -1215,11 +1346,11 @@ gcloud artifacts docker images list "$AR_REPO" \
   --include-tags --account="$AR_ACCOUNT"
 ```
 
-두 이미지에 `bootstrap` 태그가 표시되면 20번으로 진행합니다. 6절로 돌아왔을 때 차트 버전이 이미 확인되면 차트 업로드를 건너뜁니다.
+두 이미지에 `bootstrap` 태그가 표시되면 20번으로 진행합니다. 7절로 돌아왔을 때 차트 버전이 이미 확인되면 차트 업로드를 건너뜁니다.
 
 #### 19-2. 자동 작업 · Cloud Build로 bootstrap 이미지 빌드 및 게시
 
-`infra-son01`의 Test02 저장소 루트에서 기존 Cloud Build 명령을 실행합니다. 이 명령은 bootstrap 이미지 2개를 게시합니다. JupyterHub Helm 차트는 [6절의 수동 반입](#infra-son01에서-helm-차트-수동-반입)으로 준비합니다. 빌드가 `SUCCESS`이고 두 이미지의 `bootstrap` 태그가 확인되면 20번으로 진행합니다.
+`infra-son01`의 Test02 저장소 루트에서 기존 Cloud Build 명령을 실행합니다. 이 명령은 bootstrap 이미지 2개를 게시합니다. JupyterHub Helm 차트는 [7절의 수동 반입](#infra-son01에서-helm-차트-수동-반입)으로 준비합니다. 빌드가 `SUCCESS`이고 두 이미지의 `bootstrap` 태그가 확인되면 20번으로 진행합니다.
 
 ```bash
 # 실행 위치 infra-son01 | 대상 ${SBX_GKE_PROJECT} | 계정 ${ADMIN_ACCOUNT} | 가장 ${TF_MANAGER} | 워크로드 실행 ${TF_MANAGER}
@@ -1548,11 +1679,58 @@ unset OAUTH_CLIENT_ID OAUTH_CLIENT_SECRET
 
 두 Secret에 새 버전이 생성됐는지 확인합니다. 이전에 Bash 기록을 사용하던 터미널이라면 `set -o history`로 다시 켤 수 있습니다.
 
-## 5. 플랫폼 릴리스 게시
+## 5. 그룹 관리 사전 설정
+
+**수행 주체** · Workspace 최고 관리자(디렉터리 역할) + 플랫폼 운영자(릴리스 반영)
+**수행 위치** · admin.google.com + `infra-son01`의 Test02 저장소 루트
+
+2차 배포에서 Provisioner가 Cloud Identity 그룹을 생성하려면 아래 두 가지가 모두 준비되어야 합니다. 하나라도 빠지면 그룹 생성이 20분 타임아웃 후 `got pending status "not found"`로 실패합니다. **다음 절의 플랫폼 릴리스보다 먼저 끝나야 합니다.** 2번의 customer ID 수정이 릴리스에 포함되어야 하기 때문입니다.
+
+**1. tf-manager에 그룹 관리자 역할 부여**
+
+[1절](#1-api와-관리자-권한)에서 조회한 uniqueId를 사용합니다. [admin.google.com](https://admin.google.com)에 Workspace 최고 관리자로 로그인한 뒤 **계정 → 관리자 역할 → 그룹 관리자 → 서비스 계정 탭 → 서비스 계정 할당**에서 입력합니다. gcloud나 GCP 콘솔로는 수행할 수 없습니다.
+
+```bash
+# 수행 위치: infra-son01 | 수행 계정: son@sonmap.net | uniqueId 재조회
+gcloud iam service-accounts describe "tf-manager@gcp-sbx-edp-gke01.iam.gserviceaccount.com" \
+  --project=gcp-sbx-edp-gke01 --account=son@sonmap.net --format='value(uniqueId)'
+```
+
+부여 후 아래 명령이 권한 오류 없이 목록을 반환하면 완료입니다. 반영에 몇 분 걸립니다.
+
+```bash
+gcloud identity groups search \
+  --organization=51654893849 \
+  --labels=cloudidentity.googleapis.com/groups.discussion_forum \
+  --account=son@sonmap.net \
+  --impersonate-service-account=tf-manager@gcp-sbx-edp-gke01.iam.gserviceaccount.com \
+  --format='table(groupKey.id)'
+```
+
+**2. CLOUD_IDENTITY_CUSTOMER_ID 확인 및 커밋**
+
+Provisioner는 이 값으로 디렉터리를 찾습니다. 실제 Workspace customer ID와 다르면 생성 요청은 접수되고 조회만 실패해, 1번과 동일한 `not found` 증상이 납니다.
+
+```bash
+# 수행 위치: infra-son01의 Test02 저장소 루트
+git show HEAD:03.sandbox_deploy/03.1.request/provisioner-env.yaml | grep '^CLOUD_IDENTITY_CUSTOMER_ID:'
+```
+
+`__SET_CUSTOMER_ID__`가 남아 있으면 실제 값으로 수정하고 커밋합니다. 값은 admin.google.com의 **계정 → 계정 설정**에서 확인합니다.
+
+```bash
+sed -i 's/^CLOUD_IDENTITY_CUSTOMER_ID: __SET_CUSTOMER_ID__$/CLOUD_IDENTITY_CUSTOMER_ID: C03rw3vtp/' \
+  03.sandbox_deploy/03.1.request/provisioner-env.yaml
+git diff -- 03.sandbox_deploy/03.1.request/provisioner-env.yaml
+```
+
+기존 그룹을 재사용하는 경우에는 승인 요청의 import 정보를 준비합니다. Jupyter 로그인용 OAuth 설정은 이 절과 별개로 유지합니다. 상세 설정은 [Cloud Identity 그룹 Terraform 설정](reference/cloud-identity-group-terraform.md)에 있습니다.
+
+## 6. 플랫폼 릴리스 게시
 
 실제 Sandbox 자동 배포에 사용할 릴리스는 [2차 Sandbox 사전준비](../03.sandbox_deploy/README.md#0-1-사전준비-플랫폼-릴리스-게시)에서 게시합니다.
 
-## 6. Chart와 기본 이미지 미러링
+## 7. Chart와 기본 이미지 미러링
 
 ### infra-son01에서 Helm 차트 수동 반입
 
@@ -1668,11 +1846,11 @@ gcloud artifacts docker images list "$IMAGE_AR" \
   --include-tags --account="$AR_ACCOUNT"
 ```
 
-세 이미지의 태그가 확인되면 7절 Notebook 표준 이미지 빌드로 진행합니다.
+세 이미지의 태그가 확인되면 8절 Notebook 표준 이미지 빌드로 진행합니다.
 
 #### 2. 자동 작업 · 관리형 Cloud Build에서 복사
 
-수작업 대신 관리형 Cloud Build로 반입할 때 아래 명령을 실행합니다. 자동 작업을 이미 시작했다면 완료 후 AR 태그를 확인하고 7절로 진행합니다.
+수작업 대신 관리형 Cloud Build로 반입할 때 아래 명령을 실행합니다. 자동 작업을 이미 시작했다면 완료 후 AR 태그를 확인하고 8절로 진행합니다.
 
 ```bash
 export SBX_GKE_PROJECT="gcp-sbx-edp-gke01"
@@ -1697,7 +1875,7 @@ gcloud builds submit --no-source --project="${SBX_GKE_PROJECT}" --region="${REGI
 
 기본 이미지 복사 Build가 SUCCESS인지 확인합니다. 외부 다운로드가 가능한 관리형 Build에서 실행합니다.
 
-## 7. Notebook 표준 이미지 빌드
+## 8. Notebook 표준 이미지 빌드
 
 운영자는 승인된 관리 VM `infra-son01`의 Test02 저장소 루트에서 Docker BuildKit으로 표준 이미지를 빌드하고 내부 AR에 게시합니다. 표준 이미지는 공통 APT 도구와 Google Cloud CLI, Python 라이브러리, Notebook 시작 스크립트를 포함합니다. Docker 빌드 환경에서 OS APT 저장소, Google Cloud APT 저장소와 내부 AR에 접근할 수 있어야 합니다. VM에서 접근이 허용된 APT 경로를 사용하고, VM 호스트와 Docker 빌드 환경의 접속 여부를 각각 확인합니다.
 
@@ -1757,10 +1935,6 @@ docker image inspect "$IMAGE" --format='{{range .RepoDigests}}{{println .}}{{end
 
 공통 기반은 최초에 준비합니다. 과제마다 [2차 그룹 공유 자동 배포](../03.sandbox_deploy/README.md)를 사용합니다. 포털은 승인된 그룹 JSON을 GCS에 저장하고 Workflow를 호출합니다. 기존 과제별 Hub 경로는 [기존 Workflows 배포](../03.sandbox_deploy/03.1.request/legacy-deploy.md)를 따릅니다.
 
-## 그룹 관리 사전 설정
-
-[Cloud Identity 그룹 Terraform 설정](reference/cloud-identity-group-terraform.md)에 따라 tf-manager에 그룹 관리자 역할을 직접 부여하고, provisioner-env.yaml의 CLOUD_IDENTITY_CUSTOMER_ID를 실제 값으로 수정·커밋한 뒤 릴리스합니다. 기존 그룹은 승인 요청의 import 정보를 준비합니다. Jupyter 로그인용 OAuth는 유지합니다.
-
 ## GKE와 내부 HTTPS 접속 확인
 
 관리 VM에서 DNS 엔드포인트로 Namespace 목록을 확인합니다. DNS 접속이 아직 비활성화된 클러스터에서만 첫 명령을 실행합니다.
@@ -1795,7 +1969,7 @@ kubectl get pods -A
 
 기존 Workflows 경로에서 Private Pool 사용이 확정되면 [Private Pool 접속 점검](reference/cloudbuild-private-gke-vpn-design.md)도 실행합니다. DNS·인증서 담당자와 [내부 HTTPS 연결](reference/sbx03-https-certificate-runbook.md)을 확인한 뒤 [2차 Sandbox 구축](../03.sandbox_deploy/README.md)로 진행합니다.
 
-## 8. JupyterHub 수동 설치 및 접속 확인
+## 9. JupyterHub 수동 설치 및 접속 확인
 
 **수행 위치** · `infra-son01`의 Test02 저장소 루트  
 **수행 계정** · `son@sonmap.net`으로 GKE와 Artifact Registry에 접속
@@ -1834,7 +2008,7 @@ gcloud artifacts docker images list "$AR_REPO" \
 | Proxy 이미지 | `jupyterhub-configurable-http-proxy:4.6.3` |
 | 표준 Notebook 이미지 | `jupyterhub-k8s-singleuser-standard:4.2.0-r2-home` 또는 승인된 이미지 |
 
-차트가 없거나 Helm 인증이 만료됐으면 [6절 Helm 차트 수동 반입](#infra-son01에서-helm-차트-수동-반입)을 확인합니다. 표준 Notebook 이미지가 없으면 [7절](#7-notebook-표준-이미지-빌드)에서 빌드합니다.
+차트가 없거나 Helm 인증이 만료됐으면 [7절 Helm 차트 수동 반입](#infra-son01에서-helm-차트-수동-반입)을 확인합니다. 표준 Notebook 이미지가 없으면 [8절](#8-notebook-표준-이미지-빌드)에서 빌드합니다.
 
 ### 8-3. 수동 기동 확인용 values 파일 생성 및 Helm 설치
 
@@ -1898,6 +2072,8 @@ kubectl -n "$NAMESPACE" get pods,svc
 3. 테스트 PC에서 내부 DNS와 HTTPS 접속을 확인합니다. Google 로그인 후 Notebook 서버를 한 번 시작하고 `kubectl -n "$NAMESPACE" get pods,pvc`로 사용자 Pod와 PVC를 확인합니다. [Google OAuth 검증](reference/sbx03-google-oauth-runbook.md)
 
 ## 부록. 기존 Host 광역 IAM 정리
+
+> **실행 시점** · 2차 Sandbox 배포가 최소 1회 성공한 뒤에 수행합니다. 서브넷별 권한만으로 GKE 생성·ALB Backend health·과제 배포가 모두 정상인지 확인되기 전에는 실행하지 않습니다.
 
 신규 설치의 필수 단계가 아닙니다. 이전 저장소의 명령으로 부여한 **동일한 무조건부 바인딩**만 정리합니다. 현재 권한이 다른 시스템에도 사용되는지, 조직·Folder·그룹 상속이나 조건부 정책이 있는지 먼저 확인합니다. 서브넷별 권한을 먼저 추가하고 VPC Admin이 네트워크·PSA·Pool 준비를 맡은 뒤 실제 GKE·내부 ALB·배포가 정상인지 확인해야 합니다. 실제 IAM을 이 소스 수정 과정에서 변경하지 않았습니다.
 
