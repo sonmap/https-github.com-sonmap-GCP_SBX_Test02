@@ -16,6 +16,8 @@
 
 ### 1. 게시된 릴리스 조회
 
+**수행 이유** · 이번 배포에 사용할 Terraform 소스 버전을 고르기 위해서입니다. `release.json`에서 ZIP 경로(`archive_uri`), GCS 객체 버전(`generation`), 파일 해시(`sha256`)를 가져옵니다. 이 세 값으로 승인 요청에 배포할 ZIP을 정확히 지정합니다.
+
 ```bash
 gcloud storage ls \
   'gs://gcp-sbx-edp-gke01-sbxtest01-bundles/platform-releases/*/release.json' \
@@ -25,6 +27,8 @@ gcloud storage ls \
 목록에서 이번 시험에 사용할 릴리스 ID를 확인합니다. 릴리스가 없으면 [1차 작업서 5절](../02.infra-setup/infra-setup-commend.md#5-플랫폼-릴리스-게시)에서 먼저 게시합니다.
 
 ### 2. 요청 JSON 생성
+
+**수행 이유** · 누가 승인했고 어떤 자원을 어느 프로젝트에 배포할지 전달하기 위해서입니다. 이번 요청에는 `gcp-sbx-edp-sbx03` 프로젝트, 승인된 사용자, BigQuery·GCS 설정, 기존 GKE의 `sbx03` Namespace, 1번에서 선택한 소스 버전을 기록합니다. 결과는 로컬 `.local/<요청 ID>.json`입니다.
 
 아래 값을 실제 승인 정보와 릴리스 ID로 바꿉니다. 신규 프로젝트 생성 예시입니다. 프로젝트가 이미 있으면 기존 프로젝트와 Terraform 상태를 확인해 [요청 작성 규칙](03.1.request/request-format/README.md)에 따라 재사용 설정을 결정합니다.
 
@@ -76,6 +80,8 @@ jq -ne --slurpfile release .local/sbx03-release.json '
 
 ### 3. 승인 요청 게시
 
+**수행 이유** · Workflow와 요청 API가 읽을 승인 요청 원본을 GCS에 두기 위해서입니다. 로컬 JSON을 `approved/<요청 ID>/request.json`으로 올립니다. 같은 ID의 객체가 이미 있으면 덮어쓰지 않습니다. 현재 반자동 경로의 배포 시작은 별도 Workflow 실행 단계에서 이루어집니다.
+
 `jq . ".local/${REQUEST_ID}.json"`으로 승인 정보, 사용자, 프로젝트와 릴리스 메타데이터를 확인한 뒤 게시합니다.
 
 ```bash
@@ -86,6 +92,8 @@ gcloud storage cp --if-generation-match=0 \
 ```
 
 ### 4. 게시 결과와 Workflow 입력 검증
+
+**수행 이유** · 방금 게시한 파일이 승인된 `sbx03` 요청인지 확인하고, Workflow에 전달할 입력을 만들기 위해서입니다. GCS 객체의 특정 세대를 다운로드해 요청 ID·승인 상태·과제 및 프로젝트를 확인하고, 해당 요청 JSON의 SHA256을 계산합니다. `.local/sbx03-workflow-input.json`에는 요청 ID, GCS 경로, generation, SHA256이 저장됩니다. 이 SHA256은 1번의 Terraform ZIP 해시와 별개입니다.
 
 2번에서 지정한 `REQUEST_ID`를 유지한 채, 같은 터미널에서 실행합니다.
 
