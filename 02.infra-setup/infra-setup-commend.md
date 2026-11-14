@@ -659,15 +659,17 @@ gcloud compute networks subnets add-iam-policy-binding "$MAIN_SUBNET" \
 # 프로젝트 번호 조회 대상: gcp-sbx-edp-gke01 | IAM 적용 대상: gcp-prod-edp-hub-vpchost
 export SBX_PROJECT_NUMBER="$(gcloud projects describe gcp-sbx-edp-gke01 \
   --account=admin@sonmap.net --format='value(projectNumber)')"
+echo "$SBX_PROJECT_NUMBER"
+```
 
-if [[ "$SBX_PROJECT_NUMBER" =~ ^[0-9]+$ ]]; then
-  gcloud compute networks subnets add-iam-policy-binding subnet-prod-sbx-gke-01 \
-    --project=gcp-prod-edp-hub-vpchost --region=asia-northeast3 --account=admin@sonmap.net \
-    --member="serviceAccount:service-${SBX_PROJECT_NUMBER}@container-engine-robot.iam.gserviceaccount.com" \
-    --role=roles/compute.networkUser
-else
-  echo 'gcp-sbx-edp-gke01의 숫자 프로젝트 번호를 확인하세요.' >&2
-fi
+숫자 프로젝트 번호가 출력되면 아래 명령을 실행합니다.
+
+```bash
+# 수행 위치: infra-son01 또는 Cloud Shell | 수행 계정: admin@sonmap.net
+gcloud compute networks subnets add-iam-policy-binding subnet-prod-sbx-gke-01 \
+  --project=gcp-prod-edp-hub-vpchost --region=asia-northeast3 --account=admin@sonmap.net \
+  --member="serviceAccount:service-${SBX_PROJECT_NUMBER}@container-engine-robot.iam.gserviceaccount.com" \
+  --role=roles/compute.networkUser
 ```
 
 ##### 7-4. GKE 서브넷 · Google APIs 서비스 에이전트
