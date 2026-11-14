@@ -226,8 +226,13 @@ gcloud projects add-iam-policy-binding "${SBX_GKE_PROJECT}" --member="serviceAcc
   --role=roles/logging.logWriter --condition=None --account="${ADMIN_ACCOUNT}"
 gcloud projects add-iam-policy-binding "${SBX_GKE_PROJECT}" --member="serviceAccount:${TF_MANAGER}" \
   --role=roles/serviceusage.serviceUsageConsumer --condition=None --account="${ADMIN_ACCOUNT}"
+# Google 관리형 인증서를 쓰는 경우에만 필요합니다. 자체 서명 인증서만 쓰면 생략할 수 있습니다.
+gcloud projects add-iam-policy-binding "${SBX_GKE_PROJECT}" --member="serviceAccount:${TF_MANAGER}" \
+  --role=roles/certificatemanager.editor --condition=None --account="${ADMIN_ACCOUNT}"
 
 ```
+
+위 역할은 모두 **GCP 프로젝트 IAM**입니다. Cloud Identity 그룹 생성 권한은 여기에 포함되지 않습니다. 그룹은 GCP가 아니라 Workspace 디렉터리에 만들어지므로 [5. 그룹 관리 사전 설정](#5-그룹-관리-사전-설정)에서 별도로 부여합니다.
 
 ### 🔴 **5.** sbx-manager 권한 — 요청 처리 · Workflow · Build 제출
 
@@ -1545,6 +1550,13 @@ gcloud compute forwarding-rules create fr-alb-sbxtest01-shared-http --project="$
 
 ### 🔴 **32.** Regional SSL 인증서 확인 및 등록
 
+인증서 방식은 둘 중 하나를 고릅니다. 접속 호스트는 **그룹 단위**이므로 그룹을 추가할 때마다 인증서도 하나씩 준비합니다.
+
+| 방식 | 절 | 갱신 | 브라우저 경고 | 전제 |
+|---|---|---|---|---|
+| 자체 서명 | [32-2](#32-2-테스트용-자체-서명-인증서-생성) · [32-3](#32-3-regional-ssl-인증서-등록-및-확인) | 수동(90일) | 있음 | 없음 |
+| Google 관리형 | [32-4](#32-4-google-관리형-인증서-자동-갱신) | 자동 | 없음 | 공개 도메인 + 공개 DNS에 검증용 CNAME 영구 유지 |
+
 #### 32-1. 인증서 조회
 
 ```bash
@@ -1588,6 +1600,79 @@ gcloud compute ssl-certificates create "${SSL_CERTIFICATE}" \
 ```
 
 등록이 성공하면 32-1을 다시 실행합니다. 리전과 SAN을 확인한 뒤 33번 Regional HTTPS Proxy를 생성합니다. 자체 서명 인증서를 테스트 PC에서 신뢰하도록 설정할 때는 공개 인증서 `jupyter.crt`만 복사합니다.
+
+#### 32-4. Google 관리형 인증서 자동 갱신
+
+자체 서명 인증서는 브라우저 경고가 뜨고 만료 때마다 수동으로 교체해야 합니다. Certificate Manager의 **리전 Google 관리형 인증서**를 쓰면 Google이 자동 갱신하고 경고도 사라집니다. 기능 확인만 할 때는 32-2로 충분하며, 운영과 장기 시험에는 이 절을 권장합니다.
+
+**전제 조건**
+
+- `sonmap.net`이 실제 보유한 **공개 도메인**이고, 권한 있는 DNS에 레코드를 추가할 수 있어야 합니다. 사내 전용 도메인이면 DNS 승인이 불가능하므로 32-2 또는 사내 CA 발급 인증서를 사용합니다.
+- 4절에서 `tf-manager`에 `roles/certificatemanager.editor`를 부여하고 API를 활성화해야 합니다.
+
+```bash
+# 수행 위치: infra-son01 | 수행 계정: ADMIN_ACCOUNT
+gcloud services enable certificatemanager.googleapis.com \
+  --project="${SBX_GKE_PROJECT}" --account="${ADMIN_ACCOUNT}"
+```
+
+**DNS 분리** · 폐쇄망에서도 쓸 수 있는 이유는 DNS 승인이 로드밸런서의 인터넷 노출을 요구하지 않기 때문입니다. 공개로 해석돼야 하는 것은 검증용 서브도메인 하나뿐입니다.
+
+| 레코드 | 등록 위치 | 값 |
+|---|---|---|
+| 검증용 CNAME | **공개 DNS** | 아래 `dnsResourceRecord` 출력 |
+| 접속용 A | **사내 DNS** | 내부 ALB VIP(예: `172.31.96.2`) |
+
+**1. DNS 승인 생성과 레코드 확인**
+
+```bash
+# 수행 위치: infra-son01 | 로그인 계정: ADMIN_ACCOUNT | 가장: TF_MANAGER
+export DOMAIN="${HTTPS_FQDN}"
+export DNS_AUTH="dns-auth-jupyter-group01"
+export MANAGED_CERT="cert-jupyter-group01-managed"
+
+gcloud certificate-manager dns-authorizations create "${DNS_AUTH}" \
+  --project="${SBX_GKE_PROJECT}" --location="${REGION}" --domain="${DOMAIN}" \
+  --account="${ADMIN_ACCOUNT}" --impersonate-service-account="${TF_MANAGER}"
+
+gcloud certificate-manager dns-authorizations describe "${DNS_AUTH}" \
+  --project="${SBX_GKE_PROJECT}" --location="${REGION}" \
+  --account="${ADMIN_ACCOUNT}" --impersonate-service-account="${TF_MANAGER}" \
+  --format='yaml(dnsResourceRecord)'
+```
+
+출력된 이름과 값을 공개 DNS에 CNAME으로 등록합니다. **이 레코드는 영구히 유지해야 합니다.** 최초 발급용이 아니라 갱신할 때마다 다시 검증하므로, 삭제하면 그 시점에 자동 갱신 권한이 사라집니다.
+
+**2. 인증서 생성**
+
+```bash
+gcloud certificate-manager certificates create "${MANAGED_CERT}" \
+  --project="${SBX_GKE_PROJECT}" --location="${REGION}" \
+  --domains="${DOMAIN}" --dns-authorizations="${DNS_AUTH}" \
+  --account="${ADMIN_ACCOUNT}" --impersonate-service-account="${TF_MANAGER}"
+
+gcloud certificate-manager certificates describe "${MANAGED_CERT}" \
+  --project="${SBX_GKE_PROJECT}" --location="${REGION}" \
+  --account="${ADMIN_ACCOUNT}" --impersonate-service-account="${TF_MANAGER}" \
+  --format='yaml(managed.state,managed.authorizationAttemptInfo)'
+```
+
+`state: ACTIVE`가 될 때까지 기다립니다. CNAME 전파에 따라 수 분에서 수십 분 걸립니다.
+
+**3. HTTPS Proxy에 연결**
+
+Certificate Manager 인증서는 `--ssl-certificates`가 아니라 **`--certificate-manager-certificates`** 로 붙입니다. 리전 인증서는 인증서 맵 없이 리전 Target HTTPS Proxy에 직접 연결합니다. 아래 명령은 기존 인증서를 교체합니다.
+
+```bash
+gcloud compute target-https-proxies update https-proxy-alb-sbxtest01-shared \
+  --project="${SBX_GKE_PROJECT}" --region="${REGION}" \
+  --certificate-manager-certificates="${MANAGED_CERT}" \
+  --account="${ADMIN_ACCOUNT}" --impersonate-service-account="${TF_MANAGER}"
+```
+
+**비용** · Certificate Manager는 프로젝트당 인증서 100개까지 무료이며, RSA-2048·ECDSA 키는 연결당 과금도 없습니다. Cloud DNS에는 무료 등급이 없어 공개 영역을 새로 만들면 영역당 월 약 $0.20이 듭니다. 도메인을 이미 다른 DNS에서 운영 중이면 그쪽에 CNAME 한 줄만 추가하면 되므로 추가 비용은 없습니다.
+
+**운영 전환 시 협의 항목** · 비용보다 "공개 DNS에 검증용 CNAME을 영구히 둔다"는 점이 보안·DNS 담당 조직의 승인 대상이 됩니다. 요청 전에 이 레코드가 내부 주소를 노출하지 않는다는 점(검증용 서브도메인일 뿐 접속용 A 레코드는 사내 DNS에만 존재)을 함께 설명합니다.
 
 ### 🔴 **33.** Regional HTTPS Proxy
 
@@ -1688,26 +1773,37 @@ unset OAUTH_CLIENT_ID OAUTH_CLIENT_SECRET
 
 2차 배포에서 Provisioner가 Cloud Identity 그룹을 생성하려면 아래 두 가지가 모두 준비되어야 합니다. 하나라도 빠지면 그룹 생성이 20분 타임아웃 후 `got pending status "not found"`로 실패합니다. **다음 절의 플랫폼 릴리스보다 먼저 끝나야 합니다.** 2번의 customer ID 수정이 릴리스에 포함되어야 하기 때문입니다.
 
-**1. tf-manager에 그룹 관리자 역할 부여**
+**1. tf-manager에 그룹스 관리자 역할 부여**
 
-[1절](#1-api와-관리자-권한)에서 조회한 uniqueId를 사용합니다. [admin.google.com](https://admin.google.com)에 Workspace 최고 관리자로 로그인한 뒤 **계정 → 관리자 역할 → 그룹 관리자 → 서비스 계정 탭 → 서비스 계정 할당**에서 입력합니다. gcloud나 GCP 콘솔로는 수행할 수 없습니다.
+**Workspace 관리 콘솔에서만 가능합니다.** gcloud와 GCP 콘솔로는 수행할 수 없으며, 4절의 GCP 프로젝트 IAM 역할로도 대체되지 않습니다. Cloud Identity 그룹은 GCP가 아니라 Workspace 디렉터리에 생성되기 때문입니다.
+
+Workspace 최고 관리자로 [admin.google.com/ac/roles](https://admin.google.com/ac/roles)에 접속합니다.
+
+| 순서 | 화면 |
+|---|---|
+| 1 | **계정 → 관리자 역할** |
+| 2 | **그룹스 관리자**(Groups Administrator) 선택 — `그룹스 리더`·`그룹스 편집자`는 생성 권한이 없습니다 |
+| 3 | **Admins** 카드 → **서비스 계정** 탭 → **서비스 계정 할당** |
+| 4 | `tf-manager@gcp-sbx-edp-gke01.iam.gserviceaccount.com` 입력 후 **추가** |
+| 5 | 조직 단위 `모든 조직 단위`, 만료 `사용 안함` 확인 후 **역할 지정** |
+
+입력란은 **이메일 주소**를 받습니다. 서비스 계정의 uniqueId(숫자)를 넣으면 `올바른 이메일 주소를 입력하세요`로 거부됩니다. 4번에서 목록에 추가하는 것만으로는 저장되지 않으므로 **5번의 `역할 지정`을 반드시 누릅니다.**
+
+**API로 처리할 수 없는 이유** · 같은 작업을 Admin SDK(`admin.googleapis.com`)로 호출하려면 두 가지에 막힙니다. 첫째, 이 API는 VPC Service Controls 미지원이라 PGA를 적용한 VM에서는 `The service you are trying to access is not available on Google's Restricted VIPs`로 거부됩니다. 둘째, VPC 밖(Cloud Shell)에서 시도해도 gcloud의 OAuth 클라이언트가 디렉터리 민감 범위를 요청할 때 조직 정책에 의해 `차단된 앱`으로 막히는 경우가 많습니다. 자체 OAuth 클라이언트를 만들어 허용 목록에 등록하면 우회할 수 있으나, 1회성 설정에는 과도합니다.
+
+**부여 확인** · 반영에 몇 분 걸립니다. 조회는 **Cloud Shell**에서 수행합니다. `cloudidentity.googleapis.com`은 VPC-SC 지원 API라 VM에서도 동작하지만, 권한이 없을 때와 그룹이 없을 때 모두 `There is no such a group`으로 응답해 구분이 되지 않습니다.
 
 ```bash
-# 수행 위치: infra-son01 | 수행 계정: son@sonmap.net | uniqueId 재조회
-gcloud iam service-accounts describe "tf-manager@gcp-sbx-edp-gke01.iam.gserviceaccount.com" \
-  --project=gcp-sbx-edp-gke01 --account=son@sonmap.net --format='value(uniqueId)'
-```
-
-부여 후 아래 명령이 권한 오류 없이 목록을 반환하면 완료입니다. 반영에 몇 분 걸립니다.
-
-```bash
-gcloud identity groups search \
-  --organization=51654893849 \
-  --labels=cloudidentity.googleapis.com/groups.discussion_forum \
-  --account=son@sonmap.net \
+# 수행 위치: Cloud Shell | 수행 계정: admin@sonmap.net
+gcloud identity groups describe <이미 존재하는 그룹 이메일> \
+  --account=admin@sonmap.net \
   --impersonate-service-account=tf-manager@gcp-sbx-edp-gke01.iam.gserviceaccount.com \
-  --format='table(groupKey.id)'
+  --format='yaml(name,groupKey.id,createTime)'
 ```
+
+`createTime`이 조회되면 완료입니다. 조회할 그룹이 아직 없으면 2차 배포를 실행해 Terraform 로그에서 판정합니다. `google_cloud_identity_group.sandbox: Creation complete`가 나오면 역할이 적용된 것이고, `Still creating...`이 쌓이다 20분 뒤 `got pending status "not found"`로 끝나면 아직 적용되지 않은 상태입니다.
+
+> `gcloud identity groups search --organization=<조직 ID>`는 이 확인에 쓰지 않습니다. 해당 명령은 **GCP 조직 리소스** 조회 권한을 검사하므로, 디렉터리 역할이 정상이어도 `does not have permission to access organizations instance`가 납니다.
 
 **2. CLOUD_IDENTITY_CUSTOMER_ID 확인 및 커밋**
 
