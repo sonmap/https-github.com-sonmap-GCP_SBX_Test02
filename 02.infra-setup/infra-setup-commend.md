@@ -381,6 +381,25 @@ gcloud iam service-accounts add-iam-policy-binding \
 
 신규 과제 프로젝트에 Terraform으로 결제 계정을 연결하는 경우, 아래 내용을 결제 계정 관리자에게 전달합니다.
 
+##### 결제 계정 번호 확인
+
+Cloud Shell에서 결제 계정 관리자 계정으로 다음 명령을 실행합니다.
+
+```bash
+gcloud billing accounts list \
+  --account=admin@sonmap.net \
+  --format='table(name.basename():label=BILLING_ACCOUNT_ID,displayName:label=DISPLAY_NAME,open:label=OPEN)'
+```
+
+출력 예시
+
+```text
+BILLING_ACCOUNT_ID  DISPLAY_NAME    OPEN
+019BE7-53DD39-AF5098 sonmap_billing  True
+```
+
+`DISPLAY_NAME`이 `sonmap_billing`이고 `OPEN`이 `True`인 행의 `BILLING_ACCOUNT_ID`를 아래 요청 양식에 사용합니다. 다른 환경에서 작업하는 경우 해당 환경의 활성 결제 계정 번호로 바꿉니다.
+
 ##### 결제 계정 관리자 요청 양식
 
 **제목** · [GCP Sandbox] Terraform 서비스 계정 결제 연결 권한 부여 요청
