@@ -2,6 +2,8 @@
 
 [1차 인프라 구축](../02.infra-setup/infra-setup-commend.md)을 완료한 후 진행합니다.
 
+[sbx04 그룹으로 새 과제 배포](#2-4-그룹-이름을-바꿔-sbx04로-배포)
+
 ## sbx03 2차 배포 따라 하기
 
 포털 대신 운영자가 승인 JSON을 작성하는 경우, 아래 순서대로 실제 과제 배포와 검증을 진행합니다.
@@ -259,6 +261,103 @@ jq -r '.request_id' "$REQUEST_FILE"
 ```
 
 `REQ-20261114-SBX03-002`가 출력되면 같은 터미널에서 **3번 → 4번 → 5번 확인 → 6번 실행**으로 진행합니다. 2-1의 예시 블록을 다시 실행하면 `-001`과 예시 승인값으로 돌아갑니다.
+
+#### 2-4. 그룹 이름을 바꿔 sbx04로 배포
+
+**수행 위치** · `infra-son01`의 Test02 저장소 루트  
+**수행 계정** · `son@sonmap.net`
+
+Provisioner는 그룹 이메일이 `pgrp-gcp-dev-<과제명>@sonmap.net`이고 GKE Namespace가 과제명과 일치해야 요청을 받습니다. `pgrp-gcp-dev-sbx04@sonmap.net`을 사용하려면 새 `sbx04` 과제 요청을 제출합니다. 아래 예시는 과제 프로젝트도 `gcp-sbx-edp-sbx04`로 새로 생성합니다.
+
+**1. 새 요청 JSON 만들기**
+
+`sbx04` 배포가 승인됐고 승인된 구성원이 이전 `sbx03`과 동일할 때 아래 명령을 사용합니다. 승인 번호·시각·종료일을 `sbx04` 승인 기록의 값으로 입력하세요. 이전 JSON에서 공용 GKE·네트워크·릴리스 설정을 가져옵니다. 해당 릴리스가 이번 승인에도 적용되는지 확인하세요.
+
+```bash
+export REQUEST_ID='REQ-20261114-SBX04-001'
+export APPROVAL_ID=''
+export APPROVED_AT=''  # 예시 형식 2026-11-14T17:30:00+09:00
+export EXPIRES_ON=''   # YYYY-MM-DD
+
+PREVIOUS_URI='gs://gcp-sbx-edp-gke01-sbxtest01-requests/approved/REQ-20261114-SBX03-001/request.json'
+REQUEST_FILE=".local/${REQUEST_ID}.json"
+
+mkdir -p .local &&
+gcloud storage cat "$PREVIOUS_URI" --account=son@sonmap.net > .local/sbx03-previous.json &&
+jq -e '
+  if .task.name != "sbx03" or .approval.status != "APPROVED" or .network.required then
+    error("sbx03 원본과 과제별 네트워크 설정을 확인하세요.")
+  elif (env.APPROVAL_ID | test("^[^[:space:]].{2,127}$") and (startswith("EXAMPLE-") | not) | not)
+    or (env.APPROVED_AT | test("^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?(Z|[+-][0-9]{2}:[0-9]{2})$") | not)
+    or (env.EXPIRES_ON | test("^[0-9]{4}-[0-9]{2}-[0-9]{2}$") | not) then
+    error("sbx04 승인 번호, 승인 시각, 종료일을 입력하세요.")
+  else
+    .request_id = env.REQUEST_ID
+    | .approval.approval_id = env.APPROVAL_ID
+    | .approval.approved_at = env.APPROVED_AT
+    | .task = {name: "sbx04", display_name: "Sandbox sbx04", expires_on: env.EXPIRES_ON}
+    | .identity.group_email = "pgrp-gcp-dev-sbx04@sonmap.net"
+    | del(.identity.group_resource_name, .identity.membership_resource_names)
+    | .project.create_project = true
+    | .project.project_id = "gcp-sbx-edp-sbx04"
+    | .project.project_name = "Sandbox sbx04"
+    | .identity.create_jupyter_gsa = true
+    | .data.bigquery_dataset = "sbx04_main"
+    | .data.gcs_bucket = "gcp-sbx-edp-sbx04-sbx04-data"
+    | del(.data.adopt_existing_resources, .data.datalake_datasets)
+    | .gke.namespace = "sbx04"
+    | .gke.jupyter_domain = "jupyter-sbx04.sonmap.net"
+  end
+' .local/sbx03-previous.json > "${REQUEST_FILE}.tmp" &&
+mv -- "${REQUEST_FILE}.tmp" "$REQUEST_FILE" &&
+jq '{request_id, approval, task, identity, project, data, gke, source}' "$REQUEST_FILE"
+```
+
+**2. 새 요청을 GCS에 게시하고 Workflow 입력 만들기**
+
+1번에서 출력된 `sbx04` 요청이 승인 내역과 일치하는지 확인한 뒤 같은 셸에서 실행하세요. 동일한 요청 ID가 이미 게시되어 `412`가 나오면 해당 객체가 이번 요청과 같은지 먼저 확인하세요.
+
+```bash
+REQUEST_URI="gs://gcp-sbx-edp-gke01-sbxtest01-requests/approved/${REQUEST_ID}/request.json"
+
+rm -f .local/sbx04-workflow-input.json &&
+jq -e '
+  .request_id == env.REQUEST_ID and .task.name == "sbx04"
+  and .identity.group_email == "pgrp-gcp-dev-sbx04@sonmap.net"
+  and .project.project_id == "gcp-sbx-edp-sbx04"
+  and .gke.namespace == "sbx04" and .approval.status == "APPROVED"
+  and .approval.approval_id == env.APPROVAL_ID and .approval.approved_at == env.APPROVED_AT
+  and .task.expires_on == env.EXPIRES_ON
+' "$REQUEST_FILE" &&
+gcloud storage cp --if-generation-match=0 "$REQUEST_FILE" "$REQUEST_URI" --account=son@sonmap.net &&
+REQUEST_GENERATION="$(gcloud storage objects describe "$REQUEST_URI" --account=son@sonmap.net --format='value(generation)')" &&
+gcloud storage cp "${REQUEST_URI}#${REQUEST_GENERATION}" .local/sbx04-published.json --account=son@sonmap.net &&
+cmp "$REQUEST_FILE" .local/sbx04-published.json &&
+REQUEST_SHA256="$(sha256sum .local/sbx04-published.json | cut -d ' ' -f1)" &&
+jq -n --arg id "$REQUEST_ID" --arg uri "$REQUEST_URI" --arg gen "$REQUEST_GENERATION" --arg sha "$REQUEST_SHA256" \
+  '{request_id:$id,approved_json_uri:$uri,generation:($gen|tonumber),sha256:$sha}' \
+  > .local/sbx04-workflow-input.json
+```
+
+**3. Workflow 실행 및 그룹 확인**
+
+[5번](#5-workflow-실행-전-private-pool과-서비스-확인)의 Pool·Workflow·Cloud Run 상태를 확인한 뒤, 2번에서 생성한 입력으로 실행하세요.
+
+```bash
+test -s .local/sbx04-workflow-input.json &&
+gcloud workflows run workflow-sbxtest01-provision \
+  --project=gcp-sbx-edp-gke01 --location=asia-northeast3 \
+  --account=son@sonmap.net --data="$(cat .local/sbx04-workflow-input.json)"
+```
+
+`ACCEPTED`는 요청 접수입니다. [7번](#7-cloud-build-gke-및-alb-확인)의 Cloud Build 조회로 이번 실행을 추적하고 그룹 배포가 완료된 후 아래 명령을 실행하세요. 새 호스트의 HTTPS·OAuth 접속 시험에는 `jupyter-sbx04.sonmap.net`에 맞는 DNS, 인증서, OAuth 리디렉션 URI가 필요합니다.
+
+```bash
+gcloud identity groups describe pgrp-gcp-dev-sbx04@sonmap.net \
+  --account=son@sonmap.net \
+  --impersonate-service-account=tf-manager@gcp-sbx-edp-gke01.iam.gserviceaccount.com \
+  --format='yaml(name,groupKey.id,createTime)'
+```
 
 ### 3. 승인 요청 게시
 
