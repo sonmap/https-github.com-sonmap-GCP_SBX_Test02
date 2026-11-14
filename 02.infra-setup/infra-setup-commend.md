@@ -408,21 +408,7 @@ gcloud iam service-accounts describe "${TF_MANAGER}" --project="${SBX_GKE_PROJEC
 
 기존 `vpc-prod-edp-hub`를 사용합니다. 호스트 `gcp-prod-edp-hub-vpchost`는 Shared VPC로 활성화되어 있고, 서비스 프로젝트 `gcp-sbx-edp-gke01`의 연결도 확인했습니다. Sandbox 프로젝트팀은 서비스 프로젝트에서 준비와 조회를 수행하고, 호스트 서브넷·방화벽·PSA·IAM 변경은 Shared VPC 운영팀에 요청합니다.
 
-### 프로젝트팀 확인 명령
-
-```bash
-# infra-son01 또는 Cloud Shell | 서비스 프로젝트 조회 권한이 있는 계정
-ADMIN_ACCOUNT="son@sonmap.net"
-SBX_GKE_PROJECT="gcp-sbx-edp-gke01"
-
-gcloud compute shared-vpc get-host-project "${SBX_GKE_PROJECT}" \
-  --account="${ADMIN_ACCOUNT}" --format='value(name)'
-
-gcloud projects describe "${SBX_GKE_PROJECT}" \
-  --account="${ADMIN_ACCOUNT}" --format='value(projectNumber)'
-```
-
-첫 명령의 결과가 `gcp-prod-edp-hub-vpchost`이면 현재 연결을 사용합니다. 출력이 비어 있거나 다른 호스트가 표시되면 운영팀에 연결 상태 확인을 요청합니다. 두 번째 명령의 숫자 출력값은 2-1절의 `NUM`에 넣어 전달합니다.
+프로젝트팀은 [2-3절의 확인 명령](#2-3-sandbox-프로젝트-관리자-실행-명령)으로 서비스 프로젝트 번호와 현재 연결을 조회한 뒤 아래 요청 양식을 전달합니다.
 
 ### Shared VPC 운영팀 요청 양식
 
@@ -462,6 +448,160 @@ Pod 보조 범위는 GKE 서브넷 IAM을 따릅니다. ALB 프록시 전용 서
 운영팀은 GKE에 필요한 호스트 API와 서비스 에이전트도 확인합니다. Private Pool 경로를 사용하는 경우 Service Networking API, 호스트 서비스 에이전트의 `roles/servicenetworking.serviceAgent`, PSA 연결을 함께 확인합니다.
 
 프로젝트팀은 운영팀 회신에서 서브넷별 사용 권한을 확인합니다. 3절의 `tf-manager` 가장 조회는 서브넷을 읽을 수 있는지 확인하는 용도입니다.
+
+## 2-2. Shared VPC 운영팀 실행 명령
+
+아래 명령은 `gcp-prod-edp-hub-vpchost`의 네트워크 및 IAM 변경 권한을 가진 운영팀이 실행합니다. `VPC_ADMIN_ACCOUNT`와 `SBX_PROJECT_NUMBER`는 실제 작업 계정과 프로젝트팀에서 받은 번호를 입력합니다.
+
+```bash
+read -r -p 'Shared VPC 운영팀 계정: ' VPC_ADMIN_ACCOUNT
+read -r -p 'gcp-sbx-edp-gke01 프로젝트 번호: ' SBX_PROJECT_NUMBER
+HOST=gcp-prod-edp-hub-vpchost
+NETWORK=vpc-prod-edp-hub
+REGION=asia-northeast3
+MAIN_SUBNET=subnet-prod-sbx-gke-01
+VIP_SUBNET=subnet-prod-edp-alb-frontend-an3
+PROXY_SUBNET=subnet-prod-sbx-ilb-proxy
+NODE_CIDR=10.252.0.0/24
+POD_RANGE=subnet-prod-sbx-pod-01
+POD_CIDR=100.64.128.0/19
+PROXY_CIDR=172.31.111.64/26
+TF_MANAGER=tf-manager@gcp-sbx-edp-gke01.iam.gserviceaccount.com
+
+gcloud compute networks describe "$NETWORK" --project="$HOST" --account="$VPC_ADMIN_ACCOUNT"
+gcloud compute networks subnets list --project="$HOST" --account="$VPC_ADMIN_ACCOUNT" \
+  --filter="network:$NETWORK AND region:$REGION" \
+  --format='table(name,ipCidrRange,purpose,role,privateIpGoogleAccess,secondaryIpRanges)'
+```
+
+GKE 서브넷이 없는 경우 CIDR 승인 후 생성합니다. 기존 서브넷이면 목록의 Primary 및 Pod Secondary 범위를 확인하고 재사용합니다.
+
+```bash
+gcloud compute networks subnets create "$MAIN_SUBNET" \
+  --project="$HOST" --network="$NETWORK" --region="$REGION" --account="$VPC_ADMIN_ACCOUNT" \
+  --range="$NODE_CIDR" --secondary-range="$POD_RANGE=$POD_CIDR" --enable-private-ip-google-access
+```
+
+기존 GKE 서브넷에서 Private Google Access가 꺼져 있으면 아래 명령을 실행합니다. Pod 보조 범위만 누락됐다면 승인된 대역으로 두 번째 명령을 실행합니다.
+
+```bash
+gcloud compute networks subnets update "$MAIN_SUBNET" --project="$HOST" \
+  --region="$REGION" --account="$VPC_ADMIN_ACCOUNT" --enable-private-ip-google-access
+
+gcloud compute networks subnets update "$MAIN_SUBNET" --project="$HOST" \
+  --region="$REGION" --account="$VPC_ADMIN_ACCOUNT" --add-secondary-ranges="$POD_RANGE=$POD_CIDR"
+```
+
+내부 ALB용 기존 VIP 서브넷을 확인합니다. 같은 VPC·리전에 활성 프록시 전용 서브넷이 있으면 해당 CIDR을 `PROXY_CIDR`에 반영합니다. 활성 서브넷이 없고 대역 승인이 끝났을 때만 생성 명령을 실행합니다.
+
+```bash
+gcloud compute networks subnets describe "$VIP_SUBNET" --project="$HOST" \
+  --region="$REGION" --account="$VPC_ADMIN_ACCOUNT"
+
+gcloud compute networks subnets create "$PROXY_SUBNET" \
+  --project="$HOST" --network="$NETWORK" --region="$REGION" --account="$VPC_ADMIN_ACCOUNT" \
+  --range="$PROXY_CIDR" --purpose=REGIONAL_MANAGED_PROXY --role=ACTIVE
+```
+
+기존 방화벽을 조회합니다. 각 규칙이 없으면 해당 생성 명령을 실행합니다. 기존 규칙의 CIDR이나 포트가 다르면 운영팀 변경 절차에 따라 조정합니다.
+
+```bash
+gcloud compute firewall-rules list --project="$HOST" --account="$VPC_ADMIN_ACCOUNT" \
+  --filter='name=(fw-sbxtest01-alb-hc fw-sbxtest01-ilb-proxy)'
+
+gcloud compute firewall-rules create fw-sbxtest01-alb-hc \
+  --project="$HOST" --network="$NETWORK" --account="$VPC_ADMIN_ACCOUNT" \
+  --direction=INGRESS --allow=tcp:8000 \
+  --source-ranges=35.191.0.0/16,130.211.0.0/22 --destination-ranges="$POD_CIDR"
+
+gcloud compute firewall-rules create fw-sbxtest01-ilb-proxy \
+  --project="$HOST" --network="$NETWORK" --account="$VPC_ADMIN_ACCOUNT" \
+  --direction=INGRESS --allow=tcp:8000 \
+  --source-ranges="$PROXY_CIDR" --destination-ranges="$POD_CIDR"
+```
+
+확인한 실제 서브넷 이름을 변수에 반영하고 2-1절 IAM을 적용합니다. 두 서비스 에이전트 주소에 들어가는 프로젝트 번호는 `gcp-sbx-edp-gke01`의 번호입니다.
+
+```bash
+(
+  set -euo pipefail
+  : "${VPC_ADMIN_ACCOUNT:?운영팀 계정 입력 필요}"
+  [[ "${SBX_PROJECT_NUMBER:-}" =~ ^[0-9]+$ ]] || { echo '서비스 프로젝트 번호를 확인하세요.' >&2; exit 1; }
+
+  GKE_AGENT="service-$SBX_PROJECT_NUMBER@container-engine-robot.iam.gserviceaccount.com"
+  GOOGLE_APIS_AGENT="$SBX_PROJECT_NUMBER@cloudservices.gserviceaccount.com"
+
+  for SA in "$TF_MANAGER" "$GKE_AGENT" "$GOOGLE_APIS_AGENT"; do
+    gcloud compute networks subnets add-iam-policy-binding "$MAIN_SUBNET" \
+      --project="$HOST" --region="$REGION" --account="$VPC_ADMIN_ACCOUNT" \
+      --member="serviceAccount:$SA" --role=roles/compute.networkUser
+  done
+
+  gcloud compute networks subnets add-iam-policy-binding "$VIP_SUBNET" \
+    --project="$HOST" --region="$REGION" --account="$VPC_ADMIN_ACCOUNT" \
+    --member="serviceAccount:$TF_MANAGER" --role=roles/compute.networkUser
+
+  gcloud projects add-iam-policy-binding "$HOST" --account="$VPC_ADMIN_ACCOUNT" \
+    --member="serviceAccount:$GKE_AGENT" --role=roles/container.hostServiceAgentUser --condition=None
+
+  for ROLE in roles/compute.networkViewer roles/serviceusage.serviceUsageConsumer; do
+    gcloud projects add-iam-policy-binding "$HOST" --account="$VPC_ADMIN_ACCOUNT" \
+      --member="serviceAccount:$TF_MANAGER" --role="$ROLE" --condition=None
+  done
+
+  for SUBNET in "$MAIN_SUBNET" "$VIP_SUBNET"; do
+    gcloud compute networks subnets get-iam-policy "$SUBNET" \
+      --project="$HOST" --region="$REGION" --account="$VPC_ADMIN_ACCOUNT" --format=json
+  done
+)
+```
+
+Cloud Build Private Pool 경로를 사용하는 경우, 운영팀에서 기존 PSA 예약 범위와 피어링을 확인합니다. 예약 범위 및 연결이 모두 없는 신규 구성에서는 대역 승인과 Service Networking API 및 서비스 에이전트 준비 후 생성 명령을 실행합니다. 기존 피어링이 있으면 현재 할당 범위를 확인하고 운영팀 절차에 따라 조정합니다.
+
+```bash
+PSA_NAME=psa-prod-edp-cloudbuild
+gcloud compute addresses describe "$PSA_NAME" --global --project="$HOST" --account="$VPC_ADMIN_ACCOUNT"
+gcloud services vpc-peerings list --project="$HOST" --network="$NETWORK" \
+  --service=servicenetworking.googleapis.com --account="$VPC_ADMIN_ACCOUNT"
+
+# 예약 범위가 없을 때만
+gcloud compute addresses create "$PSA_NAME" --global --project="$HOST" \
+  --purpose=VPC_PEERING --addresses=10.250.0.0 --prefix-length=24 \
+  --network="$NETWORK" --account="$VPC_ADMIN_ACCOUNT"
+
+# 해당 VPC에 Service Networking 피어링이 없을 때만
+gcloud services vpc-peerings connect --project="$HOST" --network="$NETWORK" \
+  --service=servicenetworking.googleapis.com --ranges="$PSA_NAME" --account="$VPC_ADMIN_ACCOUNT"
+```
+
+## 2-3. Sandbox 프로젝트 관리자 실행 명령
+
+`gcp-sbx-edp-gke01` 관리자는 1절의 프로젝트 API 활성화와 서비스 에이전트 준비를 수행합니다. 운영팀에 요청하기 전에 아래 명령으로 서비스 프로젝트 번호와 연결된 호스트를 확인합니다.
+
+```bash
+ADMIN_ACCOUNT=son@sonmap.net
+SBX_GKE_PROJECT=gcp-sbx-edp-gke01
+TF_MANAGER=tf-manager@gcp-sbx-edp-gke01.iam.gserviceaccount.com
+
+gcloud projects describe "$SBX_GKE_PROJECT" \
+  --account="$ADMIN_ACCOUNT" --format='value(projectNumber)'
+
+gcloud compute shared-vpc get-host-project "$SBX_GKE_PROJECT" \
+  --account="$ADMIN_ACCOUNT" --format='value(name)'
+
+gcloud iam service-accounts describe "$TF_MANAGER" \
+  --project="$SBX_GKE_PROJECT" --account="$ADMIN_ACCOUNT" --format='yaml(email,uniqueId)'
+```
+
+운영팀 회신 후 아래 명령을 배포 주체인 `tf-manager`로 실행해 서비스 프로젝트에 사용 가능한 서브넷을 확인합니다. 실행 계정에는 1절에 따라 `tf-manager` 가장 권한이 필요합니다.
+
+```bash
+gcloud compute networks subnets list-usable --project=gcp-prod-edp-hub-vpchost \
+  --service-project="$SBX_GKE_PROJECT" \
+  --account="$ADMIN_ACCOUNT" --impersonate-service-account="$TF_MANAGER" --format=json
+```
+
+응답에서 운영팀이 회신한 GKE·ALB VIP 서브넷과 GKE Pod 보조 범위를 확인합니다. 서브넷 사용 목록과 운영팀 IAM 적용 결과가 확인되면 3절의 서비스 프로젝트 구축 명령을 실행합니다.
 
 ## 3. 공통 기반
 
@@ -1243,14 +1383,14 @@ gcloud projects get-iam-policy "${VPC_HOST_PROJECT}" --account="${VPC_ADMIN_ACCO
 
 # 새 Subnet별 Network User 바인딩이 실제 적용된 경우에만 기존 Host 전체 바인딩을 제거합니다.
 gcloud projects remove-iam-policy-binding "${VPC_HOST_PROJECT}" \
-  --member="serviceAccount:${TF_MANAGER}" --role=roles/compute.networkUser --condition=None \
+  --member="serviceAccount:${TF_MANAGER}" --role=roles/compute.networkUser \
   --account="${VPC_ADMIN_ACCOUNT}"
 gcloud projects remove-iam-policy-binding "${VPC_HOST_PROJECT}" \
   --member="serviceAccount:service-${SBX_GKE_PROJECT_NUMBER}@container-engine-robot.iam.gserviceaccount.com" \
-  --role=roles/compute.networkUser --condition=None --account="${VPC_ADMIN_ACCOUNT}"
+  --role=roles/compute.networkUser --account="${VPC_ADMIN_ACCOUNT}"
 gcloud projects remove-iam-policy-binding "${VPC_HOST_PROJECT}" \
   --member="serviceAccount:${SBX_GKE_PROJECT_NUMBER}@cloudservices.gserviceaccount.com" \
-  --role=roles/compute.networkUser --condition=None --account="${VPC_ADMIN_ACCOUNT}"
+  --role=roles/compute.networkUser --account="${VPC_ADMIN_ACCOUNT}"
 
 # Host 관리 작업을 VPC Admin으로 이전하고, tf-manager의 기존 관리 권한을 정리합니다.
 gcloud projects remove-iam-policy-binding "${VPC_HOST_PROJECT}" \
