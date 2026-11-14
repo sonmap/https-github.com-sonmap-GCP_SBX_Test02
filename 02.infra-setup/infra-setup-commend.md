@@ -754,6 +754,109 @@ gcloud services vpc-peerings connect --project="$HOST" --network="$NETWORK" \
   --service=servicenetworking.googleapis.com --ranges="$PSA_NAME" --account="$VPC_ADMIN_ACCOUNT"
 ```
 
+#### 9. GKE 노드용 Private Google Access와 Restricted VIP
+
+사설 GKE 노드의 Google 관리 이미지 다운로드가 TCP 443 타임아웃으로 실패할 때 사용하는 절차입니다. VPC 운영팀이 `restricted.googleapis.com` 사용을 승인한 환경을 기준으로 합니다. **PGA는 노드 서브넷에 적용되며, 라우트와 DNS는 Shared VPC 전체에 영향을 줄 수 있습니다.** 기존 중앙 DNS, 피어링·포워딩 영역, 라우트 및 보안 정책을 확인하고 승인된 구성을 재사용합니다. [Google Cloud PGA 구성](https://docs.cloud.google.com/vpc/docs/configure-private-google-access) · [GKE 레지스트리 접근](https://docs.cloud.google.com/artifact-registry/docs/gke-private-clusters)
+
+##### 9-1. 변수 선언 및 기존 구성 확인
+
+```bash
+# 수행 위치: infra-son01 또는 Cloud Shell | 수행 계정: admin@sonmap.net
+export VPC_ADMIN_ACCOUNT="admin@sonmap.net"
+export HOST="gcp-prod-edp-hub-vpchost"
+export NETWORK="vpc-prod-edp-hub"
+export REGION="asia-northeast3"
+export PGA_IPS="199.36.153.4,199.36.153.5,199.36.153.6,199.36.153.7"
+
+gcloud compute networks subnets describe subnet-prod-sbx-gke-01 \
+  --project="$HOST" --region="$REGION" --account="$VPC_ADMIN_ACCOUNT" \
+  --format='yaml(name,ipCidrRange,privateIpGoogleAccess)'
+
+gcloud compute routes list --project="$HOST" --account="$VPC_ADMIN_ACCOUNT" \
+  --filter="network:$NETWORK" --format='table(name,destRange,priority,nextHopGateway)'
+
+gcloud dns managed-zones list --project="$HOST" --account="$VPC_ADMIN_ACCOUNT"
+```
+
+##### 9-2. 노드 서브넷 PGA 활성화
+
+`privateIpGoogleAccess: false`일 때 실행합니다.
+
+```bash
+# 수행 위치: infra-son01 또는 Cloud Shell | 수행 계정: admin@sonmap.net
+gcloud compute networks subnets update subnet-prod-sbx-gke-01 \
+  --project="$HOST" --region="$REGION" --account="$VPC_ADMIN_ACCOUNT" \
+  --enable-private-ip-google-access
+```
+
+##### 9-3. Restricted VIP 라우트 생성
+
+`199.36.153.4/30`으로 가는 유효 경로의 다음 홉이 이미 `default-internet-gateway`라면 재사용합니다. 해당 경로가 없으면 아래 명령을 실행합니다. 적용되는 이그레스 방화벽 정책에서 VIP 대역의 TCP 443 허용 여부도 확인합니다.
+
+```bash
+# 수행 위치: infra-son01 또는 Cloud Shell | 수행 계정: admin@sonmap.net
+gcloud compute routes create rt-prod-edp-restricted-googleapis \
+  --project="$HOST" --network="$NETWORK" --account="$VPC_ADMIN_ACCOUNT" \
+  --destination-range=199.36.153.4/30 \
+  --next-hop-gateway=default-internet-gateway --priority=1000
+```
+
+##### 9-4. Private DNS 영역 생성
+
+해당 도메인의 기존 영역이 없을 때만 해당 명령을 실행합니다. 기존 영역이 있으면 운영팀이 관리하는 영역과 레코드를 확인합니다.
+
+```bash
+# 수행 위치: infra-son01 또는 Cloud Shell | 수행 계정: admin@sonmap.net
+gcloud dns managed-zones create zone-googleapis-com --dns-name=googleapis.com. \
+  --visibility=private --networks="$NETWORK" --description="Restricted Google APIs" \
+  --project="$HOST" --account="$VPC_ADMIN_ACCOUNT"
+
+gcloud dns managed-zones create zone-gcr-io --dns-name=gcr.io. \
+  --visibility=private --networks="$NETWORK" --description="Restricted Google Registry" \
+  --project="$HOST" --account="$VPC_ADMIN_ACCOUNT"
+
+gcloud dns managed-zones create zone-pkg-dev --dns-name=pkg.dev. \
+  --visibility=private --networks="$NETWORK" --description="Restricted Artifact Registry" \
+  --project="$HOST" --account="$VPC_ADMIN_ACCOUNT"
+```
+
+##### 9-5. Restricted VIP DNS 레코드 등록
+
+`gcloud dns record-sets list --zone=영역이름 --project="$HOST" --account="$VPC_ADMIN_ACCOUNT"`로 기존 레코드를 확인합니다. 누락된 레코드만 생성하며, 기존 레코드의 대상이 다르면 운영팀에서 영향 범위를 확인합니다.
+
+```bash
+# 수행 위치: infra-son01 또는 Cloud Shell | 수행 계정: admin@sonmap.net
+gcloud dns record-sets create restricted.googleapis.com. --zone=zone-googleapis-com \
+  --type=A --ttl=300 --rrdatas="$PGA_IPS" --project="$HOST" --account="$VPC_ADMIN_ACCOUNT"
+gcloud dns record-sets create "*.googleapis.com." --zone=zone-googleapis-com \
+  --type=CNAME --ttl=300 --rrdatas=restricted.googleapis.com. --project="$HOST" --account="$VPC_ADMIN_ACCOUNT"
+
+gcloud dns record-sets create gcr.io. --zone=zone-gcr-io \
+  --type=A --ttl=300 --rrdatas="$PGA_IPS" --project="$HOST" --account="$VPC_ADMIN_ACCOUNT"
+gcloud dns record-sets create "*.gcr.io." --zone=zone-gcr-io \
+  --type=CNAME --ttl=300 --rrdatas=gcr.io. --project="$HOST" --account="$VPC_ADMIN_ACCOUNT"
+
+gcloud dns record-sets create pkg.dev. --zone=zone-pkg-dev \
+  --type=A --ttl=300 --rrdatas="$PGA_IPS" --project="$HOST" --account="$VPC_ADMIN_ACCOUNT"
+gcloud dns record-sets create "*.pkg.dev." --zone=zone-pkg-dev \
+  --type=CNAME --ttl=300 --rrdatas=pkg.dev. --project="$HOST" --account="$VPC_ADMIN_ACCOUNT"
+```
+
+##### 9-6. 적용 확인
+
+같은 Shared VPC의 관리 VM에서 DNS 응답이 `199.36.153.4/30`인지 확인합니다. 이후 GKE 노드의 `Ready`와 JupyterHub Pod 상태를 확인합니다. 관리 VM DNS 확인은 노드의 통신 성공까지 보장하지 않으므로, 여전히 타임아웃이 발생하면 GKE 노드의 이그레스 정책과 유효 경로를 확인합니다.
+
+```bash
+# 수행 위치: infra-son01 | 수행 계정: son@sonmap.net
+dig +short asia-northeast3-artifactregistry.gcr.io
+dig +short asia-northeast3-docker.pkg.dev
+
+export KUBECONFIG="$HOME/.kube/config-sbx-dns"
+export CLOUDSDK_CORE_ACCOUNT="son@sonmap.net"
+kubectl get nodes
+kubectl -n sbx03-smoke get pods -o wide
+```
+
 ## 2-3. Sandbox 프로젝트 관리자 실행 명령
 
 `gcp-sbx-edp-gke01` 관리자는 1절의 프로젝트 API 활성화와 서비스 에이전트 준비를 수행합니다. 운영팀에 요청하기 전에 아래 명령으로 서비스 프로젝트 번호와 연결된 호스트를 확인합니다.
