@@ -21,6 +21,7 @@
 | 기존 Workflows 경로 | [OAuth 설정](#4-oauth-값-등록), [그룹 권한](reference/cloud-identity-group-terraform.md), [Private Pool 점검](reference/cloudbuild-private-gke-vpn-design.md), [플랫폼 릴리스](#5-플랫폼-릴리스-게시) |
 | 이미지 준비 | [Helm 차트와 기본 이미지](#6-chart와-기본-이미지-미러링) → [표준 Notebook 이미지](#7-notebook-표준-이미지-빌드) |
 | 접속 검증 | [관리 VM에서 GKE 접속](#gke와-내부-https-접속-확인), [내부 HTTPS·DNS](reference/sbx03-https-certificate-runbook.md) |
+| 수동 설치 | [JupyterHub 수동 설치 및 접속 확인](#8-jupyterhub-수동-설치-및-접속-확인) |
 | 과제 배포 | [그룹 공유 Sandbox 자동 배포](../03.sandbox_deploy/README.md#그룹-공유-sandbox-자동-배포) 또는 [기존 Workflows 배포](../03.sandbox_deploy/03.1.request/legacy-deploy.md) |
 
 그룹 공유 PoC만 구성하는 환경에서 공통 자원을 준비할 때는 기존 자동 배포용 Cloud Run·Workflows와 Google OAuth 구간을 구분해 적용합니다. 기존 환경에서는 자원 조회 결과를 확인한 뒤 필요한 생성·갱신 명령만 실행합니다.
@@ -1704,6 +1705,76 @@ kubectl get pods -A
 서버 주소가 `https://…gke.goog`로 표시되고 목록 조회가 성공하면 같은 터미널에서 `kubectl`과 `helm`을 실행합니다. 새 터미널에서는 두 `export` 명령을 다시 실행합니다.
 
 기존 Workflows 경로에서 Private Pool 사용이 확정되면 [Private Pool 접속 점검](reference/cloudbuild-private-gke-vpn-design.md)도 실행합니다. DNS·인증서 담당자와 [내부 HTTPS 연결](reference/sbx03-https-certificate-runbook.md)을 확인한 뒤 [2차 Sandbox 구축](../03.sandbox_deploy/README.md)로 진행합니다.
+
+## 8. JupyterHub 수동 설치 및 접속 확인
+
+**수행 위치** · `infra-son01`의 Test02 저장소 루트  
+**수행 계정** · `son@sonmap.net`으로 GKE와 Artifact Registry에 접속
+
+이 절은 관리 VM에서 직접 Helm으로 설치하는 경로입니다. Private Pool과 5절 플랫폼 릴리스 게시는 보류한 상태에서 진행할 수 있습니다.
+
+### 8-1. GKE DNS 접속 확인
+
+```bash
+export KUBECONFIG="$HOME/.kube/config-sbx-dns"
+export CLOUDSDK_CORE_ACCOUNT="son@sonmap.net"
+
+kubectl config view --minify -o jsonpath='{.clusters[0].cluster.server}{"\n"}'
+kubectl get pods -A
+```
+
+서버 주소가 `gke.goog`이고 Pod 목록이 조회되면 진행합니다. kubeconfig 파일이 아직 없으면 [GKE와 내부 HTTPS 접속 확인](#gke와-내부-https-접속-확인)에서 생성합니다.
+
+### 8-2. 내부 AR 차트와 이미지 확인
+
+```bash
+export AR_REPO="asia-northeast3-docker.pkg.dev/gcp-sbx-edp-gke01/ar-sbxtest01-platform"
+export CHART_URI="oci://${AR_REPO}/jupyterhub"
+export CHART_VERSION="4.2.0"
+
+helm show chart "$CHART_URI" --version "$CHART_VERSION"
+
+gcloud artifacts docker images list "$AR_REPO" \
+  --include-tags --account=son@sonmap.net
+```
+
+| 대상 | 확인할 버전 또는 태그 |
+|---|---|
+| Helm 차트 | `jupyterhub` · `4.2.0` |
+| Hub 이미지 | `jupyterhub-k8s-hub:4.2.0` |
+| Proxy 이미지 | `jupyterhub-configurable-http-proxy:4.6.3` |
+| 표준 Notebook 이미지 | `jupyterhub-k8s-singleuser-standard:4.2.0-r2-home` 또는 승인된 이미지 |
+
+차트가 없거나 Helm 인증이 만료됐으면 [6절 Helm 차트 수동 반입](#infra-son01에서-helm-차트-수동-반입)을 확인합니다. 표준 Notebook 이미지가 없으면 [7절](#7-notebook-표준-이미지-빌드)에서 빌드합니다.
+
+### 8-3. 배포 값 확인 및 Helm 설치
+
+아래의 `sbx03`은 예시입니다. 실제 과제의 Namespace와 릴리스 이름을 지정합니다. `VALUES_FILE`에는 **해당 과제용 배포 values 파일의 실제 경로**를 넣습니다. 배포 전에 Hub·Proxy·Notebook과 활성화된 보조 컨테이너의 이미지가 접근 가능한 저장소를 가리키는지 확인합니다. Google 로그인을 시험할 경우 승인된 인증 설정과 실제 접속 호스트의 OAuth 콜백을 준비합니다.
+
+```bash
+export NAMESPACE="sbx03"
+export RELEASE="sbx03"
+export VALUES_FILE="/실제/경로/values.yaml"
+
+ls -l "$VALUES_FILE"
+helm list -n "$NAMESPACE"
+```
+
+파일과 대상 릴리스를 확인한 뒤 아래 명령을 실행합니다. 같은 이름의 릴리스가 있으면 설정을 갱신합니다.
+
+```bash
+helm upgrade --install "$RELEASE" "$CHART_URI" \
+  --version "$CHART_VERSION" --namespace "$NAMESPACE" --create-namespace \
+  --values "$VALUES_FILE" --wait --timeout 15m
+
+kubectl -n "$NAMESPACE" get pods,svc
+```
+
+### 8-4. 내부 HTTPS 및 로그인 확인
+
+1. Hub와 Proxy Pod가 준비됐는지 확인합니다.
+2. 내부 ALB의 URL Map이 과제 호스트를 올바른 백엔드로 전달하고, 백엔드가 `HEALTHY`인지 확인합니다. Helm 설치 후 과제 경로가 아직 없다면 NEG와 ALB 연결을 먼저 구성합니다. [내부 HTTPS와 인증서](reference/sbx03-https-certificate-runbook.md)
+3. 테스트 PC에서 내부 DNS와 HTTPS 접속을 확인합니다. Google 로그인 후 Notebook 서버를 한 번 시작하고 `kubectl -n "$NAMESPACE" get pods,pvc`로 사용자 Pod와 PVC를 확인합니다. [Google OAuth 검증](reference/sbx03-google-oauth-runbook.md)
 
 ## 부록. 기존 Host 광역 IAM 정리
 
