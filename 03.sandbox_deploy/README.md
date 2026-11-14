@@ -4,7 +4,110 @@
 
 ## sbx03 승인 JSON 직접 작성
 
-포털에서 요청을 게시할 수 없으면 `infra-son01`에서 [운영자용 sbx03 승인 JSON 작성 및 게시](03.1.request/legacy-deploy.md#0-운영자가-sbx03-승인-json-작성-및-게시)를 따릅니다. **릴리스 조회 → JSON 작성 → GCS 게시 → 승인 요청 검증** 순서입니다. 기존 과제별 Workflow 실행은 Private Pool 준비 후 진행합니다.
+포털에서 요청을 게시할 수 없을 때 아래 순서대로 진행합니다.
+
+**수행 위치** · `infra-son01`의 Test02 저장소 루트  
+**수행 계정** · `son@sonmap.net`
+
+1. [릴리스 조회](#1-게시된-릴리스-조회)
+2. [요청 JSON 생성](#2-요청-json-생성)
+3. [GCS 게시](#3-승인-요청-게시)
+4. [게시 결과와 Workflow 입력 검증](#4-게시-결과와-workflow-입력-검증)
+
+### 1. 게시된 릴리스 조회
+
+```bash
+gcloud storage ls \
+  'gs://gcp-sbx-edp-gke01-sbxtest01-bundles/platform-releases/*/release.json' \
+  --account=son@sonmap.net
+```
+
+목록에서 이번 시험에 사용할 릴리스 ID를 확인합니다. 릴리스가 없으면 [1차 작업서 5절](../02.infra-setup/infra-setup-commend.md#5-플랫폼-릴리스-게시)에서 먼저 게시합니다.
+
+### 2. 요청 JSON 생성
+
+아래 값을 실제 승인 정보와 릴리스 ID로 바꿉니다. 신규 프로젝트 생성 예시입니다. 프로젝트가 이미 있으면 기존 프로젝트와 Terraform 상태를 확인해 [요청 작성 규칙](03.1.request/request-format/README.md)에 따라 재사용 설정을 결정합니다.
+
+```bash
+export RELEASE_ID="실제-릴리스-ID"
+export REQUEST_ID="REQ-20261114-SBX03-001"
+export APPROVAL_ID="실제-내부-승인번호"
+export APPROVED_AT="실제-승인시각-ISO8601"
+export EXPIRES_ON="실제-종료일-YYYY-MM-DD"
+export MEMBER1="user01@sonmap.net"
+export MEMBER2="user02@sonmap.net"
+
+mkdir -p .local
+gcloud storage cp \
+  "gs://gcp-sbx-edp-gke01-sbxtest01-bundles/platform-releases/${RELEASE_ID}/release.json" \
+  .local/sbx03-release.json --account=son@sonmap.net &&
+jq -ne --slurpfile release .local/sbx03-release.json '
+  {
+    schema_version: "1.0",
+    action: "CREATE",
+    request_id: env.REQUEST_ID,
+    approval: {status: "APPROVED", approval_id: env.APPROVAL_ID, approved_at: env.APPROVED_AT},
+    task: {name: "sbx03", display_name: "Sandbox sbx03", expires_on: env.EXPIRES_ON},
+    identity: {
+      group_email: "pgrp-gcp-dev-sbx03@sonmap.net",
+      members: [env.MEMBER1, env.MEMBER2],
+      create_jupyter_gsa: true
+    },
+    project: {
+      create_project: true, project_id: "gcp-sbx-edp-sbx03",
+      project_name: "Sandbox sbx03", billing_account: "019BE7-53DD39-AF5098",
+      org_id: "51654893849"
+    },
+    network: {
+      required: false, host_project_id: "gcp-prod-edp-hub-vpchost",
+      network_name: "vpc-prod-edp-hub", region: "asia-northeast3", shared_vpc_join: false
+    },
+    data: {bigquery_dataset: "sbx03_main", gcs_bucket: "gcp-sbx-edp-sbx03-sbx03-data"},
+    gke: {
+      project_id: "gcp-sbx-edp-gke01", cluster_name: "gke-sbx-main-an3",
+      location: "asia-northeast3", namespace: "sbx03", jupyter_domain: "jupyter-sbx03.sonmap.net"
+    },
+    source: ($release[0] | {release_id, archive_uri, generation, sha256})
+  }
+' > ".local/${REQUEST_ID}.json"
+```
+
+데이터레이크 조회 권한이 필요한 경우 승인 범위와 관리자 위임을 확인한 뒤 `data.datalake_datasets`에 추가합니다.
+
+### 3. 승인 요청 게시
+
+`jq . ".local/${REQUEST_ID}.json"`으로 승인 정보, 사용자, 프로젝트와 릴리스 메타데이터를 확인한 뒤 게시합니다.
+
+```bash
+gcloud storage cp --if-generation-match=0 \
+  ".local/${REQUEST_ID}.json" \
+  "gs://gcp-sbx-edp-gke01-sbxtest01-requests/approved/${REQUEST_ID}/request.json" \
+  --account=son@sonmap.net
+```
+
+### 4. 게시 결과와 Workflow 입력 검증
+
+2번에서 지정한 `REQUEST_ID`를 유지한 채, 같은 터미널에서 실행합니다.
+
+```bash
+REQUEST_URI="gs://gcp-sbx-edp-gke01-sbxtest01-requests/approved/${REQUEST_ID}/request.json"
+mkdir -p .local &&
+  rm -f .local/sbx03-workflow-input.json &&
+  REQUEST_GENERATION="$(gcloud storage objects describe "$REQUEST_URI" --account=son@sonmap.net --format='value(generation)')" &&
+  gcloud storage cp "${REQUEST_URI}#${REQUEST_GENERATION}" .local/sbx03-request.json --account=son@sonmap.net &&
+  jq -e --arg id "$REQUEST_ID" '
+    .request_id == $id and .approval.status == "APPROVED"
+    and .task.name == "sbx03"
+    and .project.project_id == "gcp-sbx-edp-sbx03"
+    and .gke.project_id == "gcp-sbx-edp-gke01"
+  ' .local/sbx03-request.json &&
+  REQUEST_SHA256="$(sha256sum .local/sbx03-request.json | cut -d ' ' -f1)" &&
+  jq -n --arg id "$REQUEST_ID" --arg uri "$REQUEST_URI" --arg gen "$REQUEST_GENERATION" --arg sha "$REQUEST_SHA256" \
+    '{request_id:$id,approved_json_uri:$uri,generation:($gen|tonumber),sha256:$sha}' \
+    > .local/sbx03-workflow-input.json
+```
+
+`true`가 출력되고 `.local/sbx03-workflow-input.json`이 생성되면 검증이 완료됩니다. Private Pool을 보류 중이면 여기까지 진행합니다. Pool 준비 후 [Workflow 실행 및 결과 확인](03.1.request/legacy-deploy.md#2-배포-시작)으로 이동합니다.
 
 | 폴더 | 용도 |
 |---|---|
