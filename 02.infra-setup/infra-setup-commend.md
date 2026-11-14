@@ -338,12 +338,29 @@ gcloud resource-manager folders add-iam-policy-binding "${FOLDER_ID}" \
 
 ### 🔴 **10.** GCP 서비스 에이전트 권한 — Shared VPC 사용
 
-```bash
-# 실행 위치 infra-son01 | 대상 ${VPC_HOST_PROJECT} | 계정 ${VPC_ADMIN_ACCOUNT}
-gcloud projects add-iam-policy-binding "${VPC_HOST_PROJECT}" \
-  --member="serviceAccount:service-${SBX_GKE_PROJECT_NUMBER}@container-engine-robot.iam.gserviceaccount.com" \
-  --role=roles/container.hostServiceAgentUser --condition=None --account="${VPC_ADMIN_ACCOUNT}"
+2번에서 GKE 서비스 프로젝트의 서비스 에이전트를 준비한 뒤 실행합니다. 새 Cloud Shell에서도 아래 블록을 한 번에 실행할 수 있습니다. 프로젝트 번호 조회 권한이 있는 계정으로 조회하고, Shared VPC 호스트 관리자 계정으로 권한을 부여합니다.
 
+```bash
+# 실행 위치 infra-son01 또는 Cloud Shell
+(
+  SBX_GKE_PROJECT="${SBX_GKE_PROJECT:-gcp-sbx-edp-gke01}"
+  VPC_HOST_PROJECT="${VPC_HOST_PROJECT:-gcp-prod-edp-hub-vpchost}"
+  VPC_ADMIN_ACCOUNT="${VPC_ADMIN_ACCOUNT:-admin@sonmap.net}"
+  ADMIN_ACCOUNT="${ADMIN_ACCOUNT:-son@sonmap.net}"
+
+  # 대상 GKE 서비스 프로젝트 | 계정 ${ADMIN_ACCOUNT}
+  SBX_GKE_PROJECT_NUMBER="$(gcloud projects describe "${SBX_GKE_PROJECT}" \
+    --account="${ADMIN_ACCOUNT}" --format='value(projectNumber)')" || exit 1
+  if [[ ! "${SBX_GKE_PROJECT_NUMBER}" =~ ^[0-9]+$ ]]; then
+    echo "GKE 프로젝트 번호를 확인할 수 없습니다: ${SBX_GKE_PROJECT}" >&2
+    exit 1
+  fi
+
+  # 대상 Shared VPC 호스트 프로젝트 | 계정 ${VPC_ADMIN_ACCOUNT}
+  gcloud projects add-iam-policy-binding "${VPC_HOST_PROJECT}" \
+    --member="serviceAccount:service-${SBX_GKE_PROJECT_NUMBER}@container-engine-robot.iam.gserviceaccount.com" \
+    --role=roles/container.hostServiceAgentUser --condition=None --account="${VPC_ADMIN_ACCOUNT}"
+)
 ```
 
 ### 🔴 **11.** GKE 노드 기본 계정 권한 — 노드 실행 · tf-manager의 계정 사용
