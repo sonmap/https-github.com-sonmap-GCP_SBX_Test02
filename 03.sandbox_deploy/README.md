@@ -286,7 +286,7 @@ export EXPIRES_ON='실제-종료일'
 
 **1-2. 요청 JSON 생성**
 
-같은 터미널에서 실행하세요. `승인 번호, 승인 시각, 종료일을 입력하세요`가 나오면 1-1의 값을 확인한 뒤 1-2를 다시 실행합니다. 성공하면 `sbx04` 요청 내용이 출력됩니다.
+같은 터미널에서 실행하세요. `APPROVAL_ID`, `APPROVED_AT`, `EXPIRES_ON` 중 하나가 오류에 표시되면 1-1에서 해당 값을 수정한 뒤 1-2를 다시 실행합니다. 성공하면 `sbx04` 요청 내용이 출력됩니다.
 
 ```bash
 PREVIOUS_URI='gs://gcp-sbx-edp-gke01-sbxtest01-requests/approved/REQ-20261114-SBX03-001/request.json'
@@ -297,10 +297,12 @@ gcloud storage cat "$PREVIOUS_URI" --account=son@sonmap.net > .local/sbx03-previ
 jq -e '
   if .task.name != "sbx03" or .approval.status != "APPROVED" or .network.required then
     error("sbx03 원본과 과제별 네트워크 설정을 확인하세요.")
-  elif ((env.APPROVAL_ID // "") | test("^[^[:space:]].{2,127}$") and . != "실제-승인번호" and (startswith("EXAMPLE-") | not) | not)
-    or ((env.APPROVED_AT // "") | test("^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?(Z|[+-][0-9]{2}:[0-9]{2})$") | not)
-    or ((env.EXPIRES_ON // "") | test("^[0-9]{4}-[0-9]{2}-[0-9]{2}$") | not) then
-    error("sbx04 승인 번호, 승인 시각, 종료일을 입력하세요.")
+  elif ((env.APPROVAL_ID // "") | test("^[^[:space:]].{2,127}$") and . != "실제-승인번호" and (startswith("EXAMPLE-") | not) | not) then
+    error("APPROVAL_ID에 실제 sbx04 승인 번호를 입력하세요. EXAMPLE- 값은 예시입니다.")
+  elif ((env.APPROVED_AT // "") | test("^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?(Z|[+-][0-9]{2}:[0-9]{2})$") | not) then
+    error("APPROVED_AT에 sbx04 승인 시각을 시간대까지 입력하세요.")
+  elif ((env.EXPIRES_ON // "") | test("^[0-9]{4}-[0-9]{2}-[0-9]{2}$") | not) then
+    error("EXPIRES_ON에 sbx04 종료일을 YYYY-MM-DD 형식으로 입력하세요.")
   else
     .request_id = env.REQUEST_ID
     | .approval.approval_id = env.APPROVAL_ID
