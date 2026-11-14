@@ -482,6 +482,8 @@ gcloud compute networks subnets list --project="$HOST" --account="$VPC_ADMIN_ACC
 
 #### GKE 서브넷 생성에 필요한 값
 
+신규 생성 대상은 **GKE 서브넷**, **내부 ALB VIP 서브넷**, **내부 ALB 프록시 전용 서브넷**입니다. 각 서브넷은 기존 구성을 먼저 조회한 뒤 필요한 경우에만 생성합니다.
+
 | 항목 | 변수 | 설정값 |
 |---|---|---|
 | 작업 계정 | `VPC_ADMIN_ACCOUNT` | `admin@sonmap.net` |
@@ -492,6 +494,11 @@ gcloud compute networks subnets list --project="$HOST" --account="$VPC_ADMIN_ACC
 | Primary CIDR (노드 IP 대역) | `NODE_CIDR` | `10.252.0.0/24` |
 | Secondary 범위 이름 (Pod) | `POD_RANGE` | `subnet-prod-sbx-pod-01` |
 | Secondary CIDR (Pod IP 대역) | `POD_CIDR` | `100.64.128.0/19` |
+| 내부 ALB VIP 서브넷 이름 | `VIP_SUBNET` | `subnet-prod-edp-alb-frontend-an3` |
+| 내부 ALB VIP 서브넷 CIDR | `VIP_CIDR` | `172.31.96.0/27` |
+| 내부 ALB 프록시 전용 서브넷 이름 | `PROXY_SUBNET` | `subnet-prod-sbx-ilb-proxy` |
+| 내부 ALB 프록시 전용 서브넷 CIDR | `PROXY_CIDR` | `172.31.111.64/26` |
+| 프록시 전용 서브넷 용도 및 역할 | `--purpose`, `--role` | `REGIONAL_MANAGED_PROXY`, `ACTIVE` |
 | GKE 컨트롤 플레인 사설 엔드포인트 대역 | `MAIN_CP_CIDR` | `10.253.3.0/28` · 운영팀 중복 확인 후 사용 |
 
 기존 서브넷이 있으면 먼저 3번의 조회 명령으로 표의 Primary CIDR과 Pod 보조 범위를 비교합니다. Pod 보조 범위 이름과 CIDR이 모두 일치하면 2번의 추가 명령을 건너뜁니다.
