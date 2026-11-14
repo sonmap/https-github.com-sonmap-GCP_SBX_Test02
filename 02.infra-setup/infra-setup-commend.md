@@ -29,7 +29,7 @@
 
 | 파일 | 사용 시점 |
 |---|---|
-| [bootstrap-build.yaml](../03.sandbox_deploy/03.3.gke/cloudbuild/bootstrap-build.yaml) | 공통 기반을 처음 만들 때 요청 API와 배포 Runner의 `:bootstrap` 이미지를 게시합니다. |
+| [bootstrap-build.yaml](../03.sandbox_deploy/03.3.gke/cloudbuild/bootstrap-build.yaml) | 19-2 자동 경로에서 요청 API와 배포 Runner의 `:bootstrap` 이미지를 게시합니다. |
 | [mirror-jupyterhub-images.yaml](../03.sandbox_deploy/03.3.gke/cloudbuild/mirror-jupyterhub-images.yaml) | Hub·Proxy·Notebook 베이스 이미지가 내부 AR에 없거나 버전을 올릴 때 사용합니다. |
 | [platform-release.yaml](../03.sandbox_deploy/03.3.gke/cloudbuild/platform-release.yaml) | 승인된 플랫폼 버전을 게시할 때 API·Runner 이미지를 만들고 Cloud Run을 갱신합니다. |
 | [publish-sandbox-source.sh](../03.sandbox_deploy/03.3.gke/cloudbuild/publish-sandbox-source.sh) | 플랫폼 릴리스가 자동 호출해 Terraform ZIP을 GCS에 게시합니다. |
@@ -1055,7 +1055,53 @@ gcloud container clusters create-auto "${MAIN_CLUSTER}" --project="${SBX_GKE_PRO
 
 ```
 
-### 🔴 **19.** builds submit .
+### 🔴 **19.** Bootstrap 이미지 빌드 및 AR 게시
+
+**19-1 수동 작업** 또는 **19-2 자동 작업** 중 하나를 선택합니다. 이번 구축은 **19-1 수동 작업**으로 진행합니다. 두 경로 모두 같은 `:bootstrap` 이미지 2개를 게시한 뒤 20번으로 진행합니다.
+
+#### 19-1. 수동 작업 · infra-son01에서 Helm 차트 반입 및 이미지 빌드
+
+**1. Helm 차트 반입** · [6절의 Helm 차트 수동 반입](#infra-son01에서-helm-차트-수동-반입) 명령을 먼저 실행합니다. `infra-son01`에서 `son@sonmap.net`으로 AR에 로그인하고, 공식 저장소에서 JupyterHub `4.2.0`을 내려받아 `helm push`로 게시합니다. `helm show chart`에서 이미 확인되는 버전은 재사용합니다.
+
+**2. AR 로그인 및 이미지 빌드** · `infra-son01`의 Test02 저장소 루트에서 실행합니다. Docker가 설치되어 있고, `son@sonmap.net`에 AR 업로드 권한이 있어야 합니다.
+
+```bash
+# 수행 위치: infra-son01, Test02 저장소 루트 | 수행 계정: son@sonmap.net (AR 인증)
+export AR_ACCOUNT="son@sonmap.net"
+export AR_HOST="asia-northeast3-docker.pkg.dev"
+export AR_REPO="${AR_HOST}/gcp-sbx-edp-gke01/ar-sbxtest01-platform"
+
+gcloud auth print-access-token --account="$AR_ACCOUNT" |
+  docker login "$AR_HOST" --username oauth2accesstoken --password-stdin
+```
+
+로그인이 성공하면 두 이미지를 빌드합니다.
+
+```bash
+# 수행 위치: infra-son01, Test02 저장소 루트 | 수행 계정: VM 로그인 사용자
+docker build -f 03.sandbox_deploy/03.3.gke/Dockerfile \
+  -t "${AR_REPO}/sbxtest01-automation-runner:bootstrap" .
+
+docker build -t "${AR_REPO}/run-sbxtest01-provisioner:bootstrap" \
+  03.sandbox_deploy/03.1.request
+```
+
+**3. 이미지 업로드 및 확인** · 두 빌드가 성공하면 같은 터미널에서 실행합니다.
+
+```bash
+# 수행 위치: infra-son01 | 수행 계정: son@sonmap.net (AR 인증)
+docker push "${AR_REPO}/sbxtest01-automation-runner:bootstrap"
+docker push "${AR_REPO}/run-sbxtest01-provisioner:bootstrap"
+
+gcloud artifacts docker images list "$AR_REPO" \
+  --include-tags --account="$AR_ACCOUNT"
+```
+
+두 이미지에 `bootstrap` 태그가 표시되면 20번으로 진행합니다. 6절로 돌아왔을 때 차트 버전이 이미 확인되면 차트 업로드를 건너뜁니다.
+
+#### 19-2. 자동 작업 · Cloud Build로 bootstrap 이미지 빌드 및 게시
+
+`infra-son01`의 Test02 저장소 루트에서 기존 Cloud Build 명령을 실행합니다. 이 명령은 bootstrap 이미지 2개를 게시합니다. JupyterHub Helm 차트는 [6절의 수동 반입](#infra-son01에서-helm-차트-수동-반입)으로 준비합니다. 빌드가 `SUCCESS`이고 두 이미지의 `bootstrap` 태그가 확인되면 20번으로 진행합니다.
 
 ```bash
 # 실행 위치 infra-son01 | 대상 ${SBX_GKE_PROJECT} | 계정 ${ADMIN_ACCOUNT} | 가장 ${TF_MANAGER} | 워크로드 실행 ${TF_MANAGER}
