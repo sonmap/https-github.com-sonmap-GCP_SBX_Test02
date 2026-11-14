@@ -2,17 +2,37 @@
 
 [1차 인프라 구축](../02.infra-setup/infra-setup-commend.md)을 완료한 후 진행합니다.
 
-## sbx03 승인 JSON 직접 작성
+## sbx03 2차 배포 따라 하기
 
-포털에서 요청을 게시할 수 없을 때 아래 순서대로 진행합니다.
+포털 대신 운영자가 승인 JSON을 작성하는 경우, 아래 순서대로 실제 과제 배포와 검증을 진행합니다.
 
 **수행 위치** · `infra-son01`의 Test02 저장소 루트  
 **수행 계정** · `son@sonmap.net`
 
+0. [실행 환경 확인](#0-실행-환경과-준비-상태-확인)
 1. [릴리스 조회](#1-게시된-릴리스-조회)
 2. [요청 JSON 생성](#2-요청-json-생성)
 3. [GCS 게시](#3-승인-요청-게시)
 4. [게시 결과와 Workflow 입력 검증](#4-게시-결과와-workflow-입력-검증)
+
+5. [배포 전 확인](#5-workflow-실행-전-private-pool과-서비스-확인)
+6. [Workflow 실행](#6-sbx03-workflow-실행)
+7. [배포 결과 확인](#7-cloud-build-gke-및-alb-확인)
+8. [로그인과 Notebook 검증](#8-내부-https-google-로그인-및-notebook-검증)
+
+### 0. 실행 환경과 준비 상태 확인
+
+`infra-son01`에서 Test02를 내려받은 경로로 이동합니다. 아래 경로는 이번 작업에서 사용한 경로입니다.
+
+```bash
+cd "$HOME/GCP_SBX_Test02-fresh"
+export KUBECONFIG="$HOME/.kube/config-sbx-dns"
+export CLOUDSDK_CORE_ACCOUNT="son@sonmap.net"
+kubectl get nodes
+kubectl get storageclass standard-rwo
+```
+
+GKE 노드가 `Ready`이고 `standard-rwo`가 조회되는지 확인합니다. 1차에서 완료한 `sbx03-smoke`는 기동 확인용입니다. 실제 `sbx03` Namespace와 서비스 계정은 아래 Workflow가 준비합니다. 신규 프로젝트 생성에 필요한 조직·결제·Workspace 권한은 [sbx03 관리자 준비](../02.infra-setup/reference/sbx03-new-project-runbook.md#1-최초-관리자-준비-수동)에서 확인합니다. 승인 번호·시각·종료일·사용자 이메일을 확보한 뒤 1번으로 진행합니다.
 
 ### 1. 게시된 릴리스 조회
 
@@ -115,7 +135,68 @@ mkdir -p .local &&
     > .local/sbx03-workflow-input.json
 ```
 
-`true`가 출력되고 `.local/sbx03-workflow-input.json`이 생성되면 검증이 완료됩니다. Private Pool을 보류 중이면 여기까지 진행합니다. Pool 준비 후 [Workflow 실행 및 결과 확인](03.1.request/legacy-deploy.md#2-배포-시작)으로 이동합니다.
+`true`가 출력되고 `.local/sbx03-workflow-input.json`이 생성되면 검증이 완료됩니다. Private Pool을 보류 중이면 여기까지 진행합니다. Pool이 준비되면 5번으로 진행합니다.
+
+### 5. Workflow 실행 전 Private Pool과 서비스 확인
+
+1~4번은 요청 준비입니다. 5번부터는 실제 리소스를 배포하는 기존 과제별 자동화 경로입니다. **Private Pool을 보류 중이면 4번에서 멈춥니다.**
+
+```bash
+gcloud builds worker-pools describe pool-sbxtest01 \
+  --project=gcp-sbx-edp-gke01 --region=asia-northeast3 \
+  --account=son@sonmap.net --format='value(state)'
+
+gcloud workflows describe workflow-sbxtest01-provision \
+  --project=gcp-sbx-edp-gke01 --location=asia-northeast3 \
+  --account=son@sonmap.net --format='value(state)'
+
+gcloud run services describe run-sbxtest01-provisioner \
+  --project=gcp-sbx-edp-gke01 --region=asia-northeast3 \
+  --account=son@sonmap.net --format='value(status.url)'
+```
+
+Pool 상태가 `RUNNING`, Workflow 상태가 `ACTIVE`이고 Cloud Run URL이 조회되는지 확인합니다. Pool이 준비되면 [Private Pool의 GKE 접속 점검](../02.infra-setup/reference/cloudbuild-private-gke-vpn-design.md)을 수행합니다.
+
+### 6. sbx03 Workflow 실행
+
+검증한 입력 파일로 승인된 요청을 제출합니다. 아래 실행으로 과제 프로젝트, 권한, 데이터 자원과 GKE 배포가 시작될 수 있습니다.
+
+```bash
+test -s .local/sbx03-workflow-input.json &&
+  gcloud workflows run workflow-sbxtest01-provision \
+    --project=gcp-sbx-edp-gke01 --location=asia-northeast3 \
+    --account=son@sonmap.net --data="$(cat .local/sbx03-workflow-input.json)"
+```
+
+Workflow의 `SUCCEEDED`와 응답의 `ACCEPTED`를 확인합니다. 이 상태는 배포 접수입니다.
+
+### 7. Cloud Build, GKE 및 ALB 확인
+
+먼저 이번 요청의 실행 시각과 로그를 대조해 상위·하위 빌드가 `SUCCESS`인지 확인합니다.
+
+```bash
+gcloud builds list --project=gcp-sbx-edp-gke01 --region=asia-northeast3 \
+  --account=son@sonmap.net --limit=10 --format='table(id,status,createTime)'
+```
+
+빌드 완료 후 실제 과제 Namespace와 ALB를 확인합니다.
+
+```bash
+helm list -n sbx03
+kubectl -n sbx03 get pods,svc,svcneg,pvc
+gcloud compute backend-services get-health bes-jupyter-sbx03 \
+  --project=gcp-sbx-edp-gke01 --region=asia-northeast3 --account=son@sonmap.net
+```
+
+Hub와 Proxy가 `1/1 Running`이고 이번 배포에서 생성된 NEG의 엔드포인트가 `HEALTHY`이면 8번으로 진행합니다. 빌드가 실패하거나 대기하면 [sbx03 배포 결과 확인](03.1.request/legacy-deploy.md#3-배포-결과와-접속-확인)을 따릅니다.
+
+### 8. 내부 HTTPS, Google 로그인 및 Notebook 검증
+
+1. 사내 테스트 PC에서 [sbx03 JupyterHub](https://jupyter-sbx03.sonmap.net/hub/login)에 접속합니다.
+2. 승인 JSON에 넣은 사용자로 Google 로그인하고 Notebook 서버를 시작합니다.
+3. `infra-son01`에서 `kubectl -n sbx03 get pods,pvc`를 실행합니다. 사용자 Notebook Pod가 `Running`, 해당 PVC가 `Bound`이면 확인 완료입니다.
+
+접속 또는 인증 오류는 [내부 HTTPS와 인증서](../02.infra-setup/reference/sbx03-https-certificate-runbook.md), [Google OAuth 로그인](../02.infra-setup/reference/sbx03-google-oauth-runbook.md)을 확인합니다.
 
 | 폴더 | 용도 |
 |---|---|
