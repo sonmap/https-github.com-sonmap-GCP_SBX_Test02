@@ -664,7 +664,8 @@ gcloud builds log "$BUILD_ID" --project="$SBX_GKE_PROJECT" --region="$REGION" --
 TASK="<승인된 과제 Namespace>"
 KUBE_CONFIG="$HOME/.kube/config-sbx-dns"
 CLOUDSDK_CORE_ACCOUNT="$ADMIN_ACCOUNT" kubectl --kubeconfig="$KUBE_CONFIG" -n "$GROUP" get pods,svc,svcneg
-CLOUDSDK_CORE_ACCOUNT="$ADMIN_ACCOUNT" kubectl --kubeconfig="$KUBE_CONFIG" -n "$TASK" get deployment/notebook,pvc
+CLOUDSDK_CORE_ACCOUNT="$ADMIN_ACCOUNT" kubectl --kubeconfig="$KUBE_CONFIG" -n "$TASK" get deployment notebook
+CLOUDSDK_CORE_ACCOUNT="$ADMIN_ACCOUNT" kubectl --kubeconfig="$KUBE_CONFIG" -n "$TASK" get pvc
 gcloud compute url-maps describe urlmap-alb-sbxtest01-shared --project="$SBX_GKE_PROJECT" --region="$REGION" --account="$ADMIN_ACCOUNT" --impersonate-service-account="$TF_MANAGER" --format='yaml(hostRules,pathMatchers)'
 ```
 
