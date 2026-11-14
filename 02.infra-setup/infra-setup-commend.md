@@ -466,6 +466,7 @@ export NETWORK="vpc-prod-edp-hub"
 export REGION="asia-northeast3"
 export MAIN_SUBNET="subnet-prod-sbx-gke-01"
 export VIP_SUBNET="subnet-prod-edp-alb-frontend-an3"
+export VIP_CIDR="172.31.96.0/27"
 export PROXY_SUBNET="subnet-prod-sbx-ilb-proxy"
 export NODE_CIDR="10.252.0.0/24"
 export POD_RANGE="subnet-prod-sbx-pod-01"
@@ -531,12 +532,33 @@ gcloud compute networks subnets describe "$MAIN_SUBNET" \
 
 Primary `10.252.0.0/24`와 Pod 보조 범위 `subnet-prod-sbx-pod-01` (`100.64.128.0/19`)를 확인합니다. `Range names must be distinct`가 나오면 같은 이름의 보조 범위가 이미 있으므로, 위 조회로 실제 CIDR을 확인한 뒤 다음 단계로 진행합니다.
 
-내부 ALB용 기존 VIP 서브넷을 확인합니다. 같은 VPC·리전에 활성 프록시 전용 서브넷이 있으면 해당 CIDR을 `PROXY_CIDR`에 반영합니다. 활성 서브넷이 없고 대역 승인이 끝났을 때만 생성 명령을 실행합니다.
+#### 4. 내부 ALB VIP 서브넷 확인 및 신규 생성
+
+Shared VPC 운영팀이 프런트엔드 VIP에 사용할 일반 서브넷을 조회합니다.
 
 ```bash
 gcloud compute networks subnets describe "$VIP_SUBNET" --project="$HOST" \
-  --region="$REGION" --account="$VPC_ADMIN_ACCOUNT"
+  --region="$REGION" --account="$VPC_ADMIN_ACCOUNT" \
+  --format='yaml(name,network,ipCidrRange,purpose)'
+```
 
+- **조회 성공** · 같은 VPC와 리전의 일반 서브넷인지 확인하고 운영팀이 승인한 CIDR로 재사용합니다.
+- **`Not Found`** · 이름과 CIDR에 대해 운영팀의 중복 확인 및 승인을 받은 뒤 아래 명령으로 생성합니다.
+- **`403` 또는 기타 조회 오류** · 운영팀 계정과 조회 권한을 확인합니다.
+
+```bash
+gcloud compute networks subnets create "$VIP_SUBNET" \
+  --project="$HOST" --network="$NETWORK" --region="$REGION" \
+  --range="$VIP_CIDR" --account="$VPC_ADMIN_ACCOUNT"
+```
+
+생성 후 위 조회 명령을 다시 실행하여 이름과 CIDR을 확인합니다.
+
+#### 5. 프록시 전용 서브넷 확인 및 신규 생성
+
+같은 VPC·리전에 활성 프록시 전용 서브넷이 있으면 해당 CIDR을 `PROXY_CIDR`에 반영합니다. 활성 서브넷이 없고 대역 승인이 끝났을 때만 아래 명령을 실행합니다.
+
+```bash
 gcloud compute networks subnets create "$PROXY_SUBNET" \
   --project="$HOST" --network="$NETWORK" --region="$REGION" --account="$VPC_ADMIN_ACCOUNT" \
   --range="$PROXY_CIDR" --purpose=REGIONAL_MANAGED_PROXY --role=ACTIVE
