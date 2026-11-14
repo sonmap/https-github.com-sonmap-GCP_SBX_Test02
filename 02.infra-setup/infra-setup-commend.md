@@ -1687,6 +1687,22 @@ KUBECONFIG="$HOME/.kube/config-sbx-dns" gcloud container clusters get-credential
 CLOUDSDK_CORE_ACCOUNT=son@sonmap.net kubectl --kubeconfig="$HOME/.kube/config-sbx-dns" get namespaces
 ```
 
+### DNS 엔드포인트로 kubectl과 Helm 실행
+
+`kubectl get pods -A` 실행 시 `https://10.253.3.2/api`에서 `EOF`가 발생하면 현재 터미널이 사설 IP를 가리키는 kubeconfig를 읽고 있는지 확인합니다. 위에서 만든 DNS용 kubeconfig를 같은 터미널에 지정합니다.
+
+```bash
+# 수행 위치: infra-son01 | 수행 계정: son@sonmap.net | 대상: gke-sbx-main-an3
+export KUBECONFIG="$HOME/.kube/config-sbx-dns"
+export CLOUDSDK_CORE_ACCOUNT="son@sonmap.net"
+
+kubectl config view --minify -o jsonpath='{.clusters[0].cluster.server}{"\n"}'
+kubectl get namespaces
+kubectl get pods -A
+```
+
+서버 주소가 `https://…gke.goog`로 표시되고 목록 조회가 성공하면 같은 터미널에서 `kubectl`과 `helm`을 실행합니다. 새 터미널에서는 두 `export` 명령을 다시 실행합니다.
+
 기존 Workflows 경로에서 Private Pool 사용이 확정되면 [Private Pool 접속 점검](reference/cloudbuild-private-gke-vpn-design.md)도 실행합니다. DNS·인증서 담당자와 [내부 HTTPS 연결](reference/sbx03-https-certificate-runbook.md)을 확인한 뒤 [2차 Sandbox 구축](../03.sandbox_deploy/README.md)로 진행합니다.
 
 ## 부록. 기존 Host 광역 IAM 정리
