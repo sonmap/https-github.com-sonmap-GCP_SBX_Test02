@@ -10,6 +10,11 @@ resource "google_cloud_identity_group" "sandbox" {
   }
   lifecycle {
     prevent_destroy = true
+    # initial_group_config is write-only: the API never returns it, so refresh
+    # clears it from state and the plan reads ""->"WITH_INITIAL_OWNER" as a
+    # ForceNew replacement, which prevent_destroy then blocks. Ignoring it keeps
+    # existing groups (created or imported) stable across runs.
+    ignore_changes = [initial_group_config]
   }
 }
 

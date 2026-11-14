@@ -202,6 +202,9 @@ class ProvisioningTests(unittest.TestCase):
         module=(ROOT/'03.sandbox_deploy/03.2.terraform/deployments/05-group/main.tf').read_text()
         self.assertIn('google_cloud_identity_group_membership',module)
         self.assertIn('prevent_destroy = true',module)
+        # initial_group_config is write-only; without ignore_changes the plan
+        # reads it as a ForceNew replacement and prevent_destroy blocks the run.
+        self.assertIn('ignore_changes = [initial_group_config]',module)
 
     @mock.patch.dict(os.environ,ENV)
     def test_runtime_rejects_host_network_mutations(self):
