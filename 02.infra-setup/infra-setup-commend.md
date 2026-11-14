@@ -2,7 +2,7 @@
 
 관리 VM `infra-son01`의 Test02 저장소 루트에서 작업합니다. Sandbox 프로젝트팀은 플랫폼 프로젝트를 관리합니다. Shared VPC 운영팀은 기존 호스트의 네트워크와 IAM 변경 요청을 처리하고, 필요한 경우 Private Pool 최초 생성을 담당합니다. 각 터미널에서 로그인 계정과 대상 프로젝트를 확인하고 필요한 명령을 한 줄씩 실행합니다.
 
-**이번 구축에서 보류** · Cloud Build Private Pool 필요 여부는 배포를 진행하면서 판단합니다. 그전까지 Pool 생성, Pool 관리 권한 부여, 전용 PSA 예약 및 피어링을 건너뜁니다.
+**Private Pool 적용 시점** · 수동 Helm 설치만 할 때는 Pool 구성을 보류할 수 있습니다. `sbx03` 자동 배포를 실행할 때는 17번에서 Pool을 준비하고 GKE 접속을 확인합니다.
 
 | 범위 | 명령서의 기본값 |
 |---|---|
@@ -1118,25 +1118,39 @@ gcloud secrets add-iam-policy-binding jupyter-oauth-client-secret --project="${S
 
 ```
 
-### 🔴 **17.** Shared VPC 운영팀 작업 · Private Pool 초기 구성 (보류)
+### 🔴 **17.** Shared VPC 운영팀 작업 · Private Pool 초기 구성
 
-이번 구축에서는 이 단계를 건너뛰고 18번으로 진행합니다.
+`sbx03` 자동 배포에 사용할 `pool-sbxtest01`을 준비합니다. **2-2절 8번**에서 `psa-prod-edp-cloudbuild`의 `10.250.0.0/24` 예약과 Service Networking 피어링이 확인됐다면 아래 조회부터 진행합니다.
+
+#### 17-1. 기존 Pool 조회
 
 ```bash
-# Private Pool을 사용하는 경우 Shared VPC 운영팀에 초기 구성을 요청합니다.
-# 아래 명령은 운영팀 작업 계정으로 실행합니다. 이후 GKE·ALB 등은 tf-manager 위임입니다.
-# 기존 자원 확인
-# 실행 위치 infra-son01 | 대상 ${SBX_GKE_PROJECT} | 계정 ${VPC_ADMIN_ACCOUNT}
-gcloud builds worker-pools describe pool-sbxtest01 --project="${SBX_GKE_PROJECT}" --region="${REGION}" \
-  --format=json --account="${VPC_ADMIN_ACCOUNT}"
-# 조회 결과가 명시적 Not Found일 때만 아래 생성 명령을 실행합니다.
-# 실행 위치 infra-son01 | 대상 ${SBX_GKE_PROJECT} | 계정 ${VPC_ADMIN_ACCOUNT} | Shared VPC ${VPC_HOST_PROJECT}
-gcloud builds worker-pools create pool-sbxtest01 --project="${SBX_GKE_PROJECT}" --region="${REGION}" \
-  --worker-machine-type=e2-standard-4 --worker-disk-size=100GB --no-public-egress \
-  --peered-network="projects/${VPC_HOST_PROJECT}/global/networks/${NETWORK}" \
-  --peered-network-ip-range="${PSA_CIDR}" --account="${VPC_ADMIN_ACCOUNT}"
-
+# 수행 위치: Cloud Shell 또는 infra-son01 | 수행 계정: admin@sonmap.net
+gcloud builds worker-pools describe pool-sbxtest01 \
+  --project=gcp-sbx-edp-gke01 --region=asia-northeast3 \
+  --account=admin@sonmap.net --format='value(state)'
 ```
+
+`RUNNING`이면 생성 단계를 건너뛰고 17-3의 접속 점검으로 진행합니다. `NOT_FOUND`이면 17-2를 실행합니다.
+
+#### 17-2. Private Pool 생성
+
+```bash
+# 수행 위치: Cloud Shell 또는 infra-son01 | 수행 계정: admin@sonmap.net
+gcloud builds worker-pools create pool-sbxtest01 \
+  --project=gcp-sbx-edp-gke01 \
+  --region=asia-northeast3 \
+  --worker-machine-type=e2-standard-4 \
+  --worker-disk-size=100GB \
+  --no-public-egress \
+  --peered-network=projects/gcp-prod-edp-hub-vpchost/global/networks/vpc-prod-edp-hub \
+  --peered-network-ip-range=10.250.0.0/24 \
+  --account=admin@sonmap.net
+```
+
+#### 17-3. 상태 및 GKE 접속 확인
+
+17-1을 다시 실행해 `RUNNING`을 확인합니다. 이어서 `infra-son01`에서 [Private Pool의 GKE 접속 점검](reference/cloudbuild-private-gke-vpn-design.md)을 수행합니다. 점검 빌드가 성공하면 [2차 Sandbox의 Workflow 실행 전 확인](../03.sandbox_deploy/README.md#5-workflow-실행-전-private-pool과-서비스-확인)으로 진행합니다.
 
 ### 🔴 **18.** container clusters create-auto gke-sbx-main-an3
 
