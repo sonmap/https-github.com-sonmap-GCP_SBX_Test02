@@ -346,7 +346,7 @@ gcloud resource-manager folders add-iam-policy-binding "${FOLDER_ID}" \
   SBX_GKE_PROJECT="${SBX_GKE_PROJECT:-gcp-sbx-edp-gke01}"
   VPC_HOST_PROJECT="${VPC_HOST_PROJECT:-gcp-prod-edp-hub-vpchost}"
   VPC_ADMIN_ACCOUNT="${VPC_ADMIN_ACCOUNT:-admin@sonmap.net}"
-  ADMIN_ACCOUNT="${ADMIN_ACCOUNT:-son@sonmap.net}"
+  ADMIN_ACCOUNT="${ADMIN_ACCOUNT:-admin@sonmap.net}"
 
   # 대상 GKE 서비스 프로젝트 | 계정 ${ADMIN_ACCOUNT}
   SBX_GKE_PROJECT_NUMBER="$(gcloud projects describe "${SBX_GKE_PROJECT}" \
