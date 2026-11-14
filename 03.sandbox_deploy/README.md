@@ -271,14 +271,24 @@ Provisioner는 그룹 이메일이 `pgrp-gcp-dev-<과제명>@sonmap.net`이고 G
 
 **1. 새 요청 JSON 만들기**
 
-`sbx04` 배포가 승인됐고 승인된 구성원이 이전 `sbx03`과 동일할 때 아래 명령을 사용합니다. 승인 번호·시각·종료일을 `sbx04` 승인 기록의 값으로 입력하세요. 이전 JSON에서 공용 GKE·네트워크·릴리스 설정을 가져옵니다. 해당 릴리스가 이번 승인에도 적용되는지 확인하세요.
+`sbx04` 배포가 승인됐고 승인된 구성원이 이전 `sbx03`과 동일할 때 아래 명령을 사용합니다. 이전 JSON에서 공용 GKE·네트워크·릴리스 설정을 가져옵니다. 해당 릴리스가 이번 승인에도 적용되는지 확인하세요.
+
+**1-1. 승인 값 입력**
+
+아래 세 값을 `sbx04` 승인 기록의 번호·시각·종료일로 바꾼 다음 실행하세요. 승인 시각은 `2026-11-14T17:30:00+09:00` 같은 형식이고 종료일은 `YYYY-MM-DD` 형식입니다. 실제 승인 값이 준비되면 1-2로 진행하세요.
 
 ```bash
 export REQUEST_ID='REQ-20261114-SBX04-001'
-export APPROVAL_ID=''
-export APPROVED_AT=''  # 예시 형식 2026-11-14T17:30:00+09:00
-export EXPIRES_ON=''   # YYYY-MM-DD
+export APPROVAL_ID='실제-승인번호'
+export APPROVED_AT='실제-승인시각'
+export EXPIRES_ON='실제-종료일'
+```
 
+**1-2. 요청 JSON 생성**
+
+같은 터미널에서 실행하세요. `승인 번호, 승인 시각, 종료일을 입력하세요`가 나오면 1-1의 값을 확인한 뒤 1-2를 다시 실행합니다. 성공하면 `sbx04` 요청 내용이 출력됩니다.
+
+```bash
 PREVIOUS_URI='gs://gcp-sbx-edp-gke01-sbxtest01-requests/approved/REQ-20261114-SBX03-001/request.json'
 REQUEST_FILE=".local/${REQUEST_ID}.json"
 
@@ -287,9 +297,9 @@ gcloud storage cat "$PREVIOUS_URI" --account=son@sonmap.net > .local/sbx03-previ
 jq -e '
   if .task.name != "sbx03" or .approval.status != "APPROVED" or .network.required then
     error("sbx03 원본과 과제별 네트워크 설정을 확인하세요.")
-  elif (env.APPROVAL_ID | test("^[^[:space:]].{2,127}$") and (startswith("EXAMPLE-") | not) | not)
-    or (env.APPROVED_AT | test("^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?(Z|[+-][0-9]{2}:[0-9]{2})$") | not)
-    or (env.EXPIRES_ON | test("^[0-9]{4}-[0-9]{2}-[0-9]{2}$") | not) then
+  elif ((env.APPROVAL_ID // "") | test("^[^[:space:]].{2,127}$") and . != "실제-승인번호" and (startswith("EXAMPLE-") | not) | not)
+    or ((env.APPROVED_AT // "") | test("^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?(Z|[+-][0-9]{2}:[0-9]{2})$") | not)
+    or ((env.EXPIRES_ON // "") | test("^[0-9]{4}-[0-9]{2}-[0-9]{2}$") | not) then
     error("sbx04 승인 번호, 승인 시각, 종료일을 입력하세요.")
   else
     .request_id = env.REQUEST_ID
