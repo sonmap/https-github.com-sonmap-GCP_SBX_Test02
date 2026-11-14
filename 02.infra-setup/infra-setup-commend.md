@@ -419,7 +419,7 @@ gcloud iam service-accounts describe "${TF_MANAGER}" --project="${SBX_GKE_PROJEC
 | 요청 항목 | 요청 내용 |
 |---|---|
 | 대상 | 호스트 `gcp-prod-edp-hub-vpchost` · VPC `vpc-prod-edp-hub` · 리전 `asia-northeast3` |
-| GKE 서브넷 | `subnet-prod-sbx-gke-01` · Primary `10.252.0.0/24` · Pod Secondary `subnet-prod-sbx-pod-01` (`100.64.128.0/19`) · Private Google Access 사용 |
+| GKE 서브넷 | `subnet-prod-sbx-gke-01` · Primary `10.252.0.0/24` · Pod Secondary `subnet-prod-sbx-pod-01` (`100.64.128.0/19`) |
 | 내부 ALB VIP 서브넷 | 기존 `subnet-prod-edp-alb-frontend-an3` 재사용 검토 · 예상 CIDR `172.31.96.0/27` |
 | 프록시 전용 서브넷 | 동일 VPC·리전의 `REGIONAL_MANAGED_PROXY` / `ACTIVE` 서브넷 재사용 · 미존재 시 후보 `subnet-prod-sbx-ilb-proxy` (`172.31.111.64/26`) 검토 |
 | GKE 제어 영역 대역 | `10.253.3.0/28`의 기존 사용 대역 및 경로와 중복 여부 확인 |
@@ -471,7 +471,7 @@ TF_MANAGER=tf-manager@gcp-sbx-edp-gke01.iam.gserviceaccount.com
 gcloud compute networks describe "$NETWORK" --project="$HOST" --account="$VPC_ADMIN_ACCOUNT"
 gcloud compute networks subnets list --project="$HOST" --account="$VPC_ADMIN_ACCOUNT" \
   --filter="network:$NETWORK AND region:$REGION" \
-  --format='table(name,ipCidrRange,purpose,role,privateIpGoogleAccess,secondaryIpRanges)'
+  --format='table(name,ipCidrRange,purpose,role,secondaryIpRanges)'
 ```
 
 GKE 서브넷이 없는 경우 CIDR 승인 후 생성합니다. 기존 서브넷이면 목록의 Primary 및 Pod Secondary 범위를 확인하고 재사용합니다.
@@ -479,15 +479,12 @@ GKE 서브넷이 없는 경우 CIDR 승인 후 생성합니다. 기존 서브넷
 ```bash
 gcloud compute networks subnets create "$MAIN_SUBNET" \
   --project="$HOST" --network="$NETWORK" --region="$REGION" --account="$VPC_ADMIN_ACCOUNT" \
-  --range="$NODE_CIDR" --secondary-range="$POD_RANGE=$POD_CIDR" --enable-private-ip-google-access
+  --range="$NODE_CIDR" --secondary-range="$POD_RANGE=$POD_CIDR"
 ```
 
-기존 GKE 서브넷에서 Private Google Access가 꺼져 있으면 아래 명령을 실행합니다. Pod 보조 범위만 누락됐다면 승인된 대역으로 두 번째 명령을 실행합니다.
+기존 GKE 서브넷에 Pod 보조 범위가 없으면 승인된 대역으로 아래 명령을 실행합니다.
 
 ```bash
-gcloud compute networks subnets update "$MAIN_SUBNET" --project="$HOST" \
-  --region="$REGION" --account="$VPC_ADMIN_ACCOUNT" --enable-private-ip-google-access
-
 gcloud compute networks subnets update "$MAIN_SUBNET" --project="$HOST" \
   --region="$REGION" --account="$VPC_ADMIN_ACCOUNT" --add-secondary-ranges="$POD_RANGE=$POD_CIDR"
 ```
@@ -520,40 +517,51 @@ gcloud compute firewall-rules create fw-sbxtest01-ilb-proxy \
   --source-ranges="$PROXY_CIDR" --destination-ranges="$POD_CIDR"
 ```
 
-확인한 실제 서브넷 이름을 변수에 반영하고 2-1절 IAM을 적용합니다. 두 서비스 에이전트 주소에 들어가는 프로젝트 번호는 `gcp-sbx-edp-gke01`의 번호입니다.
+확인한 실제 서브넷 이름을 변수에 반영하고 2-1절 IAM을 적용합니다. 두 서비스 에이전트 주소에 들어가는 프로젝트 번호는 `gcp-sbx-edp-gke01`의 숫자 번호입니다. 아래 명령은 번호 순서대로 하나씩 실행합니다. 오류가 나오면 해당 명령의 입력값을 확인한 뒤 이어서 진행합니다.
 
 ```bash
-(
-  set -euo pipefail
-  : "${VPC_ADMIN_ACCOUNT:?운영팀 계정 입력 필요}"
-  [[ "${SBX_PROJECT_NUMBER:-}" =~ ^[0-9]+$ ]] || { echo '서비스 프로젝트 번호를 확인하세요.' >&2; exit 1; }
+GKE_AGENT="service-${SBX_PROJECT_NUMBER}@container-engine-robot.iam.gserviceaccount.com"
+GOOGLE_APIS_AGENT="${SBX_PROJECT_NUMBER}@cloudservices.gserviceaccount.com"
 
-  GKE_AGENT="service-$SBX_PROJECT_NUMBER@container-engine-robot.iam.gserviceaccount.com"
-  GOOGLE_APIS_AGENT="$SBX_PROJECT_NUMBER@cloudservices.gserviceaccount.com"
+# 1. GKE 서브넷 · Terraform 서비스 계정
+gcloud compute networks subnets add-iam-policy-binding "$MAIN_SUBNET" \
+  --project="$HOST" --region="$REGION" --account="$VPC_ADMIN_ACCOUNT" \
+  --member="serviceAccount:$TF_MANAGER" --role=roles/compute.networkUser
 
-  for SA in "$TF_MANAGER" "$GKE_AGENT" "$GOOGLE_APIS_AGENT"; do
-    gcloud compute networks subnets add-iam-policy-binding "$MAIN_SUBNET" \
-      --project="$HOST" --region="$REGION" --account="$VPC_ADMIN_ACCOUNT" \
-      --member="serviceAccount:$SA" --role=roles/compute.networkUser
-  done
+# 2. GKE 서브넷 · GKE 서비스 에이전트
+gcloud compute networks subnets add-iam-policy-binding "$MAIN_SUBNET" \
+  --project="$HOST" --region="$REGION" --account="$VPC_ADMIN_ACCOUNT" \
+  --member="serviceAccount:$GKE_AGENT" --role=roles/compute.networkUser
 
-  gcloud compute networks subnets add-iam-policy-binding "$VIP_SUBNET" \
-    --project="$HOST" --region="$REGION" --account="$VPC_ADMIN_ACCOUNT" \
-    --member="serviceAccount:$TF_MANAGER" --role=roles/compute.networkUser
+# 3. GKE 서브넷 · Google APIs 서비스 에이전트
+gcloud compute networks subnets add-iam-policy-binding "$MAIN_SUBNET" \
+  --project="$HOST" --region="$REGION" --account="$VPC_ADMIN_ACCOUNT" \
+  --member="serviceAccount:$GOOGLE_APIS_AGENT" --role=roles/compute.networkUser
 
-  gcloud projects add-iam-policy-binding "$HOST" --account="$VPC_ADMIN_ACCOUNT" \
-    --member="serviceAccount:$GKE_AGENT" --role=roles/container.hostServiceAgentUser --condition=None
+# 4. ALB VIP 서브넷 · Terraform 서비스 계정
+gcloud compute networks subnets add-iam-policy-binding "$VIP_SUBNET" \
+  --project="$HOST" --region="$REGION" --account="$VPC_ADMIN_ACCOUNT" \
+  --member="serviceAccount:$TF_MANAGER" --role=roles/compute.networkUser
 
-  for ROLE in roles/compute.networkViewer roles/serviceusage.serviceUsageConsumer; do
-    gcloud projects add-iam-policy-binding "$HOST" --account="$VPC_ADMIN_ACCOUNT" \
-      --member="serviceAccount:$TF_MANAGER" --role="$ROLE" --condition=None
-  done
+# 5. 호스트 프로젝트 · GKE 서비스 에이전트
+gcloud projects add-iam-policy-binding "$HOST" --account="$VPC_ADMIN_ACCOUNT" \
+  --member="serviceAccount:$GKE_AGENT" --role=roles/container.hostServiceAgentUser --condition=None
 
-  for SUBNET in "$MAIN_SUBNET" "$VIP_SUBNET"; do
-    gcloud compute networks subnets get-iam-policy "$SUBNET" \
-      --project="$HOST" --region="$REGION" --account="$VPC_ADMIN_ACCOUNT" --format=json
-  done
-)
+# 6. 호스트 프로젝트 · Terraform 네트워크 조회 권한
+gcloud projects add-iam-policy-binding "$HOST" --account="$VPC_ADMIN_ACCOUNT" \
+  --member="serviceAccount:$TF_MANAGER" --role=roles/compute.networkViewer --condition=None
+
+# 7. 호스트 프로젝트 · Terraform 서비스 사용 권한
+gcloud projects add-iam-policy-binding "$HOST" --account="$VPC_ADMIN_ACCOUNT" \
+  --member="serviceAccount:$TF_MANAGER" --role=roles/serviceusage.serviceUsageConsumer --condition=None
+
+# 8. GKE 서브넷 IAM 확인
+gcloud compute networks subnets get-iam-policy "$MAIN_SUBNET" \
+  --project="$HOST" --region="$REGION" --account="$VPC_ADMIN_ACCOUNT" --format=json
+
+# 9. ALB VIP 서브넷 IAM 확인
+gcloud compute networks subnets get-iam-policy "$VIP_SUBNET" \
+  --project="$HOST" --region="$REGION" --account="$VPC_ADMIN_ACCOUNT" --format=json
 ```
 
 Cloud Build Private Pool 경로를 사용하는 경우, 운영팀에서 기존 PSA 예약 범위와 피어링을 확인합니다. 예약 범위 및 연결이 모두 없는 신규 구성에서는 대역 승인과 Service Networking API 및 서비스 에이전트 준비 후 생성 명령을 실행합니다. 기존 피어링이 있으면 현재 할당 범위를 확인하고 운영팀 절차에 따라 조정합니다.
