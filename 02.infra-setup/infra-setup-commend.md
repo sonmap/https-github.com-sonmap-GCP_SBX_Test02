@@ -1747,14 +1747,44 @@ gcloud artifacts docker images list "$AR_REPO" \
 
 차트가 없거나 Helm 인증이 만료됐으면 [6절 Helm 차트 수동 반입](#infra-son01에서-helm-차트-수동-반입)을 확인합니다. 표준 Notebook 이미지가 없으면 [7절](#7-notebook-표준-이미지-빌드)에서 빌드합니다.
 
-### 8-3. 배포 값 확인 및 Helm 설치
+### 8-3. 수동 기동 확인용 values 파일 생성 및 Helm 설치
 
-아래의 `sbx03`은 예시입니다. 실제 과제의 Namespace와 릴리스 이름을 지정합니다. `VALUES_FILE`에는 **해당 과제용 배포 values 파일의 실제 경로**를 넣습니다. 배포 전에 Hub·Proxy·Notebook과 활성화된 보조 컨테이너의 이미지가 접근 가능한 저장소를 가리키는지 확인합니다. Google 로그인을 시험할 경우 승인된 인증 설정과 실제 접속 호스트의 OAuth 콜백을 준비합니다.
+`infra-son01`의 Test02 저장소 루트에서 아래 명령으로 `$HOME/.config/jupyterhub/sbx03-smoke-values.yaml`을 생성합니다. 기존 과제 릴리스와 구분하기 위해 `sbx03-smoke` Namespace와 릴리스를 사용합니다. 이 파일은 Hub와 Proxy 기동 확인용입니다. 실제 로그인과 사용자 Notebook 시험은 과제용 인증·저장소 설정을 준비한 뒤 진행합니다.
 
 ```bash
-export NAMESPACE="sbx03"
-export RELEASE="sbx03"
-export VALUES_FILE="/실제/경로/values.yaml"
+# 수행 위치: infra-son01 | 수행 계정: VM 로그인 사용자
+export NAMESPACE="sbx03-smoke"
+export RELEASE="sbx03-smoke"
+export VALUES_FILE="$HOME/.config/jupyterhub/sbx03-smoke-values.yaml"
+mkdir -p "$HOME/.config/jupyterhub"
+
+cat > "$VALUES_FILE" <<'YAML'
+hub:
+  image:
+    name: asia-northeast3-docker.pkg.dev/gcp-sbx-edp-gke01/ar-sbxtest01-platform/jupyterhub-k8s-hub
+    tag: "4.2.0"
+proxy:
+  service:
+    type: ClusterIP
+  chp:
+    image:
+      name: asia-northeast3-docker.pkg.dev/gcp-sbx-edp-gke01/ar-sbxtest01-platform/jupyterhub-configurable-http-proxy
+      tag: "4.6.3"
+singleuser:
+  image:
+    name: asia-northeast3-docker.pkg.dev/gcp-sbx-edp-gke01/ar-sbxtest01-platform/jupyterhub-k8s-singleuser-standard
+    tag: "4.2.0-r2-home"
+prePuller:
+  hook:
+    enabled: false
+  continuous:
+    enabled: false
+scheduling:
+  userScheduler:
+    enabled: false
+  userPlaceholder:
+    enabled: false
+YAML
 
 ls -l "$VALUES_FILE"
 helm list -n "$NAMESPACE"
@@ -1770,7 +1800,9 @@ helm upgrade --install "$RELEASE" "$CHART_URI" \
 kubectl -n "$NAMESPACE" get pods,svc
 ```
 
-### 8-4. 내부 HTTPS 및 로그인 확인
+### 8-4. 과제용 내부 HTTPS 및 로그인 확인
+
+8-3의 기동 확인용 릴리스에는 내부 ALB를 연결하지 않습니다. 아래 항목은 실제 과제 Namespace에서 과제용 values와 인증 설정을 적용한 뒤 확인합니다.
 
 1. Hub와 Proxy Pod가 준비됐는지 확인합니다.
 2. 내부 ALB의 URL Map이 과제 호스트를 올바른 백엔드로 전달하고, 백엔드가 `HEALTHY`인지 확인합니다. Helm 설치 후 과제 경로가 아직 없다면 NEG와 ALB 연결을 먼저 구성합니다. [내부 HTTPS와 인증서](reference/sbx03-https-certificate-runbook.md)
