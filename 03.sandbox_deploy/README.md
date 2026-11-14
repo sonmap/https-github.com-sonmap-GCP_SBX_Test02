@@ -209,7 +209,26 @@ jq -ne --slurpfile release .local/sbx03-release.json '
 
 #### 2-3. 종료된 빌드 재시도
 
-이번 시험처럼 Private Pool 머신 타입을 변경한 뒤 재시도할 때 사용합니다. 이전 상위·하위 빌드가 종료됐고 배포가 실패·취소됐는지 7번의 Cloud Build 조회로 확인합니다. 기존 승인이 같은 배포 범위의 재시도에 적용되는 경우, 아래 명령은 GCS의 `-001` 승인 JSON에서 요청 ID만 `-002`로 바꿉니다. 다른 재시도라면 `PREVIOUS_REQUEST_ID`와 `REQUEST_ID`를 실제 값으로 바꿉니다.
+1. **이전 빌드 종료 확인** · 7번의 Cloud Build 조회로 이전 상위·하위 빌드가 종료됐고 배포가 실패·취소됐는지 확인합니다.
+2. **Private Pool을 2 vCPU로 변경** · 동시 CPU 한도가 4 vCPU이고 상위·하위 빌드가 같은 풀을 사용하는 경우에 적용합니다. 이미 `e2-standard-2`라면 상태만 확인합니다.
+
+Cloud Shell에서 `admin@sonmap.net`으로 실행합니다. [Cloud Build Private Pool 업데이트 명령](https://docs.cloud.google.com/sdk/gcloud/reference/builds/worker-pools/update)
+
+```bash
+gcloud builds worker-pools update pool-sbxtest01 \
+  --project=gcp-sbx-edp-gke01 --region=asia-northeast3 \
+  --worker-machine-type=e2-standard-2 \
+  --account=admin@sonmap.net
+
+gcloud builds worker-pools describe pool-sbxtest01 \
+  --project=gcp-sbx-edp-gke01 --region=asia-northeast3 \
+  --account=admin@sonmap.net \
+  --format='yaml(state,privatePoolV1Config.workerConfig.machineType)'
+```
+
+`state: RUNNING`과 `machineType: e2-standard-2`가 표시되면 새 요청을 준비합니다.
+
+**3. 새 요청 ID 생성** · 기존 승인이 같은 배포 범위의 재시도에 적용되는 경우, 아래 명령은 GCS의 `-001` 승인 JSON에서 요청 ID만 `-002`로 바꿉니다. 다른 재시도라면 `PREVIOUS_REQUEST_ID`와 `REQUEST_ID`를 실제 값으로 바꿉니다.
 
 ```bash
 # 수행 위치: infra-son01의 Test02 저장소 루트 | 수행 계정: son@sonmap.net
