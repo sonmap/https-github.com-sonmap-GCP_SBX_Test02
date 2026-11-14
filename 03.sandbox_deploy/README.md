@@ -284,6 +284,19 @@ export APPROVED_AT='실제-승인시각'
 export EXPIRES_ON='실제-종료일'
 ```
 
+**테스트 승인권자가 직접 승인하는 경우**
+
+`sbx04` 시험을 직접 승인할 권한이 있고, 지금 승인하며 종료일을 **2026-11-30**로 정한 경우 아래 블록을 사용하세요. 승인 기록에 `REQ-20261114-SBX04-001-TEST`를 남기고, 승인하는 시점에 실행하면 `APPROVED_AT`에 한국 시간이 들어갑니다. 이미 승인된 건은 위 블록에 승인 기록의 번호·시각·종료일을 입력하세요.
+
+```bash
+export REQUEST_ID='REQ-20261114-SBX04-001'
+export APPROVAL_ID='REQ-20261114-SBX04-001-TEST'
+export APPROVED_AT="$(TZ=Asia/Seoul date --iso-8601=seconds)"
+export EXPIRES_ON='2026-11-30'
+```
+
+같은 터미널에서 바로 **1-2. 요청 JSON 생성**을 실행하세요.
+
 **1-2. 요청 JSON 생성**
 
 같은 터미널에서 실행하세요. `APPROVAL_ID`, `APPROVED_AT`, `EXPIRES_ON` 중 하나가 오류에 표시되면 1-1에서 해당 값을 수정한 뒤 1-2를 다시 실행합니다. 성공하면 `sbx04` 요청 내용이 출력됩니다.
