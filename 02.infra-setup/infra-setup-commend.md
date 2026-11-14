@@ -384,8 +384,7 @@ gcloud iam service-accounts add-iam-policy-binding \
 ```bash
 # 실행 위치 infra-son01 | 계정 ${VPC_ADMIN_ACCOUNT}
 (
-  VPC_ADMIN_ACCOUNT="${VPC_ADMIN_ACCOUNT:-admin@sonmap.net}"
-  : "${TF_MANAGER:?공통 변수 설정에서 TF_MANAGER를 설정하세요.}"
+  VPC_ADMIN_ACCOUNT="admin@sonmap.net"
 
   gcloud billing accounts list \
     --account="${VPC_ADMIN_ACCOUNT}" \
@@ -398,9 +397,26 @@ gcloud iam service-accounts add-iam-policy-binding \
     exit 1
   fi
 
+  TF_MANAGER="$(gcloud iam service-accounts describe \
+    tf-manager@gcp-sbx-edp-gke01.iam.gserviceaccount.com \
+    --project=gcp-sbx-edp-gke01 --account="${VPC_ADMIN_ACCOUNT}" \
+    --format='value(email)')" || exit 1
+  if [[ "${TF_MANAGER}" != "tf-manager@gcp-sbx-edp-gke01.iam.gserviceaccount.com" ]]; then
+    echo "tf-manager 서비스 계정 이메일 조회 결과가 올바르지 않습니다." >&2
+    exit 1
+  fi
+
   gcloud billing accounts add-iam-policy-binding "${BILLING_ACCOUNT}" \
     --member="serviceAccount:${TF_MANAGER}" \
-    --role=roles/billing.user --account="${VPC_ADMIN_ACCOUNT}"
+    --role=roles/billing.user --account="${VPC_ADMIN_ACCOUNT}" || exit 1
+
+  # 결제 계정 IAM 정책에서 직접 부여된 권한을 확인합니다.
+  gcloud billing accounts get-iam-policy "${BILLING_ACCOUNT}" \
+    --account="${VPC_ADMIN_ACCOUNT}" --format=json |
+    jq -e --arg member "serviceAccount:${TF_MANAGER}" '
+      any(.bindings[]?; .role == "roles/billing.user"
+        and .condition == null and (.members | index($member) != null))
+    '
 )
 ```
 
