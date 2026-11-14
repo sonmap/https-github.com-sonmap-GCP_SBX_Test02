@@ -1294,16 +1294,49 @@ gcloud compute forwarding-rules create fr-alb-sbxtest01-shared-http --project="$
 
 ```
 
-### 🔴 **32.** Regional SSL 인증서 별도 준비 확인
+### 🔴 **32.** Regional SSL 인증서 확인 및 등록
+
+#### 32-1. 인증서 조회
 
 ```bash
-# Global 인증서는 재사용할 수 없습니다. 아래 Regional 인증서가 없으면 HTTPS 생성을 중단합니다.
-# 실행 위치 infra-son01 | 대상 ${SBX_GKE_PROJECT} | 계정 ${ADMIN_ACCOUNT} | 가장 ${TF_MANAGER}
-gcloud compute ssl-certificates describe "${SSL_CERTIFICATE}" --project="${SBX_GKE_PROJECT}" \
-  --region="${REGION}" --format=json --account="${ADMIN_ACCOUNT}" \
-  --impersonate-service-account="${TF_MANAGER}"
-
+# 수행 위치: infra-son01 | 대상: gcp-sbx-edp-gke01 / asia-northeast3
+# 로그인 계정: ADMIN_ACCOUNT | 수행 계정(가장): TF_MANAGER
+gcloud compute ssl-certificates describe "${SSL_CERTIFICATE}" \
+  --project="${SBX_GKE_PROJECT}" --region="${REGION}" \
+  --account="${ADMIN_ACCOUNT}" --impersonate-service-account="${TF_MANAGER}" \
+  --format='yaml(name,region,type,subjectAlternativeNames,expireTime)'
 ```
+
+- 인증서가 조회되고 실제 접속 호스트가 SAN에 포함되어 있으면 33번으로 진행합니다.
+- `was not found`이면 32-2에서 테스트 인증서를 준비한 뒤 32-3에서 등록합니다. 운영용으로 발급받은 인증서가 있다면 해당 PEM 인증서와 개인키 경로를 32-3에 지정합니다.
+- 권한 오류가 발생하면 프로젝트와 수행 계정을 확인합니다.
+
+#### 32-2. 테스트용 자체 서명 인증서 생성
+
+`HTTPS_FQDN`을 브라우저에서 실제 사용할 호스트 이름으로 바꿉니다. 아래 값은 예시입니다. 파일은 저장소 밖의 임시 디렉터리에 생성합니다.
+
+```bash
+# 수행 위치: infra-son01 | 수행 계정: VM 로그인 사용자
+export HTTPS_FQDN="jupyter-sbx01.sonmap.net"
+export CERT_DIR="$(mktemp -d)"
+
+openssl req -x509 -newkey rsa:2048 -sha256 -nodes -days 90 \
+  -keyout "${CERT_DIR}/jupyter.key" -out "${CERT_DIR}/jupyter.crt" \
+  -subj "/CN=${HTTPS_FQDN}" -addext "subjectAltName=DNS:${HTTPS_FQDN}"
+```
+
+#### 32-3. Regional SSL 인증서 등록 및 확인
+
+```bash
+# 수행 위치: infra-son01, 32-2와 같은 터미널 | 대상: gcp-sbx-edp-gke01 / asia-northeast3
+# 로그인 계정: ADMIN_ACCOUNT | 수행 계정(가장): TF_MANAGER
+gcloud compute ssl-certificates create "${SSL_CERTIFICATE}" \
+  --project="${SBX_GKE_PROJECT}" --region="${REGION}" \
+  --certificate="${CERT_DIR}/jupyter.crt" --private-key="${CERT_DIR}/jupyter.key" \
+  --account="${ADMIN_ACCOUNT}" --impersonate-service-account="${TF_MANAGER}"
+```
+
+등록이 성공하면 32-1을 다시 실행합니다. 리전과 SAN을 확인한 뒤 33번 Regional HTTPS Proxy를 생성합니다. 자체 서명 인증서를 테스트 PC에서 신뢰하도록 설정할 때는 공개 인증서 `jupyter.crt`만 복사합니다.
 
 ### 🔴 **33.** Regional HTTPS Proxy
 
