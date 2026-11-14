@@ -7,7 +7,6 @@
 | 실행 위치 | 관리 VM `infra-son01`의 Test02 저장소 루트 |
 | 플랫폼 프로젝트 | `SBX_GKE_PROJECT=gcp-sbx-edp-gke01` · GKE, ALB, Cloud Build, Cloud Run, Workflows, AR, GCS |
 | Shared VPC 호스트 | `VPC_HOST_PROJECT=gcp-prod-edp-hub-vpchost` · VPC, 서브넷, 방화벽, PSA |
-| 기존 과제 프로젝트 | `SBX_PROJECT=pjt-net-hub-base` · 과제 IAM 명령에 지정된 기본 예시 |
 | 로그인 계정 | `ADMIN_ACCOUNT=son@sonmap.net`, `VPC_ADMIN_ACCOUNT=admin@sonmap.net`, `AR_ACCOUNT=son@sonmap.net` |
 | 서비스 계정 | `TF_MANAGER=tf-manager@gcp-sbx-edp-gke01.iam.gserviceaccount.com`, `SBX_MANAGER=sbx-manager@gcp-sbx-edp-gke01.iam.gserviceaccount.com` |
 
@@ -39,13 +38,12 @@ Private Pool 접속은 [점검 절차](reference/cloudbuild-private-gke-vpn-desi
 
 ### 프로젝트 기준과 변수명
 
-이 작업의 주 대상은 **SBX_GKE_PROJECT=gcp-sbx-edp-gke01**입니다. 공통 GKE와 Sandbox의 JupyterHub·Notebook Pod가 이 프로젝트에서 실행됩니다. 자동화 실행·이미지 보관은 SBX_GKE_PROJECT, Shared VPC는 VPC_HOST_PROJECT, 과제의 데이터·Query Job 자원은 SBX_PROJECT에 둡니다.
+이 작업의 주 대상은 **SBX_GKE_PROJECT=gcp-sbx-edp-gke01**입니다. 공통 GKE와 Sandbox의 JupyterHub·Notebook Pod가 이 프로젝트에서 실행됩니다. 자동화 실행·이미지 보관은 SBX_GKE_PROJECT, Shared VPC는 VPC_HOST_PROJECT, 과제의 데이터·Query Job 자원은 2차 배포 요청의 `project.project_id`에 지정한 프로젝트에 둡니다. 신규 과제는 2차 Sandbox 배포에서 프로젝트를 생성하고, `10-project` Terraform이 필요한 API와 후속 배포용 프로젝트 IAM을 설정합니다.
 
 ```bash
 export SBX_GKE_PROJECT="gcp-sbx-edp-gke01"          # 주 대상: Sandbox GKE
 export SBX_NAME="sbx01"                      # 과제·Namespace 이름
 export VPC_HOST_PROJECT="gcp-prod-edp-hub-vpchost"   # Shared VPC
-export SBX_PROJECT="pjt-net-hub-base"         # 과제 자원·Query Job
 ```
 
 변수명은 대소문자를 구분합니다. SBX_GKE_PROJECT를 모든 자동화·GKE 자원의 공통 프로젝트 변수로 사용합니다. Cloud Run API와 Build 배포 코드 사이의 실행 환경변수도 SBX_GKE_PROJECT로 통일했습니다. Cloud Build 사용자 치환 변수는 형식 제약에 맞춰 _SBX_GKE_PROJECT를 사용합니다. Cloud Run 설정과 API·배포 도구 이미지는 함께 갱신해야 합니다. JSON의 project.project_id·gke.project_id와 Terraform 입력 필드명은 포털 요청 규격이므로 유지합니다.
@@ -60,7 +58,6 @@ export VPC_ADMIN_ACCOUNT="${VPC_ADMIN_ACCOUNT:-admin@sonmap.net}"
 export OPERATOR_MEMBER=user:son@sonmap.net
 export SBX_GKE_PROJECT="gcp-sbx-edp-gke01"
 export VPC_HOST_PROJECT="gcp-prod-edp-hub-vpchost"
-export SBX_PROJECT="pjt-net-hub-base"
 export FOLDER_ID=154455658682
 export REGION=asia-northeast3
 export NETWORK=vpc-prod-edp-hub
@@ -118,7 +115,6 @@ export VPC_ADMIN_ACCOUNT="${VPC_ADMIN_ACCOUNT:-admin@sonmap.net}"
 export OPERATOR_MEMBER=user:son@sonmap.net
 export SBX_GKE_PROJECT="gcp-sbx-edp-gke01"
 export VPC_HOST_PROJECT="gcp-prod-edp-hub-vpchost"
-export SBX_PROJECT="pjt-net-hub-base"
 export FOLDER_ID=154455658682
 export BILLING_ACCOUNT=""
 export TF_MANAGER="tf-manager@${SBX_GKE_PROJECT}.iam.gserviceaccount.com"
@@ -293,20 +289,7 @@ gcloud iam service-accounts add-iam-policy-binding "${TF_MANAGER}" --project="${
   --member="serviceAccount:service-${SBX_GKE_PROJECT_NUMBER}@gcp-sa-cloudbuild.iam.gserviceaccount.com" \
   --role=roles/iam.serviceAccountTokenCreator --condition=None --account="${ADMIN_ACCOUNT}"
 
-# ── 9. tf-manager 권한 — 기존 과제 프로젝트의 IAM · BigQuery · GCS ──
-# 실행 위치 infra-son01 | 대상 ${SBX_PROJECT} | 계정 ${ADMIN_ACCOUNT}
-gcloud projects add-iam-policy-binding "${SBX_PROJECT}" --member="serviceAccount:${TF_MANAGER}" \
-  --role=roles/browser --condition=None --account="${ADMIN_ACCOUNT}"
-gcloud projects add-iam-policy-binding "${SBX_PROJECT}" --member="serviceAccount:${TF_MANAGER}" \
-  --role=roles/resourcemanager.projectIamAdmin --condition=None --account="${ADMIN_ACCOUNT}"
-gcloud projects add-iam-policy-binding "${SBX_PROJECT}" --member="serviceAccount:${TF_MANAGER}" \
-  --role=roles/serviceusage.serviceUsageAdmin --condition=None --account="${ADMIN_ACCOUNT}"
-gcloud projects add-iam-policy-binding "${SBX_PROJECT}" --member="serviceAccount:${TF_MANAGER}" \
-  --role=roles/bigquery.admin --condition=None --account="${ADMIN_ACCOUNT}"
-gcloud projects add-iam-policy-binding "${SBX_PROJECT}" --member="serviceAccount:${TF_MANAGER}" \
-  --role=roles/storage.admin --condition=None --account="${ADMIN_ACCOUNT}"
-
-# ── 10. tf-manager 권한 — 지정 Folder의 프로젝트 생성 · IAM ──
+# ── 9. tf-manager 권한 — 지정 Folder의 프로젝트 생성 · IAM ──
 # 실행 위치 infra-son01 | 대상 폴더 ${FOLDER_ID} | 계정 ${VPC_ADMIN_ACCOUNT}
 gcloud resource-manager folders add-iam-policy-binding "${FOLDER_ID}" \
   --member="serviceAccount:${TF_MANAGER}" --role=roles/resourcemanager.projectCreator --condition=None \
@@ -315,13 +298,13 @@ gcloud resource-manager folders add-iam-policy-binding "${FOLDER_ID}" \
   --member="serviceAccount:${TF_MANAGER}" --role=roles/resourcemanager.projectIamAdmin \
   --condition=None --account="${VPC_ADMIN_ACCOUNT}"
 
-# ── 11. GCP 서비스 에이전트 권한 — Shared VPC 사용 ──
+# ── 10. GCP 서비스 에이전트 권한 — Shared VPC 사용 ──
 # 실행 위치 infra-son01 | 대상 ${VPC_HOST_PROJECT} | 계정 ${VPC_ADMIN_ACCOUNT}
 gcloud projects add-iam-policy-binding "${VPC_HOST_PROJECT}" \
   --member="serviceAccount:service-${SBX_GKE_PROJECT_NUMBER}@container-engine-robot.iam.gserviceaccount.com" \
   --role=roles/container.hostServiceAgentUser --condition=None --account="${VPC_ADMIN_ACCOUNT}"
 
-# ── 12. GKE 노드 기본 계정 권한 — 노드 실행 · tf-manager의 계정 사용 ──
+# ── 11. GKE 노드 기본 계정 권한 — 노드 실행 · tf-manager의 계정 사용 ──
 # 실행 위치 infra-son01 | 대상 ${SBX_GKE_PROJECT} | 계정 ${ADMIN_ACCOUNT}
 gcloud projects add-iam-policy-binding "${SBX_GKE_PROJECT}" \
   --member="serviceAccount:${SBX_GKE_PROJECT_NUMBER}-compute@developer.gserviceaccount.com" \
