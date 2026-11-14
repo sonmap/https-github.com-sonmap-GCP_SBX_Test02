@@ -379,46 +379,56 @@ gcloud iam service-accounts add-iam-policy-binding \
 
 #### 선택 · 신규 과제 프로젝트의 Billing 연결 권한
 
-결제 계정의 IAM 변경 권한(`billing.accounts.setIamPolicy`)이 있는 VPC 관리자가 실행합니다. 목록에서 활성 결제 계정을 확인한 뒤 ID를 입력합니다.
+신규 과제 프로젝트에 Terraform으로 결제 계정을 연결하는 경우, 아래 내용을 결제 계정 관리자에게 전달합니다.
+
+##### 결제 계정 관리자 요청 양식
+
+**제목** · [GCP Sandbox] Terraform 서비스 계정 결제 연결 권한 부여 요청
+
+신규 Sandbox 과제 프로젝트를 생성할 때 Terraform이 지정된 결제 계정을 연결할 수 있도록 아래 서비스 계정에 **Billing Account User** 역할을 부여해 주세요.
+
+| 항목 | 요청 값 |
+|---|---|
+| 결제 계정 | `sonmap_billing` (`019BE7-53DD39-AF5098`) |
+| 권한 부여 위치 | 위 결제 계정의 IAM |
+| 권한을 받을 서비스 계정 | `tf-manager@gcp-sbx-edp-gke01.iam.gserviceaccount.com` |
+| 역할 | Billing Account User (`roles/billing.user`) |
+| IAM 조건 | 없음 |
+
+작업 후 결제 계정 ID와 현재 서비스 계정의 역할 등록 결과를 회신해 주세요.
+
+##### 관리자 작업 및 확인
+
+Cloud Shell에서 결제 계정 관리자 `admin@sonmap.net`으로 실행합니다.
 
 ```bash
-# 실행 위치 infra-son01 | 계정 ${VPC_ADMIN_ACCOUNT}
+gcloud billing accounts add-iam-policy-binding 019BE7-53DD39-AF5098 \
+  --account=admin@sonmap.net \
+  --member='serviceAccount:tf-manager@gcp-sbx-edp-gke01.iam.gserviceaccount.com' \
+  --role='roles/billing.user'
+```
+
+이 결제 계정에서는 `gcloud`로 IAM을 변경하거나 조회할 때 `INVALID_ARGUMENT`가 발생한 이력이 있습니다. 권한 추가 명령에서 같은 오류가 나오면 [결제 계정 권한 화면](https://console.cloud.google.com/billing/019BE7-53DD39-AF5098/permissions)에서 **액세스 권한 부여**를 선택하고, 요청 양식의 서비스 계정과 역할을 입력해 저장합니다.
+
+등록 결과는 이 환경에서 조회가 성공한 Cloud Billing REST API로 확인합니다.
+
+```bash
 (
-  VPC_ADMIN_ACCOUNT="admin@sonmap.net"
-
-  gcloud billing accounts list \
-    --account="${VPC_ADMIN_ACCOUNT}" \
-    --format='table(name.basename():label=BILLING_ACCOUNT_ID,displayName,open)' || exit 1
-
-  read -r -p '사용할 OPEN=True 결제 계정 ID (Enter로 건너뛰기): ' BILLING_ACCOUNT || exit 1
-  [[ -n "${BILLING_ACCOUNT}" ]] || exit 0
-  if [[ ! "${BILLING_ACCOUNT}" =~ ^[[:xdigit:]]{6}(-[[:xdigit:]]{6}){2}$ ]]; then
-    echo '목록의 BILLING_ACCOUNT_ID를 XXXXXX-XXXXXX-XXXXXX 형식으로 입력하세요.' >&2
-    exit 1
-  fi
-
-  TF_MANAGER="$(gcloud iam service-accounts describe \
-    tf-manager@gcp-sbx-edp-gke01.iam.gserviceaccount.com \
-    --project=gcp-sbx-edp-gke01 --account="${VPC_ADMIN_ACCOUNT}" \
-    --format='value(email)')" || exit 1
-  if [[ "${TF_MANAGER}" != "tf-manager@gcp-sbx-edp-gke01.iam.gserviceaccount.com" ]]; then
-    echo "tf-manager 서비스 계정 이메일 조회 결과가 올바르지 않습니다." >&2
-    exit 1
-  fi
-
-  gcloud billing accounts add-iam-policy-binding "${BILLING_ACCOUNT}" \
-    --member="serviceAccount:${TF_MANAGER}" \
-    --role=roles/billing.user --account="${VPC_ADMIN_ACCOUNT}" || exit 1
-
-  # 결제 계정 IAM 정책에서 직접 부여된 권한을 확인합니다.
-  gcloud billing accounts get-iam-policy "${BILLING_ACCOUNT}" \
-    --account="${VPC_ADMIN_ACCOUNT}" --format=json |
-    jq -e --arg member "serviceAccount:${TF_MANAGER}" '
-      any(.bindings[]?; .role == "roles/billing.user"
-        and .condition == null and (.members | index($member) != null))
-    '
+  set -euo pipefail
+  TOKEN="$(gcloud auth print-access-token --account=admin@sonmap.net)"
+  curl -fsS \
+    -H "Authorization: Bearer ${TOKEN}" \
+    'https://cloudbilling.googleapis.com/v1/billingAccounts/019BE7-53DD39-AF5098:getIamPolicy?options.requestedPolicyVersion=3' |
+  jq -er '
+    .bindings[]?
+    | select(.role == "roles/billing.user" and .condition == null)
+    | .members[]?
+    | select(. == "serviceAccount:tf-manager@gcp-sbx-edp-gke01.iam.gserviceaccount.com")
+  '
 )
 ```
+
+현재 서비스 계정의 `serviceAccount:tf-manager@...` 항목이 출력되면 등록 완료입니다. `deleted:serviceAccount:tf-manager@...?uid=...` 항목은 삭제된 이전 서비스 계정의 바인딩입니다.
 
 ```bash
 # ── Cloud Identity 그룹 관리자 역할 직접 부여에 사용할 서비스 계정 Unique ID ──
