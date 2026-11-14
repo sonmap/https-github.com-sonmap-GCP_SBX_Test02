@@ -1536,6 +1536,54 @@ helm show chart "$JUPYTER_CHART_URI" --version "$CHART_VERSION"
 
 ### Hub·Proxy·Notebook 기본 이미지 복사
 
+#### 1. 수작업 진행 · infra-son01에서 내부 AR로 복사
+
+**수행 위치** · `infra-son01`  
+**수행 계정** · VM 로그인 사용자, AR 인증은 `son@sonmap.net`
+
+VM에 `skopeo`가 설치되어 있고 `quay.io`와 내부 AR에 접속할 수 있어야 합니다. 아래 명령을 같은 터미널에서 순서대로 실행합니다.
+
+```bash
+export AR_ACCOUNT="son@sonmap.net"
+export AR_HOST="asia-northeast3-docker.pkg.dev"
+export IMAGE_AR="$AR_HOST/gcp-sbx-edp-gke01/ar-sbxtest01-platform"
+
+skopeo --version
+gcloud auth print-access-token --account="$AR_ACCOUNT" |
+  skopeo login "$AR_HOST" --username oauth2accesstoken --password-stdin
+```
+
+로그인이 성공하면 내부 AR에 없는 이미지와 태그만 복사합니다. `--all`은 원본에 여러 플랫폼 이미지가 있을 때 모두 복사합니다.
+
+```bash
+# 1. Hub
+skopeo copy --all \
+  docker://quay.io/jupyterhub/k8s-hub:4.2.0 \
+  "docker://$IMAGE_AR/jupyterhub-k8s-hub:4.2.0"
+
+# 2. Proxy
+skopeo copy --all \
+  docker://quay.io/jupyterhub/configurable-http-proxy:4.6.3 \
+  "docker://$IMAGE_AR/jupyterhub-configurable-http-proxy:4.6.3"
+
+# 3. Notebook 베이스
+skopeo copy --all \
+  docker://quay.io/jupyterhub/k8s-singleuser-sample:4.2.0 \
+  "docker://$IMAGE_AR/jupyterhub-k8s-singleuser-sample:4.2.0"
+```
+
+```bash
+# 수행 위치: infra-son01 | 수행 계정: son@sonmap.net
+gcloud artifacts docker images list "$IMAGE_AR" \
+  --include-tags --account="$AR_ACCOUNT"
+```
+
+세 이미지의 태그가 확인되면 7절 Notebook 표준 이미지 빌드로 진행합니다.
+
+#### 2. 자동 작업 · 관리형 Cloud Build에서 복사
+
+수작업 대신 관리형 Cloud Build로 반입할 때 아래 명령을 실행합니다. 자동 작업을 이미 시작했다면 완료 후 AR 태그를 확인하고 7절로 진행합니다.
+
 ```bash
 export SBX_GKE_PROJECT="gcp-sbx-edp-gke01"
 # Test02 저장소 루트에서 실행합니다.
