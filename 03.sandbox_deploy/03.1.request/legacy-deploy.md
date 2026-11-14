@@ -32,7 +32,7 @@ gcloud storage ls \
   --account=son@sonmap.net
 ```
 
-목록에서 이번 시험에 사용할 릴리스 ID를 확인합니다. 릴리스가 없으면 [1차 작업서 5절](../../02.infra-setup/infra-setup-commend.md#5-플랫폼-릴리스-게시)에서 먼저 게시합니다.
+목록에서 이번 시험에 사용할 릴리스 ID를 확인합니다. 릴리스가 없으면 [2차 Sandbox 사전준비](../README.md#0-1-사전준비-플랫폼-릴리스-게시)에서 먼저 게시합니다.
 
 ### 0-2. 요청 JSON 생성
 
