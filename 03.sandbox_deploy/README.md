@@ -156,6 +156,15 @@ export MEMBER1="user01@sonmap.net"
 export MEMBER2="user02@sonmap.net"
 ```
 
+**개인 Sandbox 시험 배포를 직접 승인하는 경우** · 해당 환경에서 본인에게 시험 배포 승인 권한이 있다면, 승인자·요청 ID·시험 범위·실제 승인 시각을 기록합니다. 아래는 그 결정과 동시에 새 승인 기록을 남길 때 실행하는 명령입니다. 기존 승인 기록이 있으면 그 기록의 번호와 실제 완료 시각을 사용합니다.
+
+```bash
+export APPROVAL_ID="${REQUEST_ID}-TEST"
+export APPROVED_AT="$(TZ=Asia/Seoul date --iso-8601=seconds)"
+```
+
+이 두 값을 승인 기록에 함께 남긴 후 **2-2만 다시 실행**합니다. 예시 변수 블록을 다시 실행하면 예시값으로 돌아갑니다. 기존 승인 기록이 UTC라면 원래의 `+00:00` 시각도 사용할 수 있습니다.
+
 #### 2-2. 요청 파일 생성
 
 신규 프로젝트 생성 예시입니다. 프로젝트가 이미 있으면 기존 프로젝트와 Terraform 상태를 확인해 [요청 작성 규칙](03.1.request/request-format/README.md)에 따라 재사용 설정을 결정합니다. 아래 코드 블록만 복사해 같은 터미널에서 실행합니다.
@@ -233,6 +242,8 @@ gcloud storage cp --if-generation-match=0 \
   "gs://gcp-sbx-edp-gke01-sbxtest01-requests/approved/${REQUEST_ID}/request.json" \
   --account=son@sonmap.net
 ```
+
+**게시 완료 확인** · `jq`의 `true`와 GCS 복사 성공을 모두 확인한 뒤 4번으로 진행합니다. `412`가 나오면 `approved/`에 동일 요청 ID의 객체가 있는지 먼저 확인합니다. 기존 객체가 이번 승인 요청과 일치하면 해당 객체로 4번을 진행하고, 별도 요청이라면 새 요청 ID로 2-2부터 다시 실행합니다.
 
 #### 승인 전 GCS 읽기·쓰기 시험
 
