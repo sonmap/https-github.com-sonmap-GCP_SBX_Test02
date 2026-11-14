@@ -2,98 +2,43 @@
 
 [1차 인프라 구축](../02.infra-setup/infra-setup-commend.md)을 완료한 후 진행합니다.
 
-[sbx04 그룹으로 새 과제 배포](#2-4-그룹-이름을-바꿔-sbx04로-배포)
+## 배포 흐름
 
-## sbx03 2차 배포 따라 하기
+포털이 승인 JSON을 자동으로 게시하기 전까지, **0~5번은 개발자가 수동으로** 수행합니다. 6번부터는 포털이 호출할 자동화 구간이며, 지금은 같은 명령을 운영자가 직접 실행합니다.
 
-포털 대신 운영자가 승인 JSON을 작성하는 경우, 아래 순서대로 실제 과제 배포와 검증을 진행합니다.
+| 단계 | 하는 일 | 지금 | 포털 개발 후 |
+|---|---|---|---|
+| 최초 1회 | 릴리스 게시, Workflow 등록, 그룹 계정 준비 | 운영자 | 운영자(동일) |
+| 0~5 | 과제 요청 JSON 작성·게시·검증 | **개발자 수동** | 포털 자동 |
+| 6 | 과제 Workflow 실행 → 프로젝트·IAM·데이터·그룹 생성 | 운영자 | 포털 자동 |
+| 7 | 그룹 공유 배포 → Hub·Proxy·Notebook | 운영자 | 포털 자동 |
+| 8 | 접속 검증 | 개발자 | 개발자 |
 
-**수행 위치** · `infra-son01`의 Test02 저장소 루트  
+```mermaid
+flowchart LR
+    J["0~5 · 요청 JSON<br/>수동 작성·게시"] --> W["6 · 과제 Workflow<br/>프로젝트·IAM·데이터·그룹"]
+    W --> S["7 · 그룹 공유 배포<br/>Hub·Proxy·Notebook"]
+    S --> V["8 · 접속 검증"]
+```
+
+**구성 단위** · Hub와 Proxy는 **그룹당 1개**입니다. 과제를 추가해도 Hub는 늘지 않고 Namespace와 Notebook Pod만 늘어납니다. 접속 호스트도 그룹당 하나입니다.
+
+**수행 위치** · `infra-son01`의 Test02 저장소 루트
 **수행 계정** · `son@sonmap.net`
 
-0. [실행 환경 확인](#0-실행-환경과-준비-상태-확인)
-   - [0-1. 사전준비 · 플랫폼 릴리스 게시](#0-1-사전준비-플랫폼-릴리스-게시)
-1. [릴리스 조회](#1-게시된-릴리스-조회)
-2. [요청 JSON 생성](#2-요청-json-생성) · [종료된 빌드 재시도](#2-3-종료된-빌드-재시도)
-3. [GCS 게시](#3-승인-요청-게시)
-4. [게시 결과와 Workflow 입력 검증](#4-게시-결과와-workflow-입력-검증)
+---
 
-5. [배포 전 확인](#5-workflow-실행-전-private-pool과-서비스-확인)
-6. [Workflow 실행](#6-sbx03-workflow-실행)
-7. [배포 결과 확인](#7-cloud-build-gke-및-alb-확인)
-8. [로그인과 Notebook 검증](#8-내부-https-google-로그인-및-notebook-검증)
+## 최초 1회 · 플랫폼 준비
 
-### 0. 실행 환경과 준비 상태 확인
+그룹을 처음 만들 때와 Runner 버전을 바꿀 때만 실행합니다. 이미 끝났으면 [0번](#0-실행-환경-확인)으로 바로 갑니다.
 
-`infra-son01`에서 Test02를 내려받은 경로로 이동합니다. 아래 경로는 이번 작업에서 사용한 경로입니다.
+### A. 플랫폼 릴리스 게시
+
+배포에 쓸 Terraform ZIP과 Runner·Provisioner 이미지를 게시합니다.
 
 ```bash
 cd "$HOME/GCP_SBX_Test02-fresh"
-export KUBECONFIG="$HOME/.kube/config-sbx-dns"
-export CLOUDSDK_CORE_ACCOUNT="son@sonmap.net"
-kubectl get nodes
-kubectl get storageclass standard-rwo
-```
-
-GKE 노드가 `Ready`이고 `standard-rwo`가 조회되는지 확인합니다. 1차에서 완료한 `sbx03-smoke`는 기동 확인용입니다. 실제 `sbx03` Namespace와 서비스 계정은 아래 Workflow가 준비합니다. 신규 프로젝트 생성에 필요한 조직·결제·Workspace 권한은 [sbx03 관리자 준비](../02.infra-setup/reference/sbx03-new-project-runbook.md#1-최초-관리자-준비-수동)에서 확인합니다. 승인 번호·시각·종료일·사용자 이메일을 확보한 뒤 1번으로 진행합니다.
-
-#### 0-1. 사전준비 · 플랫폼 릴리스 게시
-
-**수행 위치** · `infra-son01`의 Test02 저장소 루트  
-**수행 계정** · `son@sonmap.net`으로 로그인하고 `tf-manager`로 가장
-
-플랫폼 운영자가 배포에 사용할 Terraform ZIP과 `release.json`을 `bundles` 버킷에 게시합니다. Runner·Provisioner 이미지도 게시하고, Cloud Run Provisioner를 갱신합니다. 이후 포털 또는 시험 운영자는 이 릴리스를 참조하는 과제별 `request.json`을 별도로 작성해 `requests` 버킷에 게시합니다.
-
-먼저 승인된 릴리스가 있는지 확인합니다.
-
-```bash
-gcloud storage ls \
-  'gs://gcp-sbx-edp-gke01-sbxtest01-bundles/platform-releases/*/release.json' \
-  --account=son@sonmap.net
-```
-
-사용할 릴리스가 조회되면 1번으로 진행합니다. `One or more URLs matched no objects`가 나오거나 승인된 새 버전이 필요하면 아래 게시 절차를 실행합니다.
-
-**1. 배포할 커밋의 설정 확인**
-
-```bash
-git show HEAD:03.sandbox_deploy/03.1.request/provisioner-env.yaml | grep '^CLOUD_IDENTITY_CUSTOMER_ID:'
-git status --porcelain
-```
-
-`CLOUD_IDENTITY_CUSTOMER_ID: C03rw3vtp`가 표시되고 `git status --porcelain` 출력이 비어 있으면 **2번을 건너뛰고 3번**을 실행합니다. 이번 시험 VM에서 이미 수정한 커밋 `0ce39d7`을 사용하고 있다면 이 경로에 해당합니다.
-
-**2. Customer ID 수정이 필요한 경우에만 실행**
-
-현재 커밋에 `__SET_CUSTOMER_ID__`가 남아 있으면 다음과 같이 수정합니다. 이 값이 빌드 입력에 남아 있으면 Cloud Build의 0번 단계가 실패합니다.
-
-```bash
-sed -i 's/^CLOUD_IDENTITY_CUSTOMER_ID: __SET_CUSTOMER_ID__$/CLOUD_IDENTITY_CUSTOMER_ID: C03rw3vtp/' \
-  03.sandbox_deploy/03.1.request/provisioner-env.yaml
-git diff -- 03.sandbox_deploy/03.1.request/provisioner-env.yaml
-```
-
-현재 VM에서 직접 수정한 경우에만 커밋합니다. Git 작성자 정보가 설정되어 있지 않으면 아래 두 `git config` 명령을 이 저장소에서 실행합니다. 이번 VM 제출 방식에서 `git push`는 필요하지 않습니다.
-
-```bash
-git config --local user.name "Son"
-git config --local user.email "son@sonmap.net"
-
-git commit -m "Set Cloud Identity customer ID for platform release" -- \
-  03.sandbox_deploy/03.1.request/provisioner-env.yaml
-
-git status --porcelain
-```
-
-**SSM 전환 후** · Secure Source Manager에 배포 설정을 반영한 커밋을 사용합니다. VM에서 계속 제출한다면 승인된 SSM 커밋을 체크아웃하고 1번 확인 후 3번을 실행합니다. SSM 소스를 사용하는 빌드 연동이 구성되면 해당 빌드가 가져온 커밋 SHA를 릴리스 ID에 사용합니다. 배포 VM에서 작성자 설정이나 추가 커밋은 필요하지 않습니다.
-
-**3. 최신 커밋으로 릴리스 ID 재계산 및 빌드 제출**
-
-`git status --porcelain` 출력이 비어 있으면 아래 블록 전체를 실행합니다. 커밋 후에도 기존 셸 변수는 그대로이므로, 이전 실패 빌드의 ID로 조회하기 전에 새 ID를 계산하고 빌드를 제출합니다.
-
-```bash
 export SBX_GKE_PROJECT="gcp-sbx-edp-gke01"
-# Test02 저장소 루트에서 실행합니다.
 export ADMIN_ACCOUNT="son@sonmap.net"
 export REGION="asia-northeast3"
 export TF_MANAGER="tf-manager@${SBX_GKE_PROJECT}.iam.gserviceaccount.com"
@@ -101,576 +46,586 @@ export TF_MANAGER_RESOURCE="projects/${SBX_GKE_PROJECT}/serviceAccounts/${TF_MAN
 export BUILD_STAGING_BUCKET="${SBX_GKE_PROJECT}-sbxtest01-build-source"
 unset CLOUDSDK_AUTH_IMPERSONATE_SERVICE_ACCOUNT
 
-# 로컬 수정이 있으면 아래 Build 제출을 실행하지 않습니다.
 export COMMIT_SHA="$(git rev-parse HEAD)"
 export RELEASE_ID="git-$(git rev-parse --short=12 HEAD)"
-echo "$RELEASE_ID"
-if [ -z "$(git status --porcelain)" ]; then
-  # 실행 위치 infra-son01 | 대상 ${SBX_GKE_PROJECT} | 계정 ${ADMIN_ACCOUNT} | 가장 ${TF_MANAGER} | 워크로드 실행 ${TF_MANAGER}
-  gcloud builds submit . --project="${SBX_GKE_PROJECT}" --region="${REGION}" \
-    --account="${ADMIN_ACCOUNT}" --impersonate-service-account="${TF_MANAGER}" \
-    --service-account="${TF_MANAGER_RESOURCE}" \
-    --gcs-source-staging-dir="gs://${BUILD_STAGING_BUCKET}/source" \
-    --config=03.sandbox_deploy/03.3.gke/cloudbuild/platform-release.yaml \
-    --substitutions="_RELEASE_ID=${RELEASE_ID},_COMMIT_SHA=${COMMIT_SHA}"
-else
-  echo "로컬 변경을 커밋하거나 정리한 뒤 다시 실행하세요."
-fi
+echo "RELEASE_ID=$RELEASE_ID"
+git status --porcelain
 ```
 
-**4. 게시 결과 확인**
+> **확인** · `RELEASE_ID`가 이번에 배포할 커밋의 값인지, `git status --porcelain`이 비어 있는지 봅니다. 소스를 고친 뒤 커밋하지 않으면 **이전 릴리스가 그대로 다시 게시되어** 수정이 반영되지 않습니다.
 
-방금 제출한 Cloud Build가 `SUCCESS`이면, 같은 터미널에서 새 `RELEASE_ID`의 게시 결과를 확인합니다. `release_id`, `archive_uri`, `generation`, `sha256`이 조회되면 1번으로 진행합니다.
+```bash
+gcloud builds submit . --project="$SBX_GKE_PROJECT" --region="$REGION" \
+  --account="$ADMIN_ACCOUNT" --impersonate-service-account="$TF_MANAGER" \
+  --service-account="$TF_MANAGER_RESOURCE" \
+  --gcs-source-staging-dir="gs://${BUILD_STAGING_BUCKET}/source" \
+  --config=03.sandbox_deploy/03.3.gke/cloudbuild/platform-release.yaml \
+  --substitutions="_RELEASE_ID=${RELEASE_ID},_COMMIT_SHA=${COMMIT_SHA}"
+```
+
+`SUCCESS` 후 게시된 ZIP에 의도한 수정이 들어갔는지 확인합니다.
 
 ```bash
 gcloud storage cat \
-  "gs://gcp-sbx-edp-gke01-sbxtest01-bundles/platform-releases/${RELEASE_ID}/release.json" \
-  --account=son@sonmap.net
+  "gs://${SBX_GKE_PROJECT}-sbxtest01-bundles/platform-releases/${RELEASE_ID}/release.json" \
+  --account="$ADMIN_ACCOUNT"
 ```
 
-### 1. 게시된 릴리스 조회
+`provisioner-env.yaml`에 `__SET_CUSTOMER_ID__`가 남아 있으면 빌드가 실패합니다. 실제 Workspace customer ID로 바꿔 커밋한 뒤 다시 게시합니다.
 
-**수행 이유** · 이번 배포에 사용할 Terraform 소스 버전을 고르기 위해서입니다. `release.json`에서 ZIP 경로(`archive_uri`), GCS 객체 버전(`generation`), 파일 해시(`sha256`)를 가져옵니다. 이 세 값으로 승인 요청에 배포할 ZIP을 정확히 지정합니다.
+### B. 그룹 공유 Workflow 등록
 
 ```bash
-gcloud storage ls \
-  'gs://gcp-sbx-edp-gke01-sbxtest01-bundles/platform-releases/*/release.json' \
-  --account=son@sonmap.net
+export SBX_MANAGER="sbx-manager@${SBX_GKE_PROJECT}.iam.gserviceaccount.com"
+export REQUEST_BUCKET="${SBX_GKE_PROJECT}-sbxtest01-requests"
+export WORKFLOW="workflow-sbx-shared-group"
+export AR_REPO="${REGION}-docker.pkg.dev/${SBX_GKE_PROJECT}/ar-sbxtest01-platform"
+export RUNNER_IMAGE="${AR_REPO}/sbxtest01-automation-runner:shared-$(git rev-parse --short=12 HEAD)"
+export WORKER_POOL="projects/${SBX_GKE_PROJECT}/locations/${REGION}/workerPools/pool-sbxtest01"
+
+gcloud builds submit . --project="$SBX_GKE_PROJECT" --region="$REGION" \
+  --account="$ADMIN_ACCOUNT" --impersonate-service-account="$TF_MANAGER" \
+  --service-account="$TF_MANAGER_RESOURCE" \
+  --gcs-source-staging-dir="gs://${BUILD_STAGING_BUCKET}/source" \
+  --config=03.sandbox_deploy/03.3.gke/cloudbuild/shared-group-runner.yaml \
+  --substitutions="_RUNNER_IMAGE=$RUNNER_IMAGE"
+
+gcloud workflows deploy "$WORKFLOW" --project="$SBX_GKE_PROJECT" \
+  --location="$REGION" --account="$ADMIN_ACCOUNT" --impersonate-service-account="$TF_MANAGER" \
+  --service-account="$SBX_MANAGER" \
+  --source=03.sandbox_deploy/03.1.request/shared-group-workflow.yaml \
+  --set-env-vars="SBX_REGION=$REGION,SBX_RUNNER_SA=$TF_MANAGER_RESOURCE,SBX_RUNNER_IMAGE=$RUNNER_IMAGE,SBX_WORKER_POOL=$WORKER_POOL,SBX_GKE_CLUSTER=gke-sbx-main-an3,SBX_GKE_ENDPOINT_MODE=dns,SBX_REQUEST_BUCKET=$REQUEST_BUCKET,SBX_CHART_URI=oci://$AR_REPO/jupyterhub,SBX_CHART_VERSION=4.2.0,SBX_URL_MAP=urlmap-alb-sbxtest01-shared"
+
+gcloud workflows describe "$WORKFLOW" --project="$SBX_GKE_PROJECT" \
+  --location="$REGION" --account="$ADMIN_ACCOUNT" --format='value(state)'
 ```
 
-목록에서 이번 시험에 사용할 릴리스 ID를 확인합니다. 릴리스가 없으면 [0-1 사전준비](#0-1-사전준비-플랫폼-릴리스-게시)에서 먼저 게시합니다.
+`ACTIVE`가 나오면 완료입니다.
 
-### 2. 요청 JSON 생성
+### C. 그룹 계정과 Secret 준비
 
-**수행 이유** · 누가 승인했고 어떤 자원을 어느 프로젝트에 배포할지 전달하기 위해서입니다. 이번 요청에는 `gcp-sbx-edp-sbx03` 프로젝트, 승인된 사용자, BigQuery·GCS 설정, 기존 GKE의 `sbx03` Namespace, 1번에서 선택한 소스 버전을 기록합니다. 결과는 로컬 `.local/<요청 ID>.json`입니다.
+그룹 공유 경로는 Google OAuth가 아니라 **Hub 로컬 로그인**을 씁니다. 승인된 이메일을 로그인 ID로 쓰고 비밀번호 해시로 검증합니다.
 
-#### 2-1. 실제 승인값 설정
+```bash
+export GROUP="sandbox-group-01"
+export GROUP_CONFIG="$HOME/.sandbox-approvals/$GROUP/group.json"
+export HASH_FILE="$HOME/.sandbox-approvals/$GROUP/accounts.json"
+export ACCOUNT_SECRET="shared-test-accounts-$GROUP"
 
-아래 값으로 로컬 요청 JSON 생성을 시험할 수 있습니다. GCS 게시 전에는 승인 번호·시각·종료일을 실제 승인값으로 바꾸고 사용자 이메일이 승인 내역과 일치하는지 확인한 뒤 2-2를 다시 실행합니다. 3번 게시 명령은 `EXAMPLE-`로 시작하는 승인 번호를 거부합니다. 승인시각은 시간대를 포함한 ISO 8601, 종료일은 `YYYY-MM-DD` 형식입니다. 현재 시험에서 확인한 릴리스는 `git-0ce39d7333eb`입니다. 다른 릴리스를 사용한다면 1번에서 조회한 ID로 바꿉니다. 새 요청에는 고유한 `REQUEST_ID`를 사용합니다.
+mkdir -p -m 700 "$(dirname "$GROUP_CONFIG")"
+```
+
+그룹 JSON을 작성합니다. 과제 하나당 **멤버는 정확히 5명**이어야 합니다(과제 Pod 안에서 멤버별 컨테이너 5개를 실행하는 구조).
+
+```bash
+cat > "$GROUP_CONFIG" <<'JSON'
+{
+  "group": "sandbox-group-01",
+  "domain": "jupyter-group01.sonmap.net",
+  "test_accounts_secret": "shared-test-accounts-sandbox-group-01",
+  "platform_registry": "asia-northeast3-docker.pkg.dev/gcp-sbx-edp-gke01/ar-sbxtest01-platform",
+  "tasks": {
+    "sbx04": {
+      "members": [
+        "user01@sonmap.net",
+        "user02@sonmap.net",
+        "user03@sonmap.net",
+        "user04@sonmap.net",
+        "user05@sonmap.net"
+      ],
+      "gsa": "gsa-jupyter-sbx04@gcp-sbx-edp-sbx04.iam.gserviceaccount.com",
+      "image": "asia-northeast3-docker.pkg.dev/gcp-sbx-edp-gke01/ar-sbxtest01-platform/jupyterhub-k8s-singleuser-standard@sha256:...",
+      "uid": 1000,
+      "gid": 100,
+      "storage": { "claim": "notebook-home", "sub_path": "sbx04" }
+    }
+  }
+}
+JSON
+```
+
+`domain`은 1차에서 준비한 **그룹 호스트**이며 인증서 SAN과 같아야 합니다. `image`의 digest는 아래로 조회합니다.
+
+```bash
+gcloud artifacts docker images list "$AR_REPO" --include-tags \
+  --account="$ADMIN_ACCOUNT" --format='table(package,tags,version)' | grep singleuser-standard
+```
+
+비밀번호 해시를 만들고 Secret에 등록합니다. 비밀번호는 12자 이상입니다.
+
+```bash
+python3 03.sandbox_deploy/03.3.gke/shared-group/prepare_test_accounts.py "$GROUP_CONFIG" "$HASH_FILE"
+
+gcloud secrets create "$ACCOUNT_SECRET" --replication-policy=automatic \
+  --project="$SBX_GKE_PROJECT" --account="$ADMIN_ACCOUNT"
+gcloud secrets add-iam-policy-binding "$ACCOUNT_SECRET" \
+  --member="serviceAccount:$TF_MANAGER" --role=roles/secretmanager.secretAccessor \
+  --project="$SBX_GKE_PROJECT" --account="$ADMIN_ACCOUNT"
+gcloud secrets versions add "$ACCOUNT_SECRET" --data-file="$HASH_FILE" \
+  --project="$SBX_GKE_PROJECT" --account="$ADMIN_ACCOUNT"
+```
+
+해시 파일과 비밀번호는 승인 JSON과 Git에 넣지 않습니다.
+
+---
+
+## 0. 실행 환경 확인
+
+### 0-1. 변수 선언
+
+**모든 단계가 같은 셸 변수를 씁니다.** 터미널이 바뀌면 변수가 사라져 엉뚱한 과제에 배포하거나 `412` 오류가 납니다. 아래를 파일로 저장해 두고 터미널을 새로 열 때마다 `source` 합니다.
+
+```bash
+cd "$HOME/GCP_SBX_Test02-fresh"
+mkdir -p .local
+
+cat > .local/env.sh <<'SH'
+export SBX_GKE_PROJECT="gcp-sbx-edp-gke01"
+export ADMIN_ACCOUNT="son@sonmap.net"
+export REGION="asia-northeast3"
+export TF_MANAGER="tf-manager@${SBX_GKE_PROJECT}.iam.gserviceaccount.com"
+export REQUEST_BUCKET="${SBX_GKE_PROJECT}-sbxtest01-requests"
+export BUNDLE_BUCKET="${SBX_GKE_PROJECT}-sbxtest01-bundles"
+export WORKFLOW="workflow-sbx-shared-group"
+export AR_REPO="${REGION}-docker.pkg.dev/${SBX_GKE_PROJECT}/ar-sbxtest01-platform"
+
+# 과제 공통
+export FOLDER_ID="154455658682"
+export BILLING_ACCOUNT="019BE7-53DD39-AF5098"
+export GKE_CLUSTER="gke-sbx-main-an3"
+
+# 그룹
+export GROUP="sandbox-group-01"
+export GROUP_CONFIG="$HOME/.sandbox-approvals/$GROUP/group.json"
+
+export KUBECONFIG="$HOME/.kube/config-sbx-dns"
+export CLOUDSDK_CORE_ACCOUNT="$ADMIN_ACCOUNT"
+SH
+
+source .local/env.sh
+```
+
+### 0-2. 클러스터 상태 확인
+
+```bash
+kubectl get nodes
+kubectl get storageclass standard-rwo
+```
+
+노드가 전부 `Ready`여야 합니다. `NotReady`이면 1차 문서의 [Private Google Access](../02.infra-setup/infra-setup-commend.md#0-private-google-access와-private-dns-선행-필수)가 적용되지 않은 상태입니다. 폐쇄망에서는 PGA 없이 노드가 기동하지 않습니다.
+
+### 0-3. 과제 변수 선언
+
+이번에 배포할 과제를 정합니다. **과제를 추가할 때는 이 블록만 바꿔 0~6을 다시 수행합니다.**
+
+```bash
+export TASK="sbx04"
+export REQUEST_ID="REQ-$(date +%Y%m%d)-$(echo "$TASK" | tr a-z A-Z)-001"
+export APPROVAL_ID="${REQUEST_ID}-TEST"
+export APPROVED_AT="$(TZ=Asia/Seoul date --iso-8601=seconds)"
+export EXPIRES_ON="2026-12-31"
+export MEMBER1="user01@sonmap.net"
+export MEMBER2="user02@sonmap.net"
+
+echo "$TASK / $REQUEST_ID / $APPROVED_AT"
+```
+
+> **승인 기록** · 실제 승인이 있으면 `APPROVAL_ID`와 `APPROVED_AT`에 그 번호와 완료 시각을 넣습니다. 게시 명령은 `EXAMPLE-`로 시작하는 값을 거부합니다. `APPROVED_AT`은 시간대를 포함해야 하며, 미래 시각은 넣지 않습니다.
+
+---
+
+## 1. 릴리스 조회
+
+배포에 쓸 Terraform 소스 버전을 고릅니다.
+
+```bash
+gcloud storage ls "gs://${BUNDLE_BUCKET}/platform-releases/*/release.json" \
+  --account="$ADMIN_ACCOUNT"
+```
+
+사용할 릴리스 ID를 변수에 넣습니다.
 
 ```bash
 export RELEASE_ID="git-0ce39d7333eb"
-export REQUEST_ID="REQ-20261114-SBX03-001"
-export APPROVAL_ID="EXAMPLE-APPROVAL-SBX03-001"
-export APPROVED_AT="2026-11-14T16:30:00+09:00"
-export EXPIRES_ON="2026-11-30"
-export MEMBER1="user01@sonmap.net"
-export MEMBER2="user02@sonmap.net"
+gcloud storage cat "gs://${BUNDLE_BUCKET}/platform-releases/${RELEASE_ID}/release.json" \
+  --account="$ADMIN_ACCOUNT"
 ```
 
-**개인 Sandbox 시험 배포를 직접 승인하는 경우** · 해당 환경에서 본인에게 시험 배포 승인 권한이 있다면, 승인자·요청 ID·시험 범위·실제 승인 시각을 기록합니다. 아래는 그 결정과 동시에 새 승인 기록을 남길 때 실행하는 명령입니다. 기존 승인 기록이 있으면 그 기록의 번호와 실제 완료 시각을 사용합니다.
+조회되지 않으면 [최초 1회 · A](#a-플랫폼-릴리스-게시)에서 먼저 게시합니다.
+
+---
+
+## 2. 요청 JSON 생성
+
+누가 승인했고 어떤 자원을 어느 프로젝트에 만들지 기술합니다. 결과는 `.local/<요청 ID>.json`입니다.
 
 ```bash
-export APPROVAL_ID="${REQUEST_ID}-TEST"
-export APPROVED_AT="$(TZ=Asia/Seoul date --iso-8601=seconds)"
-```
+REQUEST_FILE=".local/${REQUEST_ID}.json"
 
-이 두 값을 승인 기록에 함께 남긴 후 **2-2만 다시 실행**합니다. 예시 변수 블록을 다시 실행하면 예시값으로 돌아갑니다. 기존 승인 기록이 UTC라면 원래의 `+00:00` 시각도 사용할 수 있습니다.
-
-#### 2-2. 요청 파일 생성
-
-신규 프로젝트 생성 예시입니다. 프로젝트가 이미 있으면 기존 프로젝트와 Terraform 상태를 확인해 [요청 작성 규칙](03.1.request/request-format/README.md)에 따라 재사용 설정을 결정합니다. 아래 코드 블록만 복사해 같은 터미널에서 실행합니다.
-
-```bash
-mkdir -p .local
 gcloud storage cp \
-  "gs://gcp-sbx-edp-gke01-sbxtest01-bundles/platform-releases/${RELEASE_ID}/release.json" \
-  .local/sbx03-release.json --account=son@sonmap.net &&
-jq -ne --slurpfile release .local/sbx03-release.json '
+  "gs://${BUNDLE_BUCKET}/platform-releases/${RELEASE_ID}/release.json" \
+  .local/release.json --account="$ADMIN_ACCOUNT" &&
+jq -ne --slurpfile release .local/release.json '
   {
     schema_version: "1.0",
     action: "CREATE",
     request_id: env.REQUEST_ID,
-    approval: {status: "APPROVED", approval_id: env.APPROVAL_ID, approved_at: env.APPROVED_AT},
-    task: {name: "sbx03", display_name: "Sandbox sbx03", expires_on: env.EXPIRES_ON},
+    approval: {
+      status: "APPROVED",
+      approval_id: env.APPROVAL_ID,
+      approved_at: env.APPROVED_AT
+    },
+    task: {
+      name: env.TASK,
+      display_name: ("Sandbox " + env.TASK),
+      expires_on: env.EXPIRES_ON
+    },
     identity: {
-      group_email: "pgrp-gcp-dev-sbx03@sonmap.net",
+      group_email: ("pgrp-gcp-dev-" + env.TASK + "@sonmap.net"),
       members: [env.MEMBER1, env.MEMBER2],
       create_jupyter_gsa: true
     },
     project: {
-      create_project: true, project_id: "gcp-sbx-edp-sbx03",
-      project_name: "Sandbox sbx03", billing_account: "019BE7-53DD39-AF5098",
-      org_id: "51654893849"
+      create_project: true,
+      project_id: ("gcp-sbx-edp-" + env.TASK),
+      project_name: ("Sandbox " + env.TASK),
+      billing_account: env.BILLING_ACCOUNT,
+      folder_id: env.FOLDER_ID
     },
     network: {
-      required: false, host_project_id: "gcp-prod-edp-hub-vpchost",
-      network_name: "vpc-prod-edp-hub", region: "asia-northeast3", shared_vpc_join: false
+      required: false,
+      host_project_id: "gcp-prod-edp-hub-vpchost",
+      network_name: "vpc-prod-edp-hub",
+      region: env.REGION,
+      shared_vpc_join: false
     },
-    data: {bigquery_dataset: "sbx03_main", gcs_bucket: "gcp-sbx-edp-sbx03-sbx03-data"},
+    data: {
+      bigquery_dataset: (env.TASK + "_main"),
+      gcs_bucket: ("gcp-sbx-edp-" + env.TASK + "-" + env.TASK + "-data")
+    },
     gke: {
-      project_id: "gcp-sbx-edp-gke01", cluster_name: "gke-sbx-main-an3",
-      location: "asia-northeast3", namespace: "sbx03", jupyter_domain: "jupyter-sbx03.sonmap.net"
+      project_id: env.SBX_GKE_PROJECT,
+      cluster_name: env.GKE_CLUSTER,
+      location: env.REGION,
+      namespace: env.TASK,
+      jupyter_domain: "jupyter-group01.sonmap.net"
     },
     source: ($release[0] | {release_id, archive_uri, generation, sha256})
   }
-' > ".local/${REQUEST_ID}.json"
+' > "$REQUEST_FILE" &&
+jq '{request_id, task, identity, project, source: .source.release_id}' "$REQUEST_FILE"
 ```
 
-데이터레이크 조회 권한이 필요한 경우 승인 범위와 관리자 위임을 확인한 뒤 `data.datalake_datasets`에 추가합니다.
+> **`folder_id`를 씁니다.** `tf-manager`의 프로젝트 생성 권한은 조직이 아니라 **Folder**에 부여되어 있습니다. `org_id`를 넣으면 프로젝트 생성이 `resourcemanager.projects.create denied on organizations/...`로 실패합니다. 둘 중 하나만 지정해야 하므로 `org_id`는 넣지 않습니다.
 
-#### 2-3. 종료된 빌드 재시도
+> **그룹을 이미 만들었다면** · 디렉터리에 `pgrp-gcp-dev-<과제>@sonmap.net`이 이미 있으면 Terraform이 생성을 시도하다 충돌합니다. 그룹을 지우고 진행하거나, `identity.group_resource_name`에 `groups/<ID>`를 넣어 import합니다.
 
-1. **이전 빌드 종료 확인** · 7번의 Cloud Build 조회로 이전 상위·하위 빌드가 종료됐고 배포가 실패·취소됐는지 확인합니다.
-2. **Private Pool을 2 vCPU로 변경** · 동시 CPU 한도가 4 vCPU이고 상위·하위 빌드가 같은 풀을 사용하는 경우에 적용합니다. 이미 `e2-standard-2`라면 상태만 확인합니다.
+---
 
-Cloud Shell에서 `admin@sonmap.net`으로 실행합니다. [Cloud Build Private Pool 업데이트 명령](https://docs.cloud.google.com/sdk/gcloud/reference/builds/worker-pools/update)
+## 3. 승인 요청 게시
 
-```bash
-gcloud builds worker-pools update pool-sbxtest01 \
-  --project=gcp-sbx-edp-gke01 --region=asia-northeast3 \
-  --worker-machine-type=e2-standard-2 \
-  --account=admin@sonmap.net
-
-gcloud builds worker-pools describe pool-sbxtest01 \
-  --project=gcp-sbx-edp-gke01 --region=asia-northeast3 \
-  --account=admin@sonmap.net \
-  --format='yaml(state,privatePoolV1Config.workerConfig.machineType)'
-```
-
-`state: RUNNING`과 `machineType: e2-standard-2`가 표시되면 새 요청을 준비합니다.
-
-**3. 새 요청 ID 생성** · 기존 승인이 같은 배포 범위의 재시도에 적용되는 경우, 아래 명령은 GCS의 `-001` 승인 JSON에서 요청 ID만 `-002`로 바꿉니다. 다른 재시도라면 `PREVIOUS_REQUEST_ID`와 `REQUEST_ID`를 실제 값으로 바꿉니다.
+Workflow가 읽을 승인 원본을 GCS에 올립니다. 같은 ID가 이미 있으면 덮어쓰지 않습니다.
 
 ```bash
-# 수행 위치: infra-son01의 Test02 저장소 루트 | 수행 계정: son@sonmap.net
-export PREVIOUS_REQUEST_ID="REQ-20261114-SBX03-001"
-export REQUEST_ID="REQ-20261114-SBX03-002"
-REQUEST_FILE=".local/${REQUEST_ID}.json"
+REQUEST_URI="gs://${REQUEST_BUCKET}/approved/${REQUEST_ID}/request.json"
 
-mkdir -p .local &&
-(
-  set -o pipefail
-  gcloud storage cat \
-    "gs://gcp-sbx-edp-gke01-sbxtest01-requests/approved/${PREVIOUS_REQUEST_ID}/request.json" \
-    --account=son@sonmap.net |
-  jq -e --arg previous "$PREVIOUS_REQUEST_ID" --arg next "$REQUEST_ID" '
-    select(.request_id == $previous and .approval.status == "APPROVED"
-      and .task.name == "sbx03" and $previous != $next)
-    | .request_id = $next
-  '
-) > "${REQUEST_FILE}.tmp" &&
-mv -- "${REQUEST_FILE}.tmp" "$REQUEST_FILE" &&
-export RELEASE_ID="$(jq -r '.source.release_id' "$REQUEST_FILE")" \
-       APPROVAL_ID="$(jq -r '.approval.approval_id' "$REQUEST_FILE")" \
-       APPROVED_AT="$(jq -r '.approval.approved_at' "$REQUEST_FILE")" \
-       EXPIRES_ON="$(jq -r '.task.expires_on' "$REQUEST_FILE")" \
-       MEMBER1="$(jq -r '.identity.members[0]' "$REQUEST_FILE")" \
-       MEMBER2="$(jq -r '.identity.members[1]' "$REQUEST_FILE")" &&
-jq -r '.request_id' "$REQUEST_FILE"
-```
-
-`REQ-20261114-SBX03-002`가 출력되면 같은 터미널에서 **3번 → 4번 → 5번 확인 → 6번 실행**으로 진행합니다. 2-1의 예시 블록을 다시 실행하면 `-001`과 예시 승인값으로 돌아갑니다.
-
-#### 2-4. 그룹 이름을 바꿔 sbx04로 배포
-
-**수행 위치** · `infra-son01`의 Test02 저장소 루트  
-**수행 계정** · `son@sonmap.net`
-
-Provisioner는 그룹 이메일이 `pgrp-gcp-dev-<과제명>@sonmap.net`이고 GKE Namespace가 과제명과 일치해야 요청을 받습니다. `pgrp-gcp-dev-sbx04@sonmap.net`을 사용하려면 새 `sbx04` 과제 요청을 제출합니다. 아래 예시는 과제 프로젝트도 `gcp-sbx-edp-sbx04`로 새로 생성합니다.
-
-**1. 새 요청 JSON 만들기**
-
-`sbx04` 배포가 승인됐고 승인된 구성원이 이전 `sbx03`과 동일할 때 아래 명령을 사용합니다. 이전 JSON에서 공용 GKE·네트워크·릴리스 설정을 가져옵니다. 해당 릴리스가 이번 승인에도 적용되는지 확인하세요.
-
-**1-1. 승인 값 입력**
-
-아래 세 값을 `sbx04` 승인 기록의 번호·시각·종료일로 바꾼 다음 실행하세요. 승인 시각은 `2026-11-14T17:30:00+09:00` 같은 형식이고 종료일은 `YYYY-MM-DD` 형식입니다. 실제 승인 값이 준비되면 1-2로 진행하세요.
-
-```bash
-export REQUEST_ID='REQ-20261114-SBX04-001'
-export APPROVAL_ID='실제-승인번호'
-export APPROVED_AT='실제-승인시각'
-export EXPIRES_ON='실제-종료일'
-```
-
-**테스트 승인권자가 직접 승인하는 경우**
-
-`sbx04` 시험을 직접 승인할 권한이 있고, 지금 승인하며 종료일을 **2026-11-30**로 정한 경우 아래 블록을 사용하세요. 승인 기록에 `REQ-20261114-SBX04-001-TEST`를 남기고, 승인하는 시점에 실행하면 `APPROVED_AT`에 한국 시간이 들어갑니다. 이미 승인된 건은 위 블록에 승인 기록의 번호·시각·종료일을 입력하세요.
-
-```bash
-export REQUEST_ID='REQ-20261114-SBX04-001'
-export APPROVAL_ID='REQ-20261114-SBX04-001-TEST'
-export APPROVED_AT="$(TZ=Asia/Seoul date --iso-8601=seconds)"
-export EXPIRES_ON='2026-11-30'
-```
-
-같은 터미널에서 바로 **1-2. 요청 JSON 생성**을 실행하세요.
-
-**1-2. 요청 JSON 생성**
-
-같은 터미널에서 실행하세요. `APPROVAL_ID`, `APPROVED_AT`, `EXPIRES_ON` 중 하나가 오류에 표시되면 1-1에서 해당 값을 수정한 뒤 1-2를 다시 실행합니다. 성공하면 `sbx04` 요청 내용이 출력됩니다.
-
-```bash
-PREVIOUS_URI='gs://gcp-sbx-edp-gke01-sbxtest01-requests/approved/REQ-20261114-SBX03-001/request.json'
-REQUEST_FILE=".local/${REQUEST_ID}.json"
-
-mkdir -p .local &&
-gcloud storage cat "$PREVIOUS_URI" --account=son@sonmap.net > .local/sbx03-previous.json &&
-jq -e '
-  if .task.name != "sbx03" or .approval.status != "APPROVED" or .network.required then
-    error("sbx03 원본과 과제별 네트워크 설정을 확인하세요.")
-  elif ((env.APPROVAL_ID // "") | test("^[^[:space:]].{2,127}$") and . != "실제-승인번호" and (startswith("EXAMPLE-") | not) | not) then
-    error("APPROVAL_ID에 실제 sbx04 승인 번호를 입력하세요. EXAMPLE- 값은 예시입니다.")
-  elif ((env.APPROVED_AT // "") | test("^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?(Z|[+-][0-9]{2}:[0-9]{2})$") | not) then
-    error("APPROVED_AT에 sbx04 승인 시각을 시간대까지 입력하세요.")
-  elif ((env.EXPIRES_ON // "") | test("^[0-9]{4}-[0-9]{2}-[0-9]{2}$") | not) then
-    error("EXPIRES_ON에 sbx04 종료일을 YYYY-MM-DD 형식으로 입력하세요.")
-  else
-    .request_id = env.REQUEST_ID
-    | .approval.approval_id = env.APPROVAL_ID
-    | .approval.approved_at = env.APPROVED_AT
-    | .task = {name: "sbx04", display_name: "Sandbox sbx04", expires_on: env.EXPIRES_ON}
-    | .identity.group_email = "pgrp-gcp-dev-sbx04@sonmap.net"
-    | del(.identity.group_resource_name, .identity.membership_resource_names)
-    | .project.create_project = true
-    | .project.project_id = "gcp-sbx-edp-sbx04"
-    | .project.project_name = "Sandbox sbx04"
-    | .identity.create_jupyter_gsa = true
-    | .data.bigquery_dataset = "sbx04_main"
-    | .data.gcs_bucket = "gcp-sbx-edp-sbx04-sbx04-data"
-    | del(.data.adopt_existing_resources, .data.datalake_datasets)
-    | .gke.namespace = "sbx04"
-    | .gke.jupyter_domain = "jupyter-sbx04.sonmap.net"
-  end
-' .local/sbx03-previous.json > "${REQUEST_FILE}.tmp" &&
-mv -- "${REQUEST_FILE}.tmp" "$REQUEST_FILE" &&
-jq '{request_id, approval, task, identity, project, data, gke, source}' "$REQUEST_FILE"
-```
-
-**2. 새 요청을 GCS에 게시하고 Workflow 입력 만들기**
-
-1번에서 출력된 `sbx04` 요청이 승인 내역과 일치하는지 확인한 뒤 같은 셸에서 실행하세요. 동일한 요청 ID가 이미 게시되어 `412`가 나오면 해당 객체가 이번 요청과 같은지 먼저 확인하세요.
-
-```bash
-REQUEST_URI="gs://gcp-sbx-edp-gke01-sbxtest01-requests/approved/${REQUEST_ID}/request.json"
-
-rm -f .local/sbx04-workflow-input.json &&
-jq -e '
-  .request_id == env.REQUEST_ID and .task.name == "sbx04"
-  and .identity.group_email == "pgrp-gcp-dev-sbx04@sonmap.net"
-  and .project.project_id == "gcp-sbx-edp-sbx04"
-  and .gke.namespace == "sbx04" and .approval.status == "APPROVED"
-  and .approval.approval_id == env.APPROVAL_ID and .approval.approved_at == env.APPROVED_AT
-  and .task.expires_on == env.EXPIRES_ON
-' "$REQUEST_FILE" &&
-gcloud storage cp --if-generation-match=0 "$REQUEST_FILE" "$REQUEST_URI" --account=son@sonmap.net &&
-REQUEST_GENERATION="$(gcloud storage objects describe "$REQUEST_URI" --account=son@sonmap.net --format='value(generation)')" &&
-gcloud storage cp "${REQUEST_URI}#${REQUEST_GENERATION}" .local/sbx04-published.json --account=son@sonmap.net &&
-cmp "$REQUEST_FILE" .local/sbx04-published.json &&
-REQUEST_SHA256="$(sha256sum .local/sbx04-published.json | cut -d ' ' -f1)" &&
-jq -n --arg id "$REQUEST_ID" --arg uri "$REQUEST_URI" --arg gen "$REQUEST_GENERATION" --arg sha "$REQUEST_SHA256" \
-  '{request_id:$id,approved_json_uri:$uri,generation:($gen|tonumber),sha256:$sha}' \
-  > .local/sbx04-workflow-input.json
-```
-
-**3. Workflow 실행 및 그룹 확인**
-
-[5번](#5-workflow-실행-전-private-pool과-서비스-확인)의 Pool·Workflow·Cloud Run 상태를 확인한 뒤, 2번에서 생성한 입력으로 실행하세요.
-
-```bash
-test -s .local/sbx04-workflow-input.json &&
-gcloud workflows run workflow-sbxtest01-provision \
-  --project=gcp-sbx-edp-gke01 --location=asia-northeast3 \
-  --account=son@sonmap.net --data="$(cat .local/sbx04-workflow-input.json)"
-```
-
-`ACCEPTED`는 요청 접수입니다. [7번](#7-cloud-build-gke-및-alb-확인)의 Cloud Build 조회로 이번 실행을 추적하고 그룹 배포가 완료된 후 아래 명령을 실행하세요. 새 호스트의 HTTPS·OAuth 접속 시험에는 `jupyter-sbx04.sonmap.net`에 맞는 DNS, 인증서, OAuth 리디렉션 URI가 필요합니다.
-
-```bash
-gcloud identity groups describe pgrp-gcp-dev-sbx04@sonmap.net \
-  --account=son@sonmap.net \
-  --impersonate-service-account=tf-manager@gcp-sbx-edp-gke01.iam.gserviceaccount.com \
-  --format='yaml(name,groupKey.id,createTime)'
-```
-
-### 3. 승인 요청 게시
-
-실제 시험 배포가 승인됐다면 담당자가 승인한 메일·티켓·결재 기록의 번호와 완료 시각을 2-1의 `APPROVAL_ID`, `APPROVED_AT`에 사용합니다. 2-2로 JSON을 다시 생성한 뒤 아래 게시 명령을 실행합니다. 승인 기록이 아직 없고 GCS 읽기·쓰기만 확인하려면 [승인 전 GCS 읽기·쓰기 시험](#승인-전-gcs-읽기쓰기-시험)으로 이동합니다.
-
-**수행 이유** · Workflow와 요청 API가 읽을 승인 요청 원본을 GCS에 두기 위해서입니다. 로컬 JSON을 `approved/<요청 ID>/request.json`으로 올립니다. 같은 ID의 객체가 이미 있으면 덮어쓰지 않습니다. 현재 반자동 경로의 배포 시작은 별도 Workflow 실행 단계에서 이루어집니다.
-
-아래 조회 명령으로 로컬 JSON의 승인 번호·시각·종료일·사용자·릴리스가 실제 승인 내역과 일치하는지 확인합니다.
-
-```bash
-jq '{request_id, approval, expires_on: .task.expires_on, members: .identity.members, source}' \
-  ".local/${REQUEST_ID}.json"
-```
-
-확인이 끝나면 게시합니다. 아래 명령은 빈 값, 예시 승인 번호(`EXAMPLE-…`), 날짜 형식 오류 또는 현재 선언과 다른 요청 파일을 발견하면 업로드 전에 멈춥니다.
-
-```bash
 jq -e '
   [
     if (.request_id == env.REQUEST_ID) then empty else "REQUEST_ID" end,
     if (.approval.status == "APPROVED") then empty else "approval.status" end,
     if ((.approval.approval_id | type == "string" and . == env.APPROVAL_ID
-    and test("^[^[:space:]].{2,127}$") and . != "실제-내부-승인번호" and (startswith("EXAMPLE-") | not))) then empty else "APPROVAL_ID" end,
+      and test("^[^[:space:]].{2,127}$") and (startswith("EXAMPLE-") | not))) then empty else "APPROVAL_ID" end,
     if ((.approval.approved_at | type == "string" and . == env.APPROVED_AT
-    and test("^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?(Z|[+-][0-9]{2}:[0-9]{2})$"))) then empty else "APPROVED_AT" end,
+      and test("^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?(Z|[+-][0-9]{2}:[0-9]{2})$"))) then empty else "APPROVED_AT" end,
     if ((.task.expires_on | type == "string" and . == env.EXPIRES_ON and test("^[0-9]{4}-[0-9]{2}-[0-9]{2}$"))) then empty else "EXPIRES_ON" end,
-    if ((.identity.members | . == [env.MEMBER1, env.MEMBER2]
-    and all(.[]; type == "string" and test("^[^@[:space:]]+@sonmap\\.net$")))) then empty else "MEMBER1 / MEMBER2" end,
-    if ((.source.release_id | type == "string" and . == env.RELEASE_ID and length > 0)) then empty else "RELEASE_ID" end
+    if ((.identity.members | . == [env.MEMBER1, env.MEMBER2])) then empty else "MEMBER1 / MEMBER2" end,
+    if ((.source.release_id | type == "string" and . == env.RELEASE_ID)) then empty else "RELEASE_ID" end
   ] | if length == 0 then true else error("확인할 항목: " + join(", ")) end
-' ".local/${REQUEST_ID}.json" &&
-gcloud storage cp --if-generation-match=0 \
-  ".local/${REQUEST_ID}.json" \
-  "gs://gcp-sbx-edp-gke01-sbxtest01-requests/approved/${REQUEST_ID}/request.json" \
-  --account=son@sonmap.net
+' "$REQUEST_FILE" &&
+gcloud storage cp --if-generation-match=0 "$REQUEST_FILE" "$REQUEST_URI" \
+  --account="$ADMIN_ACCOUNT"
 ```
 
-**게시 완료 확인** · `jq`의 `true`와 GCS 복사 성공을 모두 확인한 뒤 4번으로 진행합니다. `412`가 나오면 `approved/`에 동일 요청 ID의 객체가 있는지 먼저 확인합니다. 기존 객체가 이번 승인 요청과 일치하면 해당 객체로 4번을 진행하고, 이번 재시도인데 복사 로그에 이전 `-001` 경로가 보이면 [2-3](#2-3-종료된-빌드-재시도)에서 새 `-002` 요청을 만든 뒤 3번을 다시 실행합니다.
+`true`와 복사 성공을 모두 확인한 뒤 4번으로 갑니다.
 
-#### 승인 전 GCS 읽기·쓰기 시험
+> **`412 pre-conditions ... did not hold`** · 같은 `REQUEST_ID`가 이미 게시되어 있다는 뜻이며, 오류가 아니라 중복 방지입니다. 복사 로그의 경로에서 **어느 과제의 ID인지 먼저 확인합니다.** 내용이 같으면 그대로 4번으로 진행하고, 내용을 바꾼 재시도이면 `REQUEST_ID`의 끝 번호를 올린 뒤 2번부터 다시 수행합니다.
 
-실제 승인 번호와 완료 시각이 아직 없으면, 2-2에서 만든 로컬 JSON으로 아래 시험만 수행할 수 있습니다. 이미 로컬 JSON이 있으면 2-2를 다시 실행할 필요가 없습니다.
+---
+
+## 4. Workflow 입력 검증
+
+게시된 객체의 특정 세대를 내려받아 대조하고, Workflow에 넘길 입력을 만듭니다.
 
 ```bash
-# 수행 위치: infra-son01 | 수행 계정: son@sonmap.net
-TEST_URI="gs://gcp-sbx-edp-gke01-sbxtest01-requests/test/${REQUEST_ID}/request.json"
-
-gcloud storage cp --if-generation-match=0 \
-  ".local/${REQUEST_ID}.json" "$TEST_URI" --account=son@sonmap.net &&
-gcloud storage cat "$TEST_URI" --account=son@sonmap.net
+rm -f .local/workflow-input.json &&
+REQUEST_GENERATION="$(gcloud storage objects describe "$REQUEST_URI" --account="$ADMIN_ACCOUNT" --format='value(generation)')" &&
+gcloud storage cp "${REQUEST_URI}#${REQUEST_GENERATION}" .local/published.json --account="$ADMIN_ACCOUNT" &&
+cmp "$REQUEST_FILE" .local/published.json &&
+jq -e --arg task "$TASK" '
+  .request_id == env.REQUEST_ID and .approval.status == "APPROVED"
+  and .task.name == $task
+  and .project.project_id == ("gcp-sbx-edp-" + $task)
+' .local/published.json &&
+REQUEST_SHA256="$(sha256sum .local/published.json | cut -d ' ' -f1)" &&
+jq -n --arg id "$REQUEST_ID" --arg uri "$REQUEST_URI" --arg gen "$REQUEST_GENERATION" --arg sha "$REQUEST_SHA256" \
+  '{request_id:$id,approved_json_uri:$uri,generation:($gen|tonumber),sha256:$sha}' \
+  > .local/workflow-input.json &&
+cat .local/workflow-input.json
 ```
 
-JSON이 출력되면 테스트 경로의 업로드와 읽기가 확인된 것입니다. 같은 테스트 객체가 이미 있어 업로드가 중단되면 `gcloud storage cat "$TEST_URI" --account=son@sonmap.net`으로 기존 객체를 읽을 수 있습니다. 이 경로로는 4번 Workflow 입력 검증이나 배포를 진행하지 않습니다.
+`false`가 나오면 `TASK`와 `REQUEST_ID`가 서로 다른 과제를 가리키는 경우가 대부분입니다. 0-3으로 돌아가 변수를 맞춥니다.
 
-### 4. 게시 결과와 Workflow 입력 검증
+---
 
-**수행 이유** · 방금 게시한 파일이 승인된 `sbx03` 요청인지 확인하고, Workflow에 전달할 입력을 만들기 위해서입니다. GCS 객체의 특정 세대를 다운로드해 요청 ID·승인 상태·과제 및 프로젝트를 확인하고, 해당 요청 JSON의 SHA256을 계산합니다. `.local/sbx03-workflow-input.json`에는 요청 ID, GCS 경로, generation, SHA256이 저장됩니다. 이 SHA256은 1번의 Terraform ZIP 해시와 별개입니다.
-
-2번에서 지정한 `REQUEST_ID`를 유지한 채, 같은 터미널에서 실행합니다.
-
-```bash
-REQUEST_URI="gs://gcp-sbx-edp-gke01-sbxtest01-requests/approved/${REQUEST_ID}/request.json"
-mkdir -p .local &&
-  rm -f .local/sbx03-workflow-input.json &&
-  REQUEST_GENERATION="$(gcloud storage objects describe "$REQUEST_URI" --account=son@sonmap.net --format='value(generation)')" &&
-  gcloud storage cp "${REQUEST_URI}#${REQUEST_GENERATION}" .local/sbx03-request.json --account=son@sonmap.net &&
-  jq -e --arg id "$REQUEST_ID" '
-    .request_id == $id and .approval.status == "APPROVED"
-    and .task.name == "sbx03"
-    and .project.project_id == "gcp-sbx-edp-sbx03"
-    and .gke.project_id == "gcp-sbx-edp-gke01"
-  ' .local/sbx03-request.json &&
-  REQUEST_SHA256="$(sha256sum .local/sbx03-request.json | cut -d ' ' -f1)" &&
-  jq -n --arg id "$REQUEST_ID" --arg uri "$REQUEST_URI" --arg gen "$REQUEST_GENERATION" --arg sha "$REQUEST_SHA256" \
-    '{request_id:$id,approved_json_uri:$uri,generation:($gen|tonumber),sha256:$sha}' \
-    > .local/sbx03-workflow-input.json
-```
-
-`true`가 출력되고 `.local/sbx03-workflow-input.json`이 생성되면 검증이 완료됩니다. Private Pool을 보류 중이면 여기까지 진행합니다. Pool이 준비되면 5번으로 진행합니다.
-
-### 5. Workflow 실행 전 Private Pool과 서비스 확인
-
-1~4번은 요청 준비입니다. 5번부터는 실제 리소스를 배포하는 기존 과제별 자동화 경로입니다. **Private Pool을 보류 중이면 4번에서 멈춥니다.**
+## 5. 배포 전 확인
 
 ```bash
 gcloud builds worker-pools describe pool-sbxtest01 \
-  --project=gcp-sbx-edp-gke01 --region=asia-northeast3 \
-  --account=son@sonmap.net --format='value(state)'
+  --project="$SBX_GKE_PROJECT" --region="$REGION" \
+  --account="$ADMIN_ACCOUNT" --format='value(state)'
 
 gcloud workflows describe workflow-sbxtest01-provision \
-  --project=gcp-sbx-edp-gke01 --location=asia-northeast3 \
-  --account=son@sonmap.net --format='value(state)'
+  --project="$SBX_GKE_PROJECT" --location="$REGION" \
+  --account="$ADMIN_ACCOUNT" --format='value(state)'
 
-gcloud run services describe run-sbxtest01-provisioner \
-  --project=gcp-sbx-edp-gke01 --region=asia-northeast3 \
-  --account=son@sonmap.net --format='value(status.url)'
+gcloud infra-manager deployments list \
+  --project="$SBX_GKE_PROJECT" --location="$REGION" \
+  --account="$ADMIN_ACCOUNT" --format='table(name.basename(),state)'
 ```
 
-Pool 상태가 `RUNNING`, Workflow 상태가 `ACTIVE`이고 Cloud Run URL이 조회되는지 확인합니다. Pool이 준비되면 [Private Pool의 GKE 접속 점검](../02.infra-setup/reference/cloudbuild-private-gke-vpn-design.md)을 수행합니다.
-
-### 6. sbx03 Workflow 실행
-
-검증한 입력 파일로 승인된 요청을 제출합니다. 아래 실행으로 과제 프로젝트, 권한, 데이터 자원과 GKE 배포가 시작될 수 있습니다.
+Pool이 `RUNNING`, Workflow가 `ACTIVE`여야 합니다. 배포 목록에 이번 과제의 `FAILED` 항목이 남아 있으면 먼저 정리합니다. 상태만 지우고 실제 자원은 남깁니다.
 
 ```bash
-test -s .local/sbx03-workflow-input.json &&
-  gcloud workflows run workflow-sbxtest01-provision \
-    --project=gcp-sbx-edp-gke01 --location=asia-northeast3 \
-    --account=son@sonmap.net --data="$(cat .local/sbx03-workflow-input.json)"
+gcloud infra-manager deployments delete "<FAILED 배포 이름>" \
+  --project="$SBX_GKE_PROJECT" --location="$REGION" \
+  --delete-policy=ABANDON --account="$ADMIN_ACCOUNT" --quiet
 ```
 
-Workflow의 `SUCCEEDED`와 응답의 `ACCEPTED`를 확인합니다. 이 상태는 배포 접수입니다.
+---
 
-### 7. Cloud Build, GKE 및 ALB 확인
+## 6. 과제 Workflow 실행
 
-먼저 이번 요청의 실행 시각과 로그를 대조해 상위·하위 빌드가 `SUCCESS`인지 확인합니다.
+**포털이 자동화할 지점입니다.** 과제 프로젝트, IAM, BigQuery·GCS, Cloud Identity 그룹을 만듭니다.
 
 ```bash
-gcloud builds list --project=gcp-sbx-edp-gke01 --region=asia-northeast3 \
-  --account=son@sonmap.net --limit=10 --format='table(id,status,createTime)'
+test -s .local/workflow-input.json &&
+gcloud workflows run workflow-sbxtest01-provision \
+  --project="$SBX_GKE_PROJECT" --location="$REGION" \
+  --account="$ADMIN_ACCOUNT" --data="$(cat .local/workflow-input.json)"
 ```
 
-빌드 완료 후 실제 과제 Namespace와 ALB를 확인합니다.
+`SUCCEEDED`는 **접수**입니다. 실제 작업은 Cloud Build에서 진행되므로 결과를 따로 확인합니다.
 
 ```bash
-helm list -n sbx03
-kubectl -n sbx03 get pods,svc,svcneg,pvc
-gcloud compute backend-services get-health bes-jupyter-sbx03 \
-  --project=gcp-sbx-edp-gke01 --region=asia-northeast3 --account=son@sonmap.net
+gcloud builds list --project="$SBX_GKE_PROJECT" --region="$REGION" \
+  --account="$ADMIN_ACCOUNT" --limit=5 --format='table(id,status,createTime)'
 ```
 
-Hub와 Proxy가 `1/1 Running`이고 이번 배포에서 생성된 NEG의 엔드포인트가 `HEALTHY`이면 8번으로 진행합니다. 빌드가 실패하거나 대기하면 [sbx03 배포 결과 확인](03.1.request/legacy-deploy.md#3-배포-결과와-접속-확인)을 따릅니다.
+상위 빌드가 실패하면 로그에 적힌 **하위 빌드 ID**로 다시 조회해야 Terraform 오류가 보입니다.
 
-### 8. 내부 HTTPS, Google 로그인 및 Notebook 검증
+```bash
+gcloud builds log "<하위 빌드 ID>" --project="$SBX_GKE_PROJECT" --region="$REGION" \
+  --account="$ADMIN_ACCOUNT" 2>&1 | tail -50
+```
 
-1. 사내 테스트 PC에서 [sbx03 JupyterHub](https://jupyter-sbx03.sonmap.net/hub/login)에 접속합니다.
-2. 승인 JSON에 넣은 사용자로 Google 로그인하고 Notebook 서버를 시작합니다.
-3. `infra-son01`에서 `kubectl -n sbx03 get pods,pvc`를 실행합니다. 사용자 Notebook Pod가 `Running`, 해당 PVC가 `Bound`이면 확인 완료입니다.
+네 개 배포가 모두 `ACTIVE`이면 완료입니다.
 
-접속 또는 인증 오류는 [내부 HTTPS와 인증서](../02.infra-setup/reference/sbx03-https-certificate-runbook.md), [Google OAuth 로그인](../02.infra-setup/reference/sbx03-google-oauth-runbook.md)을 확인합니다.
+```bash
+gcloud infra-manager deployments list \
+  --project="$SBX_GKE_PROJECT" --location="$REGION" \
+  --account="$ADMIN_ACCOUNT" --format='table(name.basename(),state)'
+```
+
+> **과제별 Hub는 쓰지 않습니다.** 이 Workflow는 과제 Namespace에 Hub와 Proxy까지 배포합니다. 그룹 공유 구성에서는 불필요하므로 7번 전에 제거합니다. 남겨 두면 노드와 할당량을 점유합니다.
+>
+> ```bash
+> helm list -A | grep "jupyterhub-${TASK}" && helm uninstall "jupyterhub-${TASK}" -n "$TASK"
+> ```
+
+---
+
+## 7. 그룹 공유 배포
+
+그룹 Hub·Proxy와 과제 Notebook, 내부 ALB 경로를 적용합니다.
+
+### 7-1. 과제 Namespace와 PVC 준비
+
+Workflow는 PVC를 만들지 않고 **이미 있는 것을 조회만** 합니다. 없으면 `kubectl -n <과제> get pvc notebook-home failed`로 중단됩니다.
+
+```bash
+kubectl get namespace "$TASK" >/dev/null 2>&1 || kubectl create namespace "$TASK"
+kubectl label namespace "$TASK" "sandbox-group=$GROUP" --overwrite
+
+kubectl -n "$TASK" get pvc notebook-home >/dev/null 2>&1 || cat <<YAML | kubectl apply -f -
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: notebook-home
+  namespace: $TASK
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: 20Gi
+  storageClassName: standard-rwo
+YAML
+
+kubectl -n "$TASK" get pvc
+```
+
+> **과제가 하나면 `standard-rwo`로 충분합니다.** 과제 Pod 하나만 볼륨을 쓰기 때문입니다. 여러 과제가 한 볼륨을 `sub_path`로 나눠 쓰는 구성으로 갈 때만 RWX(`standard-rwx`, Filestore)가 필요하며, Filestore는 최소 용량이 1TB라 비용이 크게 늘어납니다.
+
+### 7-2. 그룹 JSON 게시와 실행
+
+```bash
+source .local/env.sh
+GROUP_URI="gs://${REQUEST_BUCKET}/approved-groups/${GROUP}/group.json"
+
+jq -e --arg group "$GROUP" '.group == $group' "$GROUP_CONFIG" >/dev/null &&
+SHA256="$(sha256sum "$GROUP_CONFIG" | awk '{print $1}')" &&
+gcloud storage cp "$GROUP_CONFIG" "$GROUP_URI" --account="$ADMIN_ACCOUNT" &&
+GENERATION="$(gcloud storage objects describe "$GROUP_URI" --account="$ADMIN_ACCOUNT" --format='value(generation)')" &&
+INPUT="$(jq -nc --arg group "$GROUP" --arg generation "$GENERATION" --arg sha256 "$SHA256" \
+  '{group:$group,generation:$generation,sha256:$sha256}')" &&
+echo "$INPUT" &&
+gcloud workflows run "$WORKFLOW" --project="$SBX_GKE_PROJECT" \
+  --location="$REGION" --account="$ADMIN_ACCOUNT" --data="$INPUT"
+```
+
+> **실행 중에는 Namespace·PVC·그룹을 건드리지 않습니다.** 배포가 도는 동안 삭제하면 상태 잠금이 깨져 다음 실행이 `Error acquiring the state lock`으로 실패합니다. 그때는 빌드가 모두 끝난 뒤 해당 Infra Manager 배포를 `ABANDON`으로 지우고 다시 실행합니다.
+>
+> 공통 ALB 갱신은 별도의 GCS 잠금으로 직렬화됩니다. 빌드를 강제 종료해 잠금 객체가 남으면, 객체에 기록된 Build ID가 종료된 것을 확인한 뒤 해당 객체의 generation을 조건으로 잠금을 제거하고 최신 승인본을 다시 제출합니다.
+
+### 7-3. 결과 확인
+
+```bash
+gcloud builds list --project="$SBX_GKE_PROJECT" --region="$REGION" \
+  --account="$ADMIN_ACCOUNT" --limit=3 --format='table(id,status,createTime)'
+
+kubectl -n "$GROUP" get pods,svc,svcneg
+kubectl -n "$TASK" get pods,pvc
+```
+
+기대하는 상태입니다.
+
+| 대상 | 상태 |
+|---|---|
+| `<그룹>` Hub | `1/1 Running` |
+| `<그룹>` Proxy | `1/1 Running` |
+| `<과제>` Notebook | `5/5 Running` (멤버 5명분 컨테이너) |
+| `notebook-home` PVC | `Bound` |
+
+ALB 백엔드도 확인합니다.
+
+```bash
+gcloud compute backend-services get-health "bes-jupyter-${GROUP}" \
+  --project="$SBX_GKE_PROJECT" --region="$REGION" --account="$ADMIN_ACCOUNT"
+```
+
+> **`did not become HEALTHY ... health states=[]`** · NEG에 엔드포인트가 없다는 뜻입니다. Autopilot이 배포 도중 다른 존에 노드를 올려, 백엔드에 붙은 존과 Pod가 있는 존이 어긋난 경우입니다. 노드가 안정된 뒤 7-2를 다시 실행하면 양쪽 존 NEG가 모두 등록됩니다.
+
+---
+
+## 8. 접속 검증
+
+1. 테스트 PC에서 그룹 호스트를 ALB VIP로 연결합니다. 사내 DNS 등록 전에는 `hosts` 파일로 대체할 수 있습니다.
+
+   ```bash
+   gcloud compute addresses describe ip-alb-sbxtest01-shared \
+     --project="$SBX_GKE_PROJECT" --region="$REGION" \
+     --account="$ADMIN_ACCOUNT" --format='value(address)'
+   ```
+
+   ```
+   <VIP>  jupyter-group01.sonmap.net
+   ```
+
+2. 브라우저에서 `https://jupyter-group01.sonmap.net/hub/login`에 접속합니다.
+3. 승인된 이메일과 [최초 1회 · C](#c-그룹-계정과-secret-준비)에서 정한 비밀번호로 로그인합니다. Google 로그인이 아닙니다.
+4. 과제 Notebook을 시작하고 `/home/jupyter` 아래에 파일이 저장되는지 확인합니다.
+
+자체 서명 인증서는 브라우저 경고가 뜹니다. 인증서 SAN이 그룹 호스트와 다르면 1차 문서의 [32-2](../02.infra-setup/infra-setup-commend.md)에서 다시 만듭니다.
+
+---
+
+## 과제 추가
+
+기존 그룹에 과제를 더합니다. Hub와 Proxy는 그대로 두고 Namespace와 Notebook Pod만 늘어납니다.
+
+1. [0-3](#0-3-과제-변수-선언)에서 `TASK`를 새 과제로 바꾸고 `REQUEST_ID`를 새로 만듭니다.
+2. [2~6번](#2-요청-json-생성)을 그대로 수행합니다. 새 프로젝트·IAM·데이터·그룹이 생성됩니다.
+3. 그룹 JSON의 `tasks`에 **기존 과제와 새 과제를 함께** 넣습니다. 새 과제만 남기면 기존 과제가 제거됩니다.
+
+   ```bash
+   jq '.tasks += {
+     "sbx05": {
+       "members": ["user06@sonmap.net","user07@sonmap.net","user08@sonmap.net","user09@sonmap.net","user10@sonmap.net"],
+       "gsa": "gsa-jupyter-sbx05@gcp-sbx-edp-sbx05.iam.gserviceaccount.com",
+       "image": "<AR digest>",
+       "uid": 1000, "gid": 100,
+       "storage": { "claim": "notebook-home", "sub_path": "sbx05" }
+     }
+   }' "$GROUP_CONFIG" > "$GROUP_CONFIG.tmp" && mv "$GROUP_CONFIG.tmp" "$GROUP_CONFIG"
+   ```
+
+4. 새 멤버의 비밀번호 해시를 추가하고 Secret 버전을 갱신합니다.
+5. [7번](#7-그룹-공유-배포)을 다시 수행합니다.
+
+그룹을 새로 만들 때는 [최초 1회 · C](#c-그룹-계정과-secret-준비)부터 시작하고, 그룹 호스트와 인증서를 따로 준비합니다.
+
+---
+
+## 중지와 재개
+
+비용 절감을 위해 Pod만 0으로 줄입니다. 실행 중인 커널이 종료되므로 작업 파일을 먼저 저장합니다.
+
+**중지** — 과제를 먼저 멈추고, 그룹을 쓰는 다른 과제가 없을 때만 Hub·Proxy를 내립니다.
+
+```bash
+source .local/env.sh
+python3 03.sandbox_deploy/03.3.gke/shared-group/shared_sandbox.py \
+  "$GROUP_CONFIG" stop "$TASK" --context "$(kubectl config current-context)" &&
+kubectl -n "$GROUP" scale deployment/hub deployment/proxy --replicas=0
+```
+
+**재개** — Hub가 Proxy보다 먼저 뜨면 `api_request to the proxy failed`로 재시작을 반복하므로 **Proxy를 먼저** 올립니다.
+
+```bash
+kubectl -n "$GROUP" scale deployment/proxy --replicas=1 &&
+kubectl -n "$GROUP" rollout status deployment/proxy --timeout=10m &&
+kubectl -n "$GROUP" scale deployment/hub --replicas=1 &&
+kubectl -n "$GROUP" rollout status deployment/hub --timeout=10m &&
+python3 03.sandbox_deploy/03.3.gke/shared-group/shared_sandbox.py \
+  "$GROUP_CONFIG" start "$TASK" --context "$(kubectl config current-context)" &&
+kubectl -n "$TASK" rollout status deployment/notebook --timeout=10m &&
+kubectl -n "$TASK" get pods,pvc
+```
+
+Pod를 0으로 줄여도 내부 ALB와 영구 디스크에는 비용이 계속 발생합니다.
+
+---
+
+## 자주 막히는 지점
+
+| 증상 | 원인 | 조치 |
+|---|---|---|
+| 노드 `NotReady`, 파드 `Pending` | PGA 미설정으로 `gcr.io`가 공인 IP로 해석 | 1차 문서 2-2의 Private Google Access 적용 |
+| 그룹 생성이 20분 뒤 `got pending status "not found"` | `tf-manager`에 Workspace 그룹스 관리자 역할 없음 | admin.google.com → 관리자 역할 → 그룹스 관리자 → 서비스 계정 할당 |
+| `resourcemanager.projects.create denied on organizations/...` | 요청 JSON이 `org_id`를 부모로 지정 | `folder_id`로 바꾸고 `org_id` 제거 |
+| 게시에서 `412` | 같은 `REQUEST_ID`가 이미 있음 | 내용이 같으면 그대로 진행, 다르면 ID 끝 번호를 올려 재작성 |
+| `kubectl get pvc notebook-home failed` | 과제 Namespace에 PVC 없음 | [7-1](#7-1-과제-namespace와-pvc-준비) 수행 |
+| `Error acquiring the state lock` | 배포 중 자원을 삭제해 잠금이 깨짐 | 빌드 종료 확인 후 해당 배포를 `ABANDON`으로 삭제하고 재실행 |
+| 백엔드가 `HEALTHY`가 되지 않고 `health states=[]` | NEG 존과 Pod 존 불일치 | 노드 안정 후 7-2 재실행 |
+| Hub가 `CrashLoopBackOff`, 로그에 `status code 599` | Proxy가 없거나 아직 기동 전 | Proxy를 먼저 올린 뒤 Hub 기동 |
+
+---
+
+## 폴더 구성
 
 | 폴더 | 용도 |
 |---|---|
-| [03.1.request](03.1.request/) | 승인 JSON, Workflows와 요청 API |
-| [03.2.terraform](03.2.terraform/) | 기존 과제별 경로의 프로젝트·IAM·데이터 구성 |
-| [03.3.gke](03.3.gke/) | Runner, 그룹 공유 배포, Cloud Build와 Notebook 이미지 |
-
-| 실행 시점 | 담당 | 명령 |
-|---|---|---|
-| 최초 한 번 또는 Runner 버전 변경 | 플랫폼 운영자 · `infra-son01` | `gcloud builds submit` → `gcloud workflows deploy` |
-| 그룹 최초 개설 또는 계정 변경 | 플랫폼 운영자 · `infra-son01` | `prepare_test_accounts.py` → Secret Manager에 해시 등록 |
-| 과제 승인마다 | 포털 | GCS에 승인 JSON 저장 → Workflow 호출 |
-| 배포 후 점검 | 플랫폼 운영자 · `infra-son01` | Workflow·Build 결과 확인 → GKE 조회 → 브라우저 로그인 |
-
-## 그룹 공유 Sandbox 자동 배포
-
-```mermaid
-flowchart TD
-    P["포털 · 그룹 구성 승인"] --> G["GCS · 승인된 그룹 JSON"]
-    P -->|"그룹명 · GCS generation · SHA256"| W["Workflows · workflow-sbx-shared-group"]
-    W --> B["Cloud Build Private Pool · Runner"]
-    G --> B
-    S["Secret Manager · PoC 계정 해시"] --> B
-    B --> H["GKE · 그룹 Hub와 Proxy"]
-    B --> T["GKE · 과제 Notebook · KSA · PVC"]
-    H --> L["공통 내부 ALB · 그룹 DNS 연결"]
-```
-
-### 1. 플랫폼 운영자 · Workflow 최초 등록
-
-1차에서 GKE, Private Pool의 GKE 접근, 내부 ALB, 그룹 DNS·리전 인증서, 내부 AR의 Helm 차트와 실행 이미지를 준비합니다. Runner에는 그룹 배포 코드가 포함된 버전을 사용합니다. 기존 Runner만 있으면 관리 VM에서 아래와 같이 전용 버전을 게시합니다. 1차 플랫폼 릴리스로 새 Runner를 이미 게시했다면 해당 태그를 사용할 수 있습니다.
-
-```bash
-# 1차 문서의 프로젝트, 리전, 계정, 서비스 계정 변수를 설정하고 저장소 루트에서 실행
-export SBX_GKE_PROJECT="gcp-sbx-edp-gke01"
-export REGION="asia-northeast3"
-export ADMIN_ACCOUNT="son@sonmap.net"
-export TF_MANAGER="tf-manager@${SBX_GKE_PROJECT}.iam.gserviceaccount.com"
-export SBX_MANAGER="sbx-manager@${SBX_GKE_PROJECT}.iam.gserviceaccount.com"
-export REQUEST_BUCKET="${SBX_GKE_PROJECT}-sbxtest01-requests"
-export WORKFLOW="workflow-sbx-shared-group"
-export BUILD_STAGING_BUCKET="${SBX_GKE_PROJECT}-sbxtest01-build-source"
-export TF_MANAGER_RESOURCE="projects/${SBX_GKE_PROJECT}/serviceAccounts/${TF_MANAGER}"
-export AR_REPO="${REGION}-docker.pkg.dev/${SBX_GKE_PROJECT}/ar-sbxtest01-platform"
-export RUNNER_IMAGE="${AR_REPO}/sbxtest01-automation-runner:shared-$(git rev-parse --short=12 HEAD)"
-export WORKER_POOL="projects/${SBX_GKE_PROJECT}/locations/${REGION}/workerPools/pool-sbxtest01"
-
-# 아래 config는 Runner만 빌드합니다.
-gcloud builds submit . --project="$SBX_GKE_PROJECT" --region="$REGION" \
-  --account="$ADMIN_ACCOUNT" --impersonate-service-account="$TF_MANAGER" \
-  --service-account="$TF_MANAGER_RESOURCE" --gcs-source-staging-dir="gs://${BUILD_STAGING_BUCKET}/source" \
-  --config=03.sandbox_deploy/03.3.gke/cloudbuild/shared-group-runner.yaml --substitutions="_RUNNER_IMAGE=$RUNNER_IMAGE"
-
-gcloud workflows deploy "$WORKFLOW" --project="$SBX_GKE_PROJECT" \
-  --location="$REGION" --account="$ADMIN_ACCOUNT" --impersonate-service-account="$TF_MANAGER" \
-  --service-account="$SBX_MANAGER" --source=03.sandbox_deploy/03.1.request/shared-group-workflow.yaml \
-  --set-env-vars="SBX_REGION=$REGION,SBX_RUNNER_SA=$TF_MANAGER_RESOURCE,SBX_RUNNER_IMAGE=$RUNNER_IMAGE,SBX_WORKER_POOL=$WORKER_POOL,SBX_GKE_CLUSTER=gke-sbx-main-an3,SBX_GKE_ENDPOINT_MODE=dns,SBX_REQUEST_BUCKET=$REQUEST_BUCKET,SBX_CHART_URI=oci://$AR_REPO/jupyterhub,SBX_CHART_VERSION=4.2.0,SBX_URL_MAP=urlmap-alb-sbxtest01-shared"
-```
-
-Workflow 실행 계정 `sbx-manager`에는 Build 제출·조회, Private Pool 사용, `tf-manager` 사용 권한이 필요합니다. Runner의 `tf-manager`에는 GKE·ALB 권한, 요청 버킷의 객체 읽기·잠금 객체 생성 및 삭제 권한, 그룹 Secret 접근 권한, 과제 GSA에 Workload Identity 바인딩을 추가할 권한이 필요합니다. 포털 서비스 계정에 승인 JSON 게시 및 이 Workflow 호출 권한을 부여합니다.
-
-### 2. 플랫폼 운영자 · 그룹 계정과 데이터 준비
-
-그룹별 `shared-test-accounts-<그룹명>` Secret Manager 리소스에 `prepare_test_accounts.py`가 생성한 해시 JSON을 등록하고 Runner 계정에 해당 Secret의 `roles/secretmanager.secretAccessor`를 부여합니다. 새 멤버 등록 또는 비밀번호 변경 때 Secret 버전을 갱신합니다. 승인 JSON과 Git에는 해시나 비밀번호를 넣지 않습니다.
-
-아래 명령은 승인된 실제 JSON을 준비한 뒤 같은 관리 VM 터미널에서 실행합니다. 해시 파일은 제한된 로컬 디렉터리에 보관합니다.
-
-```bash
-GROUP=sandbox-group-01
-GROUP_CONFIG="$HOME/.sandbox-approvals/$GROUP/group.json"
-HASH_FILE="$HOME/.sandbox-approvals/$GROUP/accounts.json"
-ACCOUNT_SECRET="shared-test-accounts-$GROUP"
-
-mkdir -p -m 700 "$(dirname "$GROUP_CONFIG")"
-python3 03.sandbox_deploy/03.3.gke/shared-group/prepare_test_accounts.py "$GROUP_CONFIG" "$HASH_FILE"
-gcloud secrets describe "$ACCOUNT_SECRET" --project="$SBX_GKE_PROJECT" --account="$ADMIN_ACCOUNT"
-```
-
-Secret이 명시적으로 없을 때 아래 두 명령을 실행합니다. 기존 Secret은 생성 명령을 건너뛰고 필요한 권한과 버전만 확인합니다.
-
-```bash
-gcloud secrets create "$ACCOUNT_SECRET" --replication-policy=automatic --project="$SBX_GKE_PROJECT" --account="$ADMIN_ACCOUNT"
-gcloud secrets add-iam-policy-binding "$ACCOUNT_SECRET" --member="serviceAccount:$TF_MANAGER" --role=roles/secretmanager.secretAccessor --project="$SBX_GKE_PROJECT" --account="$ADMIN_ACCOUNT"
-```
-
-최초 등록 또는 계정 해시 변경 시 새 버전을 추가합니다. 특정 계정의 비밀번호를 바꿀 때는 해시 생성 명령 끝에 `--rotate <GW 이메일>`을 붙입니다.
-
-```bash
-gcloud secrets versions add "$ACCOUNT_SECRET" --data-file="$HASH_FILE" --project="$SBX_GKE_PROJECT" --account="$ADMIN_ACCOUNT"
-```
-
-과제별 GSA와 BigQuery·GCS 접근 권한을 준비합니다. 기존 Filestore를 사용할 경우 과제 Namespace에 `sandbox-group=<그룹명>` 라벨과 기존 RWX PVC, 필요한 전용 디렉터리를 미리 준비합니다. 신규 PVC를 자동 생성하려면 승인 JSON에 검증된 `storage_class`를 넣습니다. 기존 그룹에 과제를 추가할 때는 JSON에 기존 과제와 신규 과제를 함께 넣습니다. 멤버 교체 전에는 기존 `stop` 절차로 과제를 중지하고 세션을 정리합니다.
-
-### 3. 포털 · 승인할 때마다 실행
-
-1. [그룹 JSON 예시](../04.tests/fixtures/group.example.json)를 바탕으로 전체 그룹 구성을 작성합니다. 실제 내부 AR digest, 그룹 DNS와 과제 PVC 정보를 넣습니다.
-2. 승인한 바이트를 `gs://<요청 버킷>/approved-groups/<그룹명>/group.json`에 게시합니다. 그룹별 최신 승인본만 적용합니다. 동시에 승인하는 경우 GCS 업로드의 generation 조건을 사용해 이전 승인본을 덮어쓰는 충돌을 방지합니다.
-3. 같은 바이트의 SHA256과 업로드에서 반환된 generation을 사용해 포털이 Workflows Executions API를 호출합니다.
-
-#### 포털 연동 시험 · 관리 VM에서 직접 실행
-
-포털 대신 운영자가 승인된 JSON으로 시험할 때만 실행합니다. `GROUP`과 `GROUP_CONFIG`는 2절에서 지정한 값을 사용합니다. 최초 등록은 `EXPECTED_GENERATION=0`, 기존 승인본을 교체할 때는 교체하기로 승인한 객체의 generation을 지정합니다. 충돌 시 최신 승인본을 확인합니다.
-
-```bash
-(
-  set -euo pipefail
-  REQUEST_URI="gs://$REQUEST_BUCKET/approved-groups/$GROUP/group.json"
-  EXPECTED_GENERATION=0
-
-  jq -e --arg group "$GROUP" '.group == $group' "$GROUP_CONFIG" >/dev/null
-  SHA256="$(sha256sum "$GROUP_CONFIG" | awk '{print $1}')"
-  gcloud storage cp "$GROUP_CONFIG" "$REQUEST_URI" --if-generation-match="$EXPECTED_GENERATION" --account="$ADMIN_ACCOUNT"
-  GENERATION="$(gcloud storage objects describe "$REQUEST_URI" --account="$ADMIN_ACCOUNT" --format='value(generation)')"
-  [[ "$GENERATION" =~ ^[0-9]+$ ]]
-  UPLOADED_SHA="$(gcloud storage cat "${REQUEST_URI}#${GENERATION}" --account="$ADMIN_ACCOUNT" | sha256sum | awk '{print $1}')"
-  [[ "$UPLOADED_SHA" == "$SHA256" ]]
-
-  INPUT="$(jq -nc --arg group "$GROUP" --arg generation "$GENERATION" --arg sha256 "$SHA256" '{group:$group,generation:$generation,sha256:$sha256}')"
-  gcloud workflows run "$WORKFLOW" --project="$SBX_GKE_PROJECT" --location="$REGION" --account="$ADMIN_ACCOUNT" --data="$INPUT"
-)
-```
-
-### 4. 플랫폼 운영자 · 결과 확인
-
-포털이 반환한 Workflow 실행 ID 또는 시험 명령이 출력한 실행 ID를 사용합니다. Workflow는 Build 완료를 기다립니다.
-
-```bash
-EXECUTION_ID="<Workflow 실행 ID>"
-gcloud workflows executions describe "$EXECUTION_ID" --workflow="$WORKFLOW" --location="$REGION" --project="$SBX_GKE_PROJECT" --account="$ADMIN_ACCOUNT" --format='yaml(state,result,error)'
-
-gcloud builds list --project="$SBX_GKE_PROJECT" --region="$REGION" --account="$ADMIN_ACCOUNT" --impersonate-service-account="$TF_MANAGER" --limit=10
-BUILD_ID="<해당 실행의 Build ID>"
-gcloud builds log "$BUILD_ID" --project="$SBX_GKE_PROJECT" --region="$REGION" --account="$ADMIN_ACCOUNT" --impersonate-service-account="$TF_MANAGER"
-```
-
-1차에서 준비한 관리 VM의 GKE DNS kubeconfig로 그룹과 과제를 확인합니다.
-
-```bash
-TASK="<승인된 과제 Namespace>"
-KUBE_CONFIG="$HOME/.kube/config-sbx-dns"
-CLOUDSDK_CORE_ACCOUNT="$ADMIN_ACCOUNT" kubectl --kubeconfig="$KUBE_CONFIG" -n "$GROUP" get pods,svc,svcneg
-CLOUDSDK_CORE_ACCOUNT="$ADMIN_ACCOUNT" kubectl --kubeconfig="$KUBE_CONFIG" -n "$TASK" get deployment notebook
-CLOUDSDK_CORE_ACCOUNT="$ADMIN_ACCOUNT" kubectl --kubeconfig="$KUBE_CONFIG" -n "$TASK" get pvc
-gcloud compute url-maps describe urlmap-alb-sbxtest01-shared --project="$SBX_GKE_PROJECT" --region="$REGION" --account="$ADMIN_ACCOUNT" --impersonate-service-account="$TF_MANAGER" --format='yaml(hostRules,pathMatchers)'
-```
-
-Workflow가 `SUCCEEDED`이고 Build가 `SUCCESS`인지 확인합니다. 그룹 DNS의 HTTPS 주소에서 승인된 계정으로 로그인해 과제 Notebook과 홈 파일을 확인합니다.
-
-공통 ALB 갱신은 GCS 잠금으로 직렬화됩니다. 빌드 강제 종료로 잠금이 남으면 운영자는 객체에 기록된 Build ID가 종료된 것을 확인하고, 해당 객체 generation을 조건으로 잠금을 제거한 뒤 최신 승인본을 다시 제출합니다.
+| [03.1.request](03.1.request/) | 승인 JSON 규격, Workflows, 요청 API |
+| [03.2.terraform](03.2.terraform/) | 프로젝트·IAM·데이터·그룹 Terraform |
+| [03.3.gke](03.3.gke/) | Runner, 그룹 공유 배포, Cloud Build, Notebook 이미지 |
 
 기존 과제별 Hub 구성은 [기존 Workflows 배포](03.1.request/legacy-deploy.md)를 참고합니다.

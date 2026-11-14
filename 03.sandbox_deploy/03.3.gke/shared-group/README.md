@@ -1,6 +1,6 @@
 # GKE 공유 샌드박스 배포
 
-Test02의 그룹 공유 배포는 2차 Sandbox 구축 업무입니다. 포털이 그룹 구성을 승인한 뒤 [그룹 공유 배포 Workflow](../../README.md#그룹-공유-sandbox-자동-배포)를 호출하면 Private Pool에서 Hub·Proxy, 과제 Notebook과 내부 ALB를 적용합니다. 기존 과제별 Workflow와는 별도입니다. 과제 Namespace는 한 배포 경로에서 관리합니다.
+Test02의 그룹 공유 배포는 2차 Sandbox 구축 업무입니다. 포털이 그룹 구성을 승인한 뒤 [그룹 공유 배포 Workflow](../../README.md#7-그룹-공유-배포)를 호출하면 Private Pool에서 Hub·Proxy, 과제 Notebook과 내부 ALB를 적용합니다. 기존 과제별 Workflow와는 별도입니다. 과제 Namespace는 한 배포 경로에서 관리합니다.
 
 | 범위 | 구성 |
 | --- | --- |
@@ -28,7 +28,7 @@ Test02의 그룹 공유 배포는 2차 Sandbox 구축 업무입니다. 포털이
 
 ## 수동 점검과 복구
 
-아래 명령은 운영자가 단계별로 직접 적용해야 하는 점검·복구에 사용합니다. 자동 배포의 계정 Secret Manager 등록 방법은 [2차 배포 문서](../../README.md#그룹-공유-sandbox-자동-배포)에 있습니다.
+아래 명령은 운영자가 단계별로 직접 적용해야 하는 점검·복구에 사용합니다. 자동 배포의 계정 Secret Manager 등록 방법은 [2차 배포 문서](../../README.md#c-그룹-계정과-secret-준비)에 있습니다.
 
 ### 1. 공통 인프라와 그룹 준비
 

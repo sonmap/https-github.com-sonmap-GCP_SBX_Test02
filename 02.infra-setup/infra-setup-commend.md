@@ -22,7 +22,7 @@
 | 이미지 준비 | [Helm 차트와 기본 이미지](#7-chart와-기본-이미지-미러링) → [표준 Notebook 이미지](#8-notebook-표준-이미지-빌드) |
 | 접속 검증 | [관리 VM에서 GKE 접속](#gke와-내부-https-접속-확인), [내부 HTTPS·DNS](reference/sbx03-https-certificate-runbook.md) |
 | 수동 설치 | [JupyterHub 수동 설치 및 접속 확인](#9-jupyterhub-수동-설치-및-접속-확인) |
-| 과제 배포 | [그룹 공유 Sandbox 자동 배포](../03.sandbox_deploy/README.md#그룹-공유-sandbox-자동-배포) 또는 [기존 Workflows 배포](../03.sandbox_deploy/03.1.request/legacy-deploy.md) |
+| 과제 배포 | [그룹 공유 Sandbox 자동 배포](../03.sandbox_deploy/README.md#배포-흐름) 또는 [기존 Workflows 배포](../03.sandbox_deploy/03.1.request/legacy-deploy.md) |
 
 그룹 공유 PoC만 구성하는 환경에서 공통 자원을 준비할 때는 기존 자동 배포용 Cloud Run·Workflows와 Google OAuth 구간을 구분해 적용합니다. 기존 환경에서는 자원 조회 결과를 확인한 뒤 필요한 생성·갱신 명령만 실행합니다.
 
@@ -79,7 +79,7 @@ export MAIN_CP_CIDR=10.253.3.0/28
 export PSA_NAME=psa-prod-edp-cloudbuild
 export PSA_CIDR=10.250.0.0/24
 export ADMIN_CIDR=172.31.10.0/24
-export SSL_CERTIFICATE=cert-jupyter-sbx01-self
+export SSL_CERTIFICATE=cert-jupyter-group01-self
 export BILLING_ACCOUNT=""
 export TF_MANAGER="tf-manager@${SBX_GKE_PROJECT}.iam.gserviceaccount.com"
 export SBX_MANAGER="sbx-manager@${SBX_GKE_PROJECT}.iam.gserviceaccount.com"
@@ -1049,7 +1049,7 @@ export MAIN_POD_RANGE=subnet-prod-sbx-pod-01
 export MAIN_CP_CIDR=10.253.3.0/28
 export PSA_CIDR=10.250.0.0/24
 export ADMIN_CIDR=172.31.10.0/24
-export SSL_CERTIFICATE=cert-jupyter-sbx01-self
+export SSL_CERTIFICATE=cert-jupyter-group01-self
 export TF_MANAGER="tf-manager@${SBX_GKE_PROJECT}.iam.gserviceaccount.com"
 export SBX_MANAGER="sbx-manager@${SBX_GKE_PROJECT}.iam.gserviceaccount.com"
 # 실행 위치 infra-son01 | 대상 ${SBX_GKE_PROJECT} | 계정 ${ADMIN_ACCOUNT}
@@ -1281,7 +1281,7 @@ gcloud builds worker-pools create pool-sbxtest01 \
 
 #### 17-3. 상태 및 GKE 접속 확인
 
-17-1을 다시 실행해 `RUNNING`을 확인합니다. 이어서 `infra-son01`에서 [Private Pool의 GKE 접속 점검](reference/cloudbuild-private-gke-vpn-design.md)을 수행합니다. 점검 빌드가 성공하면 [2차 Sandbox의 Workflow 실행 전 확인](../03.sandbox_deploy/README.md#5-workflow-실행-전-private-pool과-서비스-확인)으로 진행합니다.
+17-1을 다시 실행해 `RUNNING`을 확인합니다. 이어서 `infra-son01`에서 [Private Pool의 GKE 접속 점검](reference/cloudbuild-private-gke-vpn-design.md)을 수행합니다. 점검 빌드가 성공하면 [2차 Sandbox의 Workflow 실행 전 확인](../03.sandbox_deploy/README.md#5-배포-전-확인)으로 진행합니다.
 
 ### 🔴 **18.** container clusters create-auto gke-sbx-main-an3
 
@@ -1562,11 +1562,13 @@ gcloud compute ssl-certificates describe "${SSL_CERTIFICATE}" \
 
 #### 32-2. 테스트용 자체 서명 인증서 생성
 
-`HTTPS_FQDN`을 브라우저에서 실제 사용할 호스트 이름으로 바꿉니다. 아래 값은 예시입니다. 파일은 저장소 밖의 임시 디렉터리에 생성합니다.
+`HTTPS_FQDN`을 브라우저에서 실제 사용할 호스트 이름으로 바꿉니다. 파일은 저장소 밖의 임시 디렉터리에 생성합니다.
+
+2차 배포는 그룹 공유 경로를 사용하므로 호스트는 **그룹 단위**입니다. 과제가 여러 개여도 접속 호스트는 그룹당 하나이며, 그룹 JSON의 `domain` 값과 같아야 합니다. 과제별 호스트(`jupyter-sbx03`, `jupyter-sbx04` 등)는 사용하지 않습니다. 그룹을 추가하면 그룹마다 호스트와 인증서를 따로 준비합니다.
 
 ```bash
 # 수행 위치: infra-son01 | 수행 계정: VM 로그인 사용자
-export HTTPS_FQDN="jupyter-sbx01.sonmap.net"
+export HTTPS_FQDN="jupyter-group01.sonmap.net"
 export CERT_DIR="$(mktemp -d)"
 
 openssl req -x509 -newkey rsa:2048 -sha256 -nodes -days 90 \
@@ -1728,7 +1730,7 @@ git diff -- 03.sandbox_deploy/03.1.request/provisioner-env.yaml
 
 ## 6. 플랫폼 릴리스 게시
 
-실제 Sandbox 자동 배포에 사용할 릴리스는 [2차 Sandbox 사전준비](../03.sandbox_deploy/README.md#0-1-사전준비-플랫폼-릴리스-게시)에서 게시합니다.
+실제 Sandbox 자동 배포에 사용할 릴리스는 [2차 Sandbox 사전준비](../03.sandbox_deploy/README.md#a-플랫폼-릴리스-게시)에서 게시합니다.
 
 ## 7. Chart와 기본 이미지 미러링
 
