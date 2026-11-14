@@ -481,7 +481,7 @@ gcloud compute networks subnets list --project="$HOST" --account="$VPC_ADMIN_ACC
 
 #### 1. GKE 서브넷이 없는 경우 · 신규 생성
 
-앞의 조회에서 `$MAIN_SUBNET`이 없고 CIDR 승인이 완료되면 아래 생성 명령을 실행합니다.
+앞의 조회에서 `$MAIN_SUBNET`이 없고 CIDR 승인이 완료되면 아래 생성 명령을 실행합니다. `--secondary-range`로 Pod 보조 범위도 함께 생성됩니다. **생성에 성공하면 2번을 건너뛰고 3번에서 확인합니다.**
 
 ```bash
 gcloud compute networks subnets create "$MAIN_SUBNET" \
@@ -496,9 +496,20 @@ gcloud compute networks subnets create "$MAIN_SUBNET" \
 - **Primary CIDR 또는 기존 Pod 보조 범위가 계획과 다름** · Shared VPC 운영팀과 사용할 범위를 먼저 확인합니다.
 
 ```bash
+# 기존 서브넷에 Pod 보조 범위가 없을 때만 실행
 gcloud compute networks subnets update "$MAIN_SUBNET" --project="$HOST" \
   --region="$REGION" --account="$VPC_ADMIN_ACCOUNT" --add-secondary-ranges="$POD_RANGE=$POD_CIDR"
 ```
+
+#### 3. GKE 서브넷과 Pod 보조 범위 확인
+
+```bash
+gcloud compute networks subnets describe "$MAIN_SUBNET" \
+  --project="$HOST" --region="$REGION" --account="$VPC_ADMIN_ACCOUNT" \
+  --format='yaml(ipCidrRange,secondaryIpRanges)'
+```
+
+Primary `10.252.0.0/24`와 Pod 보조 범위 `subnet-prod-sbx-pod-01` (`100.64.128.0/19`)를 확인합니다. `Range names must be distinct`가 나오면 같은 이름의 보조 범위가 이미 있으므로, 위 조회로 실제 CIDR을 확인한 뒤 다음 단계로 진행합니다.
 
 내부 ALB용 기존 VIP 서브넷을 확인합니다. 같은 VPC·리전에 활성 프록시 전용 서브넷이 있으면 해당 CIDR을 `PROXY_CIDR`에 반영합니다. 활성 서브넷이 없고 대역 승인이 끝났을 때만 생성 명령을 실행합니다.
 
