@@ -142,17 +142,25 @@ gcloud storage ls \
 
 **수행 이유** · 누가 승인했고 어떤 자원을 어느 프로젝트에 배포할지 전달하기 위해서입니다. 이번 요청에는 `gcp-sbx-edp-sbx03` 프로젝트, 승인된 사용자, BigQuery·GCS 설정, 기존 GKE의 `sbx03` Namespace, 1번에서 선택한 소스 버전을 기록합니다. 결과는 로컬 `.local/<요청 ID>.json`입니다.
 
-아래 값을 실제 승인 정보와 릴리스 ID로 바꿉니다. 신규 프로젝트 생성 예시입니다. 프로젝트가 이미 있으면 기존 프로젝트와 Terraform 상태를 확인해 [요청 작성 규칙](03.1.request/request-format/README.md)에 따라 재사용 설정을 결정합니다.
+#### 2-1. 실제 승인값 설정
+
+아래 블록에서 빈 값에 실제 승인 번호·시각·종료일·사용자 이메일을 넣고 실행합니다. 승인시각은 시간대를 포함한 ISO 8601, 종료일은 `YYYY-MM-DD` 형식입니다. 현재 시험에서 확인한 릴리스는 `git-0ce39d7333eb`입니다. 다른 릴리스를 사용한다면 1번에서 조회한 ID로 바꿉니다. 새 요청에는 고유한 `REQUEST_ID`를 사용합니다.
 
 ```bash
-export RELEASE_ID="실제-릴리스-ID"
+export RELEASE_ID="git-0ce39d7333eb"
 export REQUEST_ID="REQ-20261114-SBX03-001"
-export APPROVAL_ID="실제-내부-승인번호"
-export APPROVED_AT="실제-승인시각-ISO8601"
-export EXPIRES_ON="실제-종료일-YYYY-MM-DD"
-export MEMBER1="user01@sonmap.net"
-export MEMBER2="user02@sonmap.net"
+export APPROVAL_ID=""
+export APPROVED_AT=""
+export EXPIRES_ON=""
+export MEMBER1=""
+export MEMBER2=""
+```
 
+#### 2-2. 요청 파일 생성
+
+신규 프로젝트 생성 예시입니다. 프로젝트가 이미 있으면 기존 프로젝트와 Terraform 상태를 확인해 [요청 작성 규칙](03.1.request/request-format/README.md)에 따라 재사용 설정을 결정합니다. 아래 코드 블록만 복사해 같은 터미널에서 실행합니다.
+
+```bash
 mkdir -p .local
 gcloud storage cp \
   "gs://gcp-sbx-edp-gke01-sbxtest01-bundles/platform-releases/${RELEASE_ID}/release.json" \
@@ -194,9 +202,26 @@ jq -ne --slurpfile release .local/sbx03-release.json '
 
 **수행 이유** · Workflow와 요청 API가 읽을 승인 요청 원본을 GCS에 두기 위해서입니다. 로컬 JSON을 `approved/<요청 ID>/request.json`으로 올립니다. 같은 ID의 객체가 이미 있으면 덮어쓰지 않습니다. 현재 반자동 경로의 배포 시작은 별도 Workflow 실행 단계에서 이루어집니다.
 
-`jq . ".local/${REQUEST_ID}.json"`으로 승인 정보, 사용자, 프로젝트와 릴리스 메타데이터를 확인한 뒤 게시합니다.
+아래 조회 명령으로 로컬 JSON의 승인 번호·시각·종료일·사용자·릴리스가 실제 승인 내역과 일치하는지 확인합니다.
 
 ```bash
+jq '{request_id, approval, expires_on: .task.expires_on, members: .identity.members, source}' \
+  ".local/${REQUEST_ID}.json"
+```
+
+확인이 끝나면 게시합니다. 아래 명령은 빈 값, 이전 예시 문구, 날짜 형식 오류 또는 현재 선언과 다른 요청 파일을 발견하면 업로드 전에 멈춥니다.
+
+```bash
+jq -e '
+  .request_id == env.REQUEST_ID
+  and .approval.status == "APPROVED"
+  and (.approval.approval_id == env.APPROVAL_ID and test("^[^[:space:]].{2,127}$") and . != "실제-내부-승인번호")
+  and (.approval.approved_at == env.APPROVED_AT and test("^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?(Z|[+-][0-9]{2}:[0-9]{2})$"))
+  and (.task.expires_on == env.EXPIRES_ON and test("^[0-9]{4}-[0-9]{2}-[0-9]{2}$"))
+  and (.identity.members == [env.MEMBER1, env.MEMBER2]
+    and all(.[]; test("^[^@[:space:]]+@sonmap\\.net$")))
+  and (.source.release_id == env.RELEASE_ID and . != "")
+' ".local/${REQUEST_ID}.json" &&
 gcloud storage cp --if-generation-match=0 \
   ".local/${REQUEST_ID}.json" \
   "gs://gcp-sbx-edp-gke01-sbxtest01-requests/approved/${REQUEST_ID}/request.json" \
