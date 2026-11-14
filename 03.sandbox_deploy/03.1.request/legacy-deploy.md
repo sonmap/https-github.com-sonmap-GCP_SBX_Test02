@@ -32,10 +32,22 @@ flowchart TD
 
 포털이 GCS에 저장한 **승인된 요청 ID**를 입력합니다. 신규 프로젝트 사전 권한과 승인 JSON이 아직 준비되지 않았다면 [sbx03 신규 과제 절차 1~3절](../../02.infra-setup/reference/sbx03-new-project-runbook.md)을 먼저 따릅니다. 같은 `sbx03`을 재배포할 때는 포털에서 새 요청 ID를 발급받습니다.
 
-아래 블록을 같은 Bash 셸에서 실행합니다. 성공하면 검증된 입력 파일을 만듭니다. 다운로드나 검증이 실패하면 파일을 새로 만들지 않습니다.
+**수행 위치** · `infra-son01`의 Test02 저장소 루트  
+**수행 계정** · `son@sonmap.net`
+
+먼저 승인 요청 목록을 확인합니다.
 
 ```bash
-read -r -p '승인된 sbx03 요청 ID: ' REQUEST_ID
+gcloud storage ls 'gs://gcp-sbx-edp-gke01-sbxtest01-requests/approved/*/request.json' \
+  --account=son@sonmap.net
+```
+
+포털에서 승인받은 `sbx03` 요청에 해당하는 경로에서 `approved/`와 `/request.json` 사이의 ID를 확인합니다. 해당 요청이 목록에 없으면 포털 담당자에게 승인 JSON이 게시됐는지 확인합니다.
+
+아래 블록의 `REQUEST_ID`를 실제 ID로 바꾼 뒤 같은 Bash 셸에서 실행합니다. 성공하면 검증된 입력 파일을 만듭니다. 다운로드나 검증이 실패하면 파일을 새로 만들지 않습니다.
+
+```bash
+export REQUEST_ID="실제 승인 요청 ID"
 REQUEST_URI="gs://gcp-sbx-edp-gke01-sbxtest01-requests/approved/${REQUEST_ID}/request.json"
 mkdir -p .local &&
   rm -f .local/sbx03-workflow-input.json &&
@@ -66,7 +78,7 @@ flowchart TD
     end
 ```
 
-1절에서 `true`와 입력 파일 생성을 확인한 뒤 실행합니다.
+1절에서 `true`와 입력 파일 생성을 확인합니다. 이 기존 자동 배포 경로는 `pool-sbxtest01`을 사용합니다. Private Pool을 보류한 상태라면 승인 요청 검증까지 진행하고, 아래 Workflow 실행은 Pool 준비 후 진행합니다.
 
 ```bash
 test -s .local/sbx03-workflow-input.json &&
