@@ -1398,34 +1398,37 @@ gcloud compute forwarding-rules create fr-alb-sbxtest01-shared-https --project="
 
 ## 4. OAuth 값 등록
 
+`infra-son01`에서 아래 두 변수에 발급받은 값을 넣고 실행합니다. 실제 값은 VM 터미널에서만 설정합니다. 이 블록을 실행하기 전에 `set +x`와 `set +o history`로 출력 추적과 Bash 명령 기록을 끕니다.
+
+```bash
+# 수행 위치: infra-son01 | 로그인 계정: son@sonmap.net
+# 수행 계정(가장): tf-manager@gcp-sbx-edp-gke01.iam.gserviceaccount.com
+# 대상 프로젝트: gcp-sbx-edp-gke01
+set +x
+set +o history
+```
+
 ```bash
 export SBX_GKE_PROJECT="gcp-sbx-edp-gke01"
-# Test02 저장소 루트에서 실행합니다.
 export ADMIN_ACCOUNT="son@sonmap.net"
-export REGION="asia-northeast3"
 export TF_MANAGER="tf-manager@${SBX_GKE_PROJECT}.iam.gserviceaccount.com"
-export TF_MANAGER_RESOURCE="projects/${SBX_GKE_PROJECT}/serviceAccounts/${TF_MANAGER}"
-export BUILD_STAGING_BUCKET="${SBX_GKE_PROJECT}-sbxtest01-build-source"
-unset CLOUDSDK_AUTH_IMPERSONATE_SERVICE_ACCOUNT
 
-# 입력값은 화면에 표시하지 않습니다. set -x를 사용하지 않습니다.
-read -r -s -p "OAuth Client ID: " OAUTH_CLIENT_ID
-printf '\n'
-read -r -s -p "OAuth Client Secret: " OAUTH_CLIENT_SECRET
-printf '\n'
-# 둘 다 입력했는지 확인한 뒤 아래 명령을 실행합니다.
-test -n "${OAUTH_CLIENT_ID}" && test -n "${OAUTH_CLIENT_SECRET}"
+# 아래 두 값을 발급받은 OAuth 값으로 바꾼 뒤 실행합니다.
+export OAUTH_CLIENT_ID='발급받은 OAuth Client ID'
+export OAUTH_CLIENT_SECRET='발급받은 OAuth Client Secret'
 
-# 입력이 비어 있으면 중단합니다. 값은 표준입력으로만 전달합니다.
-if [ -n "${OAUTH_CLIENT_ID}" ] && [ -n "${OAUTH_CLIENT_SECRET}" ]; then
-  # 실행 위치 infra-son01 | 대상 ${SBX_GKE_PROJECT} | 계정 ${ADMIN_ACCOUNT} | 가장 ${TF_MANAGER}
-  printf '%s' "${OAUTH_CLIENT_ID}" | gcloud secrets versions add jupyter-oauth-client-id --project="${SBX_GKE_PROJECT}" --account="${ADMIN_ACCOUNT}" --impersonate-service-account="${TF_MANAGER}" --data-file=-
-  printf '%s' "${OAUTH_CLIENT_SECRET}" | gcloud secrets versions add jupyter-oauth-client-secret --project="${SBX_GKE_PROJECT}" --account="${ADMIN_ACCOUNT}" --impersonate-service-account="${TF_MANAGER}" --data-file=-
-fi
+printf '%s' "$OAUTH_CLIENT_ID" | gcloud secrets versions add jupyter-oauth-client-id \
+  --project="$SBX_GKE_PROJECT" --account="$ADMIN_ACCOUNT" \
+  --impersonate-service-account="$TF_MANAGER" --data-file=-
+
+printf '%s' "$OAUTH_CLIENT_SECRET" | gcloud secrets versions add jupyter-oauth-client-secret \
+  --project="$SBX_GKE_PROJECT" --account="$ADMIN_ACCOUNT" \
+  --impersonate-service-account="$TF_MANAGER" --data-file=-
+
 unset OAUTH_CLIENT_ID OAUTH_CLIENT_SECRET
 ```
 
-두 Secret의 최신 버전이 ENABLED인지 확인합니다.
+두 Secret에 새 버전이 생성됐는지 확인합니다. 이전에 Bash 기록을 사용하던 터미널이라면 `set -o history`로 다시 켤 수 있습니다.
 
 ## 5. 플랫폼 릴리스 게시
 
