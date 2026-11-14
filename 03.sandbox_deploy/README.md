@@ -200,6 +200,8 @@ jq -ne --slurpfile release .local/sbx03-release.json '
 
 ### 3. 승인 요청 게시
 
+실제 시험 배포가 승인됐다면 담당자가 승인한 메일·티켓·결재 기록의 번호와 완료 시각을 2-1의 `APPROVAL_ID`, `APPROVED_AT`에 사용합니다. 2-2로 JSON을 다시 생성한 뒤 아래 게시 명령을 실행합니다. 승인 기록이 아직 없고 GCS 읽기·쓰기만 확인하려면 [승인 전 GCS 읽기·쓰기 시험](#승인-전-gcs-읽기쓰기-시험)으로 이동합니다.
+
 **수행 이유** · Workflow와 요청 API가 읽을 승인 요청 원본을 GCS에 두기 위해서입니다. 로컬 JSON을 `approved/<요청 ID>/request.json`으로 올립니다. 같은 ID의 객체가 이미 있으면 덮어쓰지 않습니다. 현재 반자동 경로의 배포 시작은 별도 Workflow 실행 단계에서 이루어집니다.
 
 아래 조회 명령으로 로컬 JSON의 승인 번호·시각·종료일·사용자·릴리스가 실제 승인 내역과 일치하는지 확인합니다.
@@ -231,6 +233,21 @@ gcloud storage cp --if-generation-match=0 \
   "gs://gcp-sbx-edp-gke01-sbxtest01-requests/approved/${REQUEST_ID}/request.json" \
   --account=son@sonmap.net
 ```
+
+#### 승인 전 GCS 읽기·쓰기 시험
+
+실제 승인 번호와 완료 시각이 아직 없으면, 2-2에서 만든 로컬 JSON으로 아래 시험만 수행할 수 있습니다. 이미 로컬 JSON이 있으면 2-2를 다시 실행할 필요가 없습니다.
+
+```bash
+# 수행 위치: infra-son01 | 수행 계정: son@sonmap.net
+TEST_URI="gs://gcp-sbx-edp-gke01-sbxtest01-requests/test/${REQUEST_ID}/request.json"
+
+gcloud storage cp --if-generation-match=0 \
+  ".local/${REQUEST_ID}.json" "$TEST_URI" --account=son@sonmap.net &&
+gcloud storage cat "$TEST_URI" --account=son@sonmap.net
+```
+
+JSON이 출력되면 테스트 경로의 업로드와 읽기가 확인된 것입니다. 같은 테스트 객체가 이미 있어 업로드가 중단되면 `gcloud storage cat "$TEST_URI" --account=son@sonmap.net`으로 기존 객체를 읽을 수 있습니다. 이 경로로는 4번 Workflow 입력 검증이나 배포를 진행하지 않습니다.
 
 ### 4. 게시 결과와 Workflow 입력 검증
 
