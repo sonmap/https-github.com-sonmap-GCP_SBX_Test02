@@ -639,7 +639,7 @@ printf '프로젝트 번호: %s\nGKE 서비스 에이전트: %s\nGoogle APIs 서
   "$SBX_PROJECT_NUMBER" "$GKE_AGENT" "$GOOGLE_APIS_AGENT"
 ```
 
-프로젝트 번호가 비어 있거나 이메일이 `service-@`로 시작하면 번호를 확인하고 7-1을 다시 실행합니다. 7-3에서 `Invalid service account ()`가 나오면 같은 터미널에서 `echo "$GKE_AGENT"`로 이메일이 설정됐는지 확인합니다.
+프로젝트 번호가 비어 있거나 이메일이 `service-@`로 시작하면 번호를 확인하고 7-1을 다시 실행합니다. 7-3은 프로젝트 번호를 조회해 GKE 서비스 에이전트 이메일을 구성합니다.
 
 ##### 7-2. GKE 서브넷 · Terraform 서비스 계정
 
@@ -652,11 +652,22 @@ gcloud compute networks subnets add-iam-policy-binding "$MAIN_SUBNET" \
 
 ##### 7-3. GKE 서브넷 · GKE 서비스 에이전트
 
+프로젝트 번호가 숫자로 조회되면 이어서 권한을 부여합니다. 운영팀 계정에 조회 권한이 없으면 Sandbox 프로젝트팀에서 받은 숫자로 첫 번째 선언을 바꿉니다.
+
 ```bash
-# 수행 위치: infra-son01 또는 Cloud Shell | 수행 계정: VPC_ADMIN_ACCOUNT (예: admin@sonmap.net) | 대상: gcp-prod-edp-hub-vpchost
-gcloud compute networks subnets add-iam-policy-binding "$MAIN_SUBNET" \
-  --project="$HOST" --region="$REGION" --account="$VPC_ADMIN_ACCOUNT" \
-  --member="serviceAccount:${GKE_AGENT:?7-1 단계에서 GKE_AGENT를 먼저 선언하세요}" --role=roles/compute.networkUser
+# 수행 위치: infra-son01 또는 Cloud Shell | 수행 계정: admin@sonmap.net
+# 프로젝트 번호 조회 대상: gcp-sbx-edp-gke01 | IAM 적용 대상: gcp-prod-edp-hub-vpchost
+export SBX_PROJECT_NUMBER="$(gcloud projects describe gcp-sbx-edp-gke01 \
+  --account=admin@sonmap.net --format='value(projectNumber)')"
+
+if [[ "$SBX_PROJECT_NUMBER" =~ ^[0-9]+$ ]]; then
+  gcloud compute networks subnets add-iam-policy-binding subnet-prod-sbx-gke-01 \
+    --project=gcp-prod-edp-hub-vpchost --region=asia-northeast3 --account=admin@sonmap.net \
+    --member="serviceAccount:service-${SBX_PROJECT_NUMBER}@container-engine-robot.iam.gserviceaccount.com" \
+    --role=roles/compute.networkUser
+else
+  echo 'gcp-sbx-edp-gke01의 숫자 프로젝트 번호를 확인하세요.' >&2
+fi
 ```
 
 ##### 7-4. GKE 서브넷 · Google APIs 서비스 에이전트
