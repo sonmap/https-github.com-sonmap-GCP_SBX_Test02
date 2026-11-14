@@ -422,7 +422,7 @@ gcloud iam service-accounts describe "${TF_MANAGER}" --project="${SBX_GKE_PROJEC
 | GKE 서브넷 | `subnet-prod-sbx-gke-01` · Primary `10.252.0.0/24` · Pod Secondary `subnet-prod-sbx-pod-01` (`100.64.128.0/19`) |
 | 내부 ALB VIP 서브넷 | 기존 `subnet-prod-edp-alb-frontend-an3` 재사용 검토 · 예상 CIDR `172.31.96.0/27` |
 | 프록시 전용 서브넷 | 동일 VPC·리전의 `REGIONAL_MANAGED_PROXY` / `ACTIVE` 서브넷 재사용 · 미존재 시 후보 `subnet-prod-sbx-ilb-proxy` (`172.31.111.64/26`) 검토 |
-| GKE 제어 영역 대역 | `10.253.3.0/28`의 기존 사용 대역 및 경로와 중복 여부 확인 |
+| GKE 컨트롤 플레인 사설 엔드포인트 | `10.253.3.0/28`의 기존 사용 대역 및 경로와 중복 여부 확인 · Sandbox 프로젝트팀이 클러스터 생성 시 지정 |
 | ALB 헬스 체크 방화벽 | `fw-sbxtest01-alb-hc` · `35.191.0.0/16`, `130.211.0.0/22` → GKE Pod CIDR · 인바운드 TCP `8000` |
 | ALB 프록시 방화벽 | `fw-sbxtest01-ilb-proxy` · 실제 프록시 전용 서브넷 CIDR → GKE Pod CIDR · 인바운드 TCP `8000` |
 | Cloud Build Private Pool용 PSA | `psa-prod-edp-cloudbuild` · 후보 `10.250.0.0/24` · Private Pool 경로 사용 시에만 예약 범위와 Service Networking 피어링 확인 |
@@ -491,8 +491,13 @@ gcloud compute networks subnets list --project="$HOST" --account="$VPC_ADMIN_ACC
 | Primary CIDR (노드 IP 대역) | `NODE_CIDR` | `10.252.0.0/24` |
 | Secondary 범위 이름 (Pod) | `POD_RANGE` | `subnet-prod-sbx-pod-01` |
 | Secondary CIDR (Pod IP 대역) | `POD_CIDR` | `100.64.128.0/19` |
+| GKE 컨트롤 플레인 사설 엔드포인트 대역 | `MAIN_CP_CIDR` | `10.253.3.0/28` · 운영팀 중복 확인 후 사용 |
 
 기존 서브넷이 있으면 먼저 3번의 조회 명령으로 표의 Primary CIDR과 Pod 보조 범위를 비교합니다. Pod 보조 범위 이름과 CIDR이 모두 일치하면 2번의 추가 명령을 건너뜁니다.
+
+**컨트롤 플레인 /28 적용 위치** · Shared VPC 운영팀이 `10.253.3.0/28`의 중복 여부를 확인합니다. Sandbox 프로젝트 관리자는 3절의 Autopilot 생성 명령에서 `--master-ipv4-cidr="${MAIN_CP_CIDR}"`로 적용합니다. 이 방식에서는 서브넷 생성 명령에 컨트롤 플레인용 범위를 추가할 필요가 없습니다.
+
+**Kubernetes Service 대역** · `subnet-prod-sbx-svc-01`을 사용자 관리 Service 보조 범위로 쓰려면 별도 CIDR을 확정해야 합니다. `10.252.0.0/24`는 이미 노드 Primary이고, 그 안의 `10.252.0.0/28`도 노드 대역과 겹칩니다.
 
 #### 1. GKE 서브넷이 없는 경우 · 신규 생성
 
