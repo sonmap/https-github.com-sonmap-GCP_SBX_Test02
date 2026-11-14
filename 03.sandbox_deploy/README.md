@@ -209,18 +209,20 @@ jq '{request_id, approval, expires_on: .task.expires_on, members: .identity.memb
   ".local/${REQUEST_ID}.json"
 ```
 
-확인이 끝나면 게시합니다. 아래 명령은 빈 값, 이전 예시 문구, 날짜 형식 오류 또는 현재 선언과 다른 요청 파일을 발견하면 업로드 전에 멈춥니다.
+확인이 끝나면 게시합니다. 아래 명령은 빈 값, 예시 승인 번호(`EXAMPLE-…`), 날짜 형식 오류 또는 현재 선언과 다른 요청 파일을 발견하면 업로드 전에 멈춥니다.
 
 ```bash
 jq -e '
   .request_id == env.REQUEST_ID
   and .approval.status == "APPROVED"
-  and (.approval.approval_id == env.APPROVAL_ID and test("^[^[:space:]].{2,127}$") and . != "실제-내부-승인번호")
-  and (.approval.approved_at == env.APPROVED_AT and test("^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?(Z|[+-][0-9]{2}:[0-9]{2})$"))
-  and (.task.expires_on == env.EXPIRES_ON and test("^[0-9]{4}-[0-9]{2}-[0-9]{2}$"))
-  and (.identity.members == [env.MEMBER1, env.MEMBER2]
-    and all(.[]; test("^[^@[:space:]]+@sonmap\\.net$")))
-  and (.source.release_id == env.RELEASE_ID and . != "")
+  and (.approval.approval_id | type == "string" and . == env.APPROVAL_ID
+    and test("^[^[:space:]].{2,127}$") and . != "실제-내부-승인번호" and (startswith("EXAMPLE-") | not))
+  and (.approval.approved_at | type == "string" and . == env.APPROVED_AT
+    and test("^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?(Z|[+-][0-9]{2}:[0-9]{2})$"))
+  and (.task.expires_on | type == "string" and . == env.EXPIRES_ON and test("^[0-9]{4}-[0-9]{2}-[0-9]{2}$"))
+  and (.identity.members | . == [env.MEMBER1, env.MEMBER2]
+    and all(.[]; type == "string" and test("^[^@[:space:]]+@sonmap\\.net$")))
+  and (.source.release_id | type == "string" and . == env.RELEASE_ID and length > 0)
 ' ".local/${REQUEST_ID}.json" &&
 gcloud storage cp --if-generation-match=0 \
   ".local/${REQUEST_ID}.json" \
