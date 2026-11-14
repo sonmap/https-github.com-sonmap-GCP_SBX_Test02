@@ -2,6 +2,8 @@
 
 관리 VM `infra-son01`의 Test02 저장소 루트에서 작업합니다. Sandbox 프로젝트팀은 플랫폼 프로젝트를 관리합니다. Shared VPC 운영팀은 기존 호스트의 네트워크와 IAM 변경 요청을 처리하고, 필요한 경우 Private Pool 최초 생성을 담당합니다. 각 터미널에서 로그인 계정과 대상 프로젝트를 확인하고 필요한 명령을 한 줄씩 실행합니다.
 
+**이번 구축에서 보류** · Cloud Build Private Pool 필요 여부는 배포를 진행하면서 판단합니다. 그전까지 Pool 생성, Pool 관리 권한 부여, 전용 PSA 예약 및 피어링을 건너뜁니다.
+
 | 범위 | 명령서의 기본값 |
 |---|---|
 | 실행 위치 | 관리 VM `infra-son01`의 Test02 저장소 루트 |
@@ -243,9 +245,9 @@ gcloud projects add-iam-policy-binding "${SBX_GKE_PROJECT}" --member="serviceAcc
 
 ```
 
-### 🔴 **6.** Shared VPC 운영팀 요청 및 Private Pool 초기 구성 권한
+### 🔴 **6.** Shared VPC 운영팀 요청 및 Private Pool 초기 구성 권한 (보류)
 
-호스트 네트워크 조회 및 사용 권한은 [2-1절](#2-1-서브넷별-iam)의 요청 양식으로 운영팀에 전달합니다. Private Pool을 운영팀이 서비스 프로젝트에 처음 만드는 경우에만 프로젝트 관리자가 아래 명령으로 운영팀 작업 계정에 권한을 부여합니다. 실행 전에 `VPC_ADMIN_ACCOUNT`를 운영팀이 지정한 계정으로 설정합니다.
+호스트 네트워크 조회 및 사용 권한은 [2-1절](#2-1-서브넷별-iam)의 요청 양식으로 운영팀에 전달합니다. Private Pool을 운영팀이 서비스 프로젝트에 처음 만드는 경우에만 프로젝트 관리자가 아래 명령으로 운영팀 작업 계정에 권한을 부여합니다. **이번 구축에서는 아래 권한 부여 명령을 건너뜁니다.** 추후 필요할 때 `VPC_ADMIN_ACCOUNT`를 운영팀이 지정한 계정으로 설정합니다.
 
 ```bash
 # 실행 위치 infra-son01 | 대상 ${SBX_GKE_PROJECT} | 계정 ${ADMIN_ACCOUNT}
@@ -425,7 +427,7 @@ gcloud iam service-accounts describe "${TF_MANAGER}" --project="${SBX_GKE_PROJEC
 | 컨트롤 플레인용 서브넷 | `subnet-prod-sbx-control-plane-an3` · `10.253.3.16/28` · 기존 사용 대역과 경로 중복 확인 후 생성 |
 | ALB 헬스 체크 방화벽 | `fw-sbxtest01-alb-hc` · `35.191.0.0/16`, `130.211.0.0/22` → GKE Pod CIDR · 인바운드 TCP `8000` |
 | ALB 프록시 방화벽 | `fw-sbxtest01-ilb-proxy` · 실제 프록시 전용 서브넷 CIDR → GKE Pod CIDR · 인바운드 TCP `8000` |
-| Cloud Build Private Pool용 PSA | `psa-prod-edp-cloudbuild` · 후보 `10.250.0.0/24` · Private Pool 경로 사용 시에만 예약 범위와 Service Networking 피어링 확인 |
+| Cloud Build Private Pool용 PSA (보류) | `psa-prod-edp-cloudbuild` · 후보 `10.250.0.0/24` · Private Pool 사용 확정 후 요청 |
 | IAM | 2-1절의 서비스 계정별 역할 적용 |
 
 CIDR은 운영팀의 중복 검토 후 확정합니다. 완료 회신에 실제 서브넷 이름과 CIDR, Pod 보조 범위 이름, 방화벽 적용 결과, 필요한 경우 PSA 연결 상태를 포함해 주세요. 프로젝트팀은 회신값을 3절 변수와 맞춘 뒤 구축을 진행합니다.
@@ -730,7 +732,9 @@ gcloud compute networks subnets get-iam-policy "$VIP_SUBNET" \
   --project="$HOST" --region="$REGION" --account="$VPC_ADMIN_ACCOUNT" --format=json
 ```
 
-Cloud Build Private Pool 경로를 사용하는 경우, 운영팀에서 기존 PSA 예약 범위와 피어링을 확인합니다. 예약 범위 및 연결이 모두 없는 신규 구성에서는 대역 승인과 Service Networking API 및 서비스 에이전트 준비 후 생성 명령을 실행합니다. 기존 피어링이 있으면 현재 할당 범위를 확인하고 운영팀 절차에 따라 조정합니다.
+#### 8. Private Pool용 PSA (보류)
+
+이번 구축에서는 아래 명령을 건너뜁니다. Private Pool 사용이 확정되면 운영팀에서 기존 PSA 예약 범위와 피어링을 확인합니다. 예약 범위 및 연결이 모두 없는 신규 구성에서는 대역 승인과 Service Networking API 및 서비스 에이전트 준비 후 생성 명령을 실행합니다. 기존 피어링이 있으면 현재 할당 범위를 확인하고 운영팀 절차에 따라 조정합니다.
 
 ```bash
 # 수행 위치: infra-son01 또는 Cloud Shell | 수행 계정: VPC_ADMIN_ACCOUNT (예: admin@sonmap.net) | 대상: gcp-prod-edp-hub-vpchost
@@ -819,7 +823,7 @@ export SBX_GKE_PROJECT_NUMBER="$(gcloud projects describe "${SBX_GKE_PROJECT}" -
 
 # 2절과 2-1절 완료 후 저장소 루트에서 실행합니다.
 # 기존 GKE는 Autopilot · Private Nodes/Endpoint · Subnet · Pod Range를 확인합니다.
-# Private Pool → GKE 사설 경로는 별도로 준비합니다.
+# Private Pool이 필요해지면 GKE 사설 접속 경로를 별도로 검토합니다.
 
 ```
 
@@ -1010,7 +1014,9 @@ gcloud secrets add-iam-policy-binding jupyter-oauth-client-secret --project="${S
 
 ```
 
-### 🔴 **17.** Shared VPC 운영팀 작업 · Private Pool 초기 구성
+### 🔴 **17.** Shared VPC 운영팀 작업 · Private Pool 초기 구성 (보류)
+
+이번 구축에서는 이 단계를 건너뛰고 18번으로 진행합니다.
 
 ```bash
 # Private Pool을 사용하는 경우 Shared VPC 운영팀에 초기 구성을 요청합니다.
@@ -1044,7 +1050,7 @@ gcloud container clusters create-auto "${MAIN_CLUSTER}" --project="${SBX_GKE_PRO
   --subnetwork="projects/${VPC_HOST_PROJECT}/regions/${REGION}/subnetworks/${MAIN_SUBNET}" \
   --cluster-secondary-range-name="${MAIN_POD_RANGE}" --enable-private-nodes --enable-private-endpoint \
   --master-ipv4-cidr="${MAIN_CP_CIDR}" --enable-master-authorized-networks \
-  --master-authorized-networks="${ADMIN_CIDR},${PSA_CIDR}" --enable-master-global-access \
+  --master-authorized-networks="${ADMIN_CIDR}" --enable-master-global-access \
   --release-channel=regular --account="${ADMIN_ACCOUNT}" --impersonate-service-account="${TF_MANAGER}"
 
 ```
@@ -1540,7 +1546,7 @@ KUBECONFIG="$HOME/.kube/config-sbx-dns" gcloud container clusters get-credential
 CLOUDSDK_CORE_ACCOUNT=son@sonmap.net kubectl --kubeconfig="$HOME/.kube/config-sbx-dns" get namespaces
 ```
 
-기존 Workflows 경로를 사용할 때는 [Private Pool 접속 점검](reference/cloudbuild-private-gke-vpn-design.md)도 실행합니다. DNS·인증서 담당자와 [내부 HTTPS 연결](reference/sbx03-https-certificate-runbook.md)을 확인한 뒤 [2차 Sandbox 구축](../03.sandbox_deploy/README.md)로 진행합니다.
+기존 Workflows 경로에서 Private Pool 사용이 확정되면 [Private Pool 접속 점검](reference/cloudbuild-private-gke-vpn-design.md)도 실행합니다. DNS·인증서 담당자와 [내부 HTTPS 연결](reference/sbx03-https-certificate-runbook.md)을 확인한 뒤 [2차 Sandbox 구축](../03.sandbox_deploy/README.md)로 진행합니다.
 
 ## 부록. 기존 Host 광역 IAM 정리
 
