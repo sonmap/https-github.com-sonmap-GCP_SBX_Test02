@@ -1503,13 +1503,21 @@ AR_ACCOUNT=son@sonmap.net
 helm show chart "$JUPYTER_CHART_URI" --version "$CHART_VERSION"
 ```
 
-`name: jupyterhub`와 `version: 4.2.0`이 보이면 게시된 버전을 사용합니다. 해당 버전이 등록되어 있지 않다고 확인한 경우 2단계로 진행합니다. 인증·권한·네트워크 오류는 먼저 해결합니다.
+`name: jupyterhub`와 `version: 4.2.0`이 보이면 게시된 버전을 사용합니다. `Login Succeeded` 이후 `FetchReference` 오류에 `jupyterhub:4.2.0: not found`가 표시되면, 같은 `infra-son01` 터미널에서 2단계 다운로드와 3단계 업로드를 실행합니다. 인증·권한·네트워크 오류는 먼저 해결합니다.
 
 **2. 공식 Helm 저장소에서 패키지 다운로드**
 
 ```bash
 # 실행 위치 infra-son01 | 대상 공식 Helm 저장소 및 VM 로컬 | 계정 VM 로그인 사용자
-CHART_DIR="$(mktemp -d)" && CHART_PACKAGE="$CHART_DIR/jupyterhub-${CHART_VERSION}.tgz" && helm pull jupyterhub --repo "$CHART_SOURCE" --version "$CHART_VERSION" --destination "$CHART_DIR" && helm show chart "$CHART_PACKAGE"
+CHART_DIR="$(mktemp -d)"
+CHART_PACKAGE="$CHART_DIR/jupyterhub-${CHART_VERSION}.tgz"
+
+helm pull jupyterhub \
+  --repo "$CHART_SOURCE" \
+  --version "$CHART_VERSION" \
+  --destination "$CHART_DIR"
+
+helm show chart "$CHART_PACKAGE"
 ```
 
 다운로드한 패키지의 `name: jupyterhub`와 `version: 4.2.0`을 확인합니다.
@@ -1518,7 +1526,10 @@ CHART_DIR="$(mktemp -d)" && CHART_PACKAGE="$CHART_DIR/jupyterhub-${CHART_VERSION
 
 ```bash
 # 실행 위치 infra-son01 | 대상 ${SBX_GKE_PROJECT}의 AR ar-sbxtest01-platform | 계정 $AR_ACCOUNT의 AR 인증
-helm push "$CHART_PACKAGE" "$AR_REPO" && helm show chart "$JUPYTER_CHART_URI" --version "$CHART_VERSION"
+helm push "$CHART_PACKAGE" "$AR_REPO"
+
+# 업로드가 성공하면 AR에 등록된 차트를 확인합니다.
+helm show chart "$JUPYTER_CHART_URI" --version "$CHART_VERSION"
 ```
 
 `helm push`의 대상은 저장소 루트입니다. Helm은 차트 이름과 버전을 패키지의 `Chart.yaml`에서 읽습니다. 배포에는 `oci://asia-northeast3-docker.pkg.dev/gcp-sbx-edp-gke01/ar-sbxtest01-platform/jupyterhub`와 `--version 4.2.0`을 사용합니다. 승인된 다른 AR을 사용할 경우 `AR_REPO`와 배포 설정의 차트 URI를 같이 맞춥니다.
