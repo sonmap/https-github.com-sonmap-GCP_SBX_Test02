@@ -30,6 +30,16 @@ flowchart LR
 
 ## 최초 1회 · 플랫폼 준비
 
+```mermaid
+flowchart LR
+    SRC["Test02 저장소"] -->|A| BK["GCS bundles<br/>sandbox-source.zip"]
+    SRC -->|A| AR1["AR · provisioner<br/>automation-runner"]
+    SRC -->|B| AR2["AR · shared-group runner"]
+    AR2 --> WF["Workflow<br/>workflow-sbx-shared-group"]
+    GJ["group.json"] -->|C| HASH["비밀번호 해시"]
+    HASH --> SEC["Secret Manager<br/>shared-test-accounts"]
+```
+
 그룹을 처음 만들 때와 Runner 버전을 바꿀 때만 실행합니다. 이미 끝났으면 [0번](#0-실행-환경-확인)으로 바로 갑니다.
 
 ### A. 플랫폼 릴리스 게시
@@ -171,6 +181,16 @@ gcloud secrets versions add "$ACCOUNT_SECRET" --data-file="$HASH_FILE" \
 
 ## 0. 실행 환경 확인
 
+```mermaid
+flowchart LR
+    ENV[".local/env.sh<br/>공통 변수"] --> TV["0-3 과제 변수<br/>TASK · REQUEST_ID"]
+    ENV --> KC["KUBECONFIG"]
+    KC --> GKE["gke-sbx-main-an3"]
+    GKE --> ND{"노드 Ready?"}
+    ND -->|아니오| PGA["1차 문서<br/>Private Google Access"]
+    TV --> NEXT["1~6번 전 단계가<br/>이 변수를 공유"]
+```
+
 ### 0-1. 변수 선언
 
 **모든 단계가 같은 셸 변수를 씁니다.** 터미널이 바뀌면 변수가 사라져 엉뚱한 과제에 배포하거나 `412` 오류가 납니다. 아래를 파일로 저장해 두고 터미널을 새로 열 때마다 `source` 합니다.
@@ -236,6 +256,15 @@ echo "$TASK / $REQUEST_ID / $APPROVED_AT"
 
 ## 1. 릴리스 조회
 
+```mermaid
+flowchart LR
+    BK["GCS bundles<br/>platform-releases"] --> RJ["release.json"]
+    RJ --> RID["RELEASE_ID"]
+    RJ --> ZIP["archive_uri<br/>Terraform 소스"]
+    RID --> REQ["2번 요청 JSON<br/>source 필드"]
+    ZIP --> TF["6번 Terraform 실행"]
+```
+
 배포에 쓸 Terraform 소스 버전을 고릅니다.
 
 ```bash
@@ -256,6 +285,18 @@ gcloud storage cat "gs://${BUNDLE_BUCKET}/platform-releases/${RELEASE_ID}/releas
 ---
 
 ## 2. 요청 JSON 생성
+
+```mermaid
+flowchart LR
+    TV["0-3 과제 변수"] --> RQ["요청 JSON"]
+    RJ["release.json"] --> RQ
+    RQ --> PJ["project<br/>folder_id 사용"]
+    RQ --> ID["identity<br/>그룹 이메일"]
+    RQ --> GK["gke<br/>namespace"]
+    PJ --> W6["6번에서<br/>Terraform이 생성"]
+    ID --> W6
+    GK --> W7["7번 그룹 공유 배포"]
+```
 
 누가 승인했고 어떤 자원을 어느 프로젝트에 만들지 기술합니다. 결과는 `.local/<요청 ID>.json`입니다.
 
@@ -324,6 +365,16 @@ jq '{request_id, task, identity, project, source: .source.release_id}' "$REQUEST
 
 ## 3. 승인 요청 게시
 
+```mermaid
+flowchart LR
+    LF["로컬 요청 JSON"] --> CK{"jq 검증"}
+    CK -->|불일치| ST["중단<br/>0-3 변수 확인"]
+    CK -->|통과| UP["GCS approved<br/>request.json"]
+    UP --> GEN["generation"]
+    GEN --> W4["4번 입력 생성"]
+    UP -.동일 ID 존재.-> E412["412<br/>중복 방지"]
+```
+
 Workflow가 읽을 승인 원본을 GCS에 올립니다. 같은 ID가 이미 있으면 덮어쓰지 않습니다.
 
 ```bash
@@ -354,6 +405,16 @@ gcloud storage cp --if-generation-match=0 "$REQUEST_FILE" "$REQUEST_URI" \
 
 ## 4. Workflow 입력 검증
 
+```mermaid
+flowchart LR
+    GCS["GCS 객체<br/>특정 generation"] --> DL["다운로드"]
+    LF["로컬 요청 JSON"] --> CMP{"cmp 일치?"}
+    DL --> CMP
+    CMP -->|같음| WI["workflow-input.json<br/>uri · generation · sha256"]
+    CMP -->|다름| ST["중단"]
+    WI --> W6["6번 Workflow 입력"]
+```
+
 게시된 객체의 특정 세대를 내려받아 대조하고, Workflow에 넘길 입력을 만듭니다.
 
 ```bash
@@ -378,6 +439,17 @@ cat .local/workflow-input.json
 ---
 
 ## 5. 배포 전 확인
+
+```mermaid
+flowchart LR
+    PP["Private Pool<br/>pool-sbxtest01"] --> R1{"RUNNING"}
+    WF["workflow-sbxtest01-provision"] --> R2{"ACTIVE"}
+    IM["Infra Manager 배포"] --> R3{"FAILED 있음?"}
+    R3 -->|있음| AB["ABANDON 삭제<br/>자원은 유지"]
+    R1 --> GO["6번 실행"]
+    R2 --> GO
+    AB --> GO
+```
 
 ```bash
 gcloud builds worker-pools describe pool-sbxtest01 \
@@ -404,6 +476,18 @@ gcloud infra-manager deployments delete "<FAILED 배포 이름>" \
 ---
 
 ## 6. 과제 Workflow 실행
+
+```mermaid
+flowchart TB
+    WI["workflow-input.json"] --> WF["workflow-sbxtest01-provision"]
+    WF --> CB["Cloud Build<br/>Private Pool"]
+    CB --> TF["Terraform"]
+    TF --> PJ["프로젝트"]
+    TF --> IAM["IAM"]
+    TF --> DT["BigQuery · GCS"]
+    TF --> GRP["Cloud Identity 그룹"]
+    CB -.그룹 공유에서는 불필요.-> HUB["과제별 Hub · Proxy<br/>helm uninstall"]
+```
 
 **포털이 자동화할 지점입니다.** 과제 프로젝트, IAM, BigQuery·GCS, Cloud Identity 그룹을 만듭니다.
 
@@ -445,6 +529,18 @@ gcloud infra-manager deployments list \
 ---
 
 ## 7. 그룹 공유 배포
+
+```mermaid
+flowchart TB
+    PVC["notebook-home PVC<br/>7-1에서 사전 생성"] --> NB
+    GJ["group.json"] --> GU["GCS approved-groups"]
+    GU --> WF["workflow-sbx-shared-group"]
+    WF --> HUB["Hub · Proxy<br/>그룹 Namespace"]
+    WF --> NB["Notebook Pod<br/>과제 Namespace"]
+    HUB --> NEG["NEG"]
+    NEG --> BES["백엔드 서비스"]
+    BES --> ALB["내부 ALB"]
+```
 
 그룹 Hub·Proxy와 과제 Notebook, 내부 ALB 경로를 적용합니다.
 
@@ -528,6 +624,16 @@ gcloud compute backend-services get-health "bes-jupyter-${GROUP}" \
 
 ## 8. 접속 검증
 
+```mermaid
+flowchart LR
+    PC["테스트 PC"] -->|사내 DNS · hosts| VIP["ALB VIP"]
+    VIP --> UM["URL Map<br/>그룹 호스트"]
+    UM --> BES["백엔드 서비스"]
+    BES --> PX["Proxy"]
+    PX --> HUB["Hub<br/>로컬 로그인"]
+    HUB --> NB["Notebook<br/>/home/jupyter"]
+```
+
 1. 테스트 PC에서 그룹 호스트를 ALB VIP로 연결합니다. 사내 DNS 등록 전에는 `hosts` 파일로 대체할 수 있습니다.
 
    ```bash
@@ -549,6 +655,17 @@ gcloud compute backend-services get-health "bes-jupyter-${GROUP}" \
 ---
 
 ## 과제 추가
+
+```mermaid
+flowchart LR
+    NT["새 TASK 변수"] --> S26["2~6번 반복"]
+    S26 --> NEW["새 프로젝트 · 데이터<br/>· Cloud Identity 그룹"]
+    NT --> GJ["group.json<br/>tasks 누적"]
+    GJ --> S7["7번 재실행"]
+    NEW --> S7
+    S7 --> NS["새 Namespace<br/>Notebook Pod"]
+    EX["기존 Hub · Proxy"] -.변경 없음.-> S7
+```
 
 기존 그룹에 과제를 더합니다. Hub와 Proxy는 그대로 두고 Namespace와 Notebook Pod만 늘어납니다.
 
@@ -576,6 +693,14 @@ gcloud compute backend-services get-health "bes-jupyter-${GROUP}" \
 ---
 
 ## 중지와 재개
+
+```mermaid
+flowchart LR
+    N0["중지 1<br/>notebook 0"] --> HP0["중지 2<br/>hub · proxy 0"]
+    HP0 -.PVC · ALB · DNS 유지<br/>과금 계속.-> P1["재개 1<br/>proxy 1"]
+    P1 --> H1["재개 2<br/>hub 1"]
+    H1 --> N1["재개 3<br/>notebook 1"]
+```
 
 비용 절감을 위해 Pod만 0으로 줄입니다. 실행 중인 커널이 종료되므로 작업 파일을 먼저 저장합니다.
 
