@@ -454,9 +454,11 @@ Pod 보조 범위는 GKE 서브넷 IAM을 따릅니다. ALB 프록시 전용 서
 아래 명령은 `gcp-prod-edp-hub-vpchost`의 네트워크 및 IAM 변경 권한을 가진 운영팀이 실행합니다. `VPC_ADMIN_ACCOUNT`에 실제 작업 계정을 적고 아래 선언을 실행합니다. 프로젝트 번호는 `gcloud`로 조회합니다. 운영팀 계정으로 서비스 프로젝트를 조회할 수 없으면 2-3절의 프로젝트팀 조회 결과를 받아 `export SBX_PROJECT_NUMBER=` 뒤에 숫자 번호를 직접 넣습니다.
 
 ```bash
+# 수행 위치: infra-son01 또는 Cloud Shell | 수행 계정: VPC_ADMIN_ACCOUNT (예: admin@sonmap.net) | 대상: gcp-prod-edp-hub-vpchost
 export VPC_ADMIN_ACCOUNT="admin@sonmap.net"
 export SBX_GKE_PROJECT="gcp-sbx-edp-gke01"
 
+# 프로젝트 번호 조회 대상: gcp-sbx-edp-gke01
 SBX_PROJECT_NUMBER="$(gcloud projects describe "$SBX_GKE_PROJECT" \
   --account="$VPC_ADMIN_ACCOUNT" --format='value(projectNumber)')"
 export SBX_PROJECT_NUMBER
@@ -513,6 +515,7 @@ gcloud compute networks subnets list --project="$HOST" --account="$VPC_ADMIN_ACC
 앞의 조회에서 `$MAIN_SUBNET`이 없고 CIDR 승인이 완료되면 아래 생성 명령을 실행합니다. `--secondary-range`로 Pod 보조 범위도 함께 생성됩니다. **생성 후 2번에서 확인합니다.**
 
 ```bash
+# 수행 위치: infra-son01 또는 Cloud Shell | 수행 계정: VPC_ADMIN_ACCOUNT (예: admin@sonmap.net) | 대상: gcp-prod-edp-hub-vpchost
 gcloud compute networks subnets create "$MAIN_SUBNET" \
   --project="$HOST" --network="$NETWORK" --region="$REGION" --account="$VPC_ADMIN_ACCOUNT" \
   --range="$NODE_CIDR" --secondary-range="$POD_RANGE=$POD_CIDR"
@@ -521,6 +524,7 @@ gcloud compute networks subnets create "$MAIN_SUBNET" \
 #### 2. GKE 서브넷과 Pod 보조 범위 확인
 
 ```bash
+# 수행 위치: infra-son01 또는 Cloud Shell | 수행 계정: VPC_ADMIN_ACCOUNT (예: admin@sonmap.net) | 대상: gcp-prod-edp-hub-vpchost
 gcloud compute networks subnets describe "$MAIN_SUBNET" \
   --project="$HOST" --region="$REGION" --account="$VPC_ADMIN_ACCOUNT" \
   --format='yaml(ipCidrRange,secondaryIpRanges)'
@@ -533,6 +537,7 @@ Primary `10.252.0.0/24`와 Pod 보조 범위 `subnet-prod-sbx-pod-01` (`100.64.1
 Shared VPC 운영팀이 프런트엔드 VIP에 사용할 일반 서브넷을 조회합니다.
 
 ```bash
+# 수행 위치: infra-son01 또는 Cloud Shell | 수행 계정: VPC_ADMIN_ACCOUNT (예: admin@sonmap.net) | 대상: gcp-prod-edp-hub-vpchost
 gcloud compute networks subnets describe "$VIP_SUBNET" --project="$HOST" \
   --region="$REGION" --account="$VPC_ADMIN_ACCOUNT" \
   --format='yaml(name,network,ipCidrRange,purpose)'
@@ -543,6 +548,7 @@ gcloud compute networks subnets describe "$VIP_SUBNET" --project="$HOST" \
 - **`403` 또는 기타 조회 오류** · 운영팀 계정과 조회 권한을 확인합니다.
 
 ```bash
+# 수행 위치: infra-son01 또는 Cloud Shell | 수행 계정: VPC_ADMIN_ACCOUNT (예: admin@sonmap.net) | 대상: gcp-prod-edp-hub-vpchost
 gcloud compute networks subnets create "$VIP_SUBNET" \
   --project="$HOST" --network="$NETWORK" --region="$REGION" \
   --range="$VIP_CIDR" --account="$VPC_ADMIN_ACCOUNT"
@@ -555,6 +561,7 @@ gcloud compute networks subnets create "$VIP_SUBNET" \
 같은 VPC·리전에 활성 프록시 전용 서브넷이 있으면 해당 CIDR을 `PROXY_CIDR`에 반영합니다. 활성 서브넷이 없고 대역 승인이 끝났을 때만 아래 명령을 실행합니다.
 
 ```bash
+# 수행 위치: infra-son01 또는 Cloud Shell | 수행 계정: VPC_ADMIN_ACCOUNT (예: admin@sonmap.net) | 대상: gcp-prod-edp-hub-vpchost
 gcloud compute networks subnets create "$PROXY_SUBNET" \
   --project="$HOST" --network="$NETWORK" --region="$REGION" --account="$VPC_ADMIN_ACCOUNT" \
   --range="$PROXY_CIDR" --purpose=REGIONAL_MANAGED_PROXY --role=ACTIVE
@@ -565,6 +572,7 @@ gcloud compute networks subnets create "$PROXY_SUBNET" \
 Shared VPC 운영팀이 아래 명령으로 기존 서브넷을 조회합니다.
 
 ```bash
+# 수행 위치: infra-son01 또는 Cloud Shell | 수행 계정: VPC_ADMIN_ACCOUNT (예: admin@sonmap.net) | 대상: gcp-prod-edp-hub-vpchost
 export CP_SUBNET="subnet-prod-sbx-control-plane-an3"
 export CP_SUBNET_CIDR="10.253.3.16/28"
 
@@ -576,6 +584,7 @@ gcloud compute networks subnets describe "$CP_SUBNET" \
 조회 결과가 `Not Found`이고 CIDR 중복 확인이 끝났으면 아래 명령을 실행합니다. 생성 후 위 조회 명령으로 `10.253.3.16/28`을 확인합니다.
 
 ```bash
+# 수행 위치: infra-son01 또는 Cloud Shell | 수행 계정: VPC_ADMIN_ACCOUNT (예: admin@sonmap.net) | 대상: gcp-prod-edp-hub-vpchost
 gcloud compute networks subnets create "$CP_SUBNET" \
   --project="$HOST" --network="$NETWORK" --region="$REGION" \
   --range="$CP_SUBNET_CIDR" --account="$VPC_ADMIN_ACCOUNT"
@@ -588,6 +597,7 @@ gcloud compute networks subnets create "$CP_SUBNET" \
 ##### 6-1. 기존 방화벽 조회
 
 ```bash
+# 수행 위치: infra-son01 또는 Cloud Shell | 수행 계정: VPC_ADMIN_ACCOUNT (예: admin@sonmap.net) | 대상: gcp-prod-edp-hub-vpchost
 gcloud compute firewall-rules list --project="$HOST" --account="$VPC_ADMIN_ACCOUNT" \
   --filter='name=(fw-sbxtest01-alb-hc fw-sbxtest01-ilb-proxy)'
 ```
@@ -595,6 +605,7 @@ gcloud compute firewall-rules list --project="$HOST" --account="$VPC_ADMIN_ACCOU
 ##### 6-2. ALB 헬스 체크 방화벽 생성
 
 ```bash
+# 수행 위치: infra-son01 또는 Cloud Shell | 수행 계정: VPC_ADMIN_ACCOUNT (예: admin@sonmap.net) | 대상: gcp-prod-edp-hub-vpchost
 gcloud compute firewall-rules create fw-sbxtest01-alb-hc \
   --project="$HOST" --network="$NETWORK" --account="$VPC_ADMIN_ACCOUNT" \
   --direction=INGRESS --allow=tcp:8000 \
@@ -604,6 +615,7 @@ gcloud compute firewall-rules create fw-sbxtest01-alb-hc \
 ##### 6-3. ALB 프록시 방화벽 생성
 
 ```bash
+# 수행 위치: infra-son01 또는 Cloud Shell | 수행 계정: VPC_ADMIN_ACCOUNT (예: admin@sonmap.net) | 대상: gcp-prod-edp-hub-vpchost
 gcloud compute firewall-rules create fw-sbxtest01-ilb-proxy \
   --project="$HOST" --network="$NETWORK" --account="$VPC_ADMIN_ACCOUNT" \
   --direction=INGRESS --allow=tcp:8000 \
@@ -617,6 +629,7 @@ gcloud compute firewall-rules create fw-sbxtest01-ilb-proxy \
 ##### 7-1. 서비스 에이전트 변수 선언
 
 ```bash
+# 수행 위치: infra-son01 또는 Cloud Shell | 수행 계정: VPC_ADMIN_ACCOUNT (예: admin@sonmap.net) | 대상: gcp-prod-edp-hub-vpchost
 export GKE_AGENT="service-${SBX_PROJECT_NUMBER}@container-engine-robot.iam.gserviceaccount.com"
 export GOOGLE_APIS_AGENT="${SBX_PROJECT_NUMBER}@cloudservices.gserviceaccount.com"
 ```
@@ -624,6 +637,7 @@ export GOOGLE_APIS_AGENT="${SBX_PROJECT_NUMBER}@cloudservices.gserviceaccount.co
 ##### 7-2. GKE 서브넷 · Terraform 서비스 계정
 
 ```bash
+# 수행 위치: infra-son01 또는 Cloud Shell | 수행 계정: VPC_ADMIN_ACCOUNT (예: admin@sonmap.net) | 대상: gcp-prod-edp-hub-vpchost
 gcloud compute networks subnets add-iam-policy-binding "$MAIN_SUBNET" \
   --project="$HOST" --region="$REGION" --account="$VPC_ADMIN_ACCOUNT" \
   --member="serviceAccount:$TF_MANAGER" --role=roles/compute.networkUser
@@ -632,6 +646,7 @@ gcloud compute networks subnets add-iam-policy-binding "$MAIN_SUBNET" \
 ##### 7-3. GKE 서브넷 · GKE 서비스 에이전트
 
 ```bash
+# 수행 위치: infra-son01 또는 Cloud Shell | 수행 계정: VPC_ADMIN_ACCOUNT (예: admin@sonmap.net) | 대상: gcp-prod-edp-hub-vpchost
 gcloud compute networks subnets add-iam-policy-binding "$MAIN_SUBNET" \
   --project="$HOST" --region="$REGION" --account="$VPC_ADMIN_ACCOUNT" \
   --member="serviceAccount:$GKE_AGENT" --role=roles/compute.networkUser
@@ -640,6 +655,7 @@ gcloud compute networks subnets add-iam-policy-binding "$MAIN_SUBNET" \
 ##### 7-4. GKE 서브넷 · Google APIs 서비스 에이전트
 
 ```bash
+# 수행 위치: infra-son01 또는 Cloud Shell | 수행 계정: VPC_ADMIN_ACCOUNT (예: admin@sonmap.net) | 대상: gcp-prod-edp-hub-vpchost
 gcloud compute networks subnets add-iam-policy-binding "$MAIN_SUBNET" \
   --project="$HOST" --region="$REGION" --account="$VPC_ADMIN_ACCOUNT" \
   --member="serviceAccount:$GOOGLE_APIS_AGENT" --role=roles/compute.networkUser
@@ -648,6 +664,7 @@ gcloud compute networks subnets add-iam-policy-binding "$MAIN_SUBNET" \
 ##### 7-5. ALB VIP 서브넷 · Terraform 서비스 계정
 
 ```bash
+# 수행 위치: infra-son01 또는 Cloud Shell | 수행 계정: VPC_ADMIN_ACCOUNT (예: admin@sonmap.net) | 대상: gcp-prod-edp-hub-vpchost
 gcloud compute networks subnets add-iam-policy-binding "$VIP_SUBNET" \
   --project="$HOST" --region="$REGION" --account="$VPC_ADMIN_ACCOUNT" \
   --member="serviceAccount:$TF_MANAGER" --role=roles/compute.networkUser
@@ -656,6 +673,7 @@ gcloud compute networks subnets add-iam-policy-binding "$VIP_SUBNET" \
 ##### 7-6. 호스트 프로젝트 · GKE 서비스 에이전트
 
 ```bash
+# 수행 위치: infra-son01 또는 Cloud Shell | 수행 계정: VPC_ADMIN_ACCOUNT (예: admin@sonmap.net) | 대상: gcp-prod-edp-hub-vpchost
 gcloud projects add-iam-policy-binding "$HOST" --account="$VPC_ADMIN_ACCOUNT" \
   --member="serviceAccount:$GKE_AGENT" --role=roles/container.hostServiceAgentUser --condition=None
 ```
@@ -663,6 +681,7 @@ gcloud projects add-iam-policy-binding "$HOST" --account="$VPC_ADMIN_ACCOUNT" \
 ##### 7-7. 호스트 프로젝트 · Terraform 네트워크 조회 권한
 
 ```bash
+# 수행 위치: infra-son01 또는 Cloud Shell | 수행 계정: VPC_ADMIN_ACCOUNT (예: admin@sonmap.net) | 대상: gcp-prod-edp-hub-vpchost
 gcloud projects add-iam-policy-binding "$HOST" --account="$VPC_ADMIN_ACCOUNT" \
   --member="serviceAccount:$TF_MANAGER" --role=roles/compute.networkViewer --condition=None
 ```
@@ -670,6 +689,7 @@ gcloud projects add-iam-policy-binding "$HOST" --account="$VPC_ADMIN_ACCOUNT" \
 ##### 7-8. 호스트 프로젝트 · Terraform 서비스 사용 권한
 
 ```bash
+# 수행 위치: infra-son01 또는 Cloud Shell | 수행 계정: VPC_ADMIN_ACCOUNT (예: admin@sonmap.net) | 대상: gcp-prod-edp-hub-vpchost
 gcloud projects add-iam-policy-binding "$HOST" --account="$VPC_ADMIN_ACCOUNT" \
   --member="serviceAccount:$TF_MANAGER" --role=roles/serviceusage.serviceUsageConsumer --condition=None
 ```
@@ -677,6 +697,7 @@ gcloud projects add-iam-policy-binding "$HOST" --account="$VPC_ADMIN_ACCOUNT" \
 ##### 7-9. GKE 서브넷 IAM 확인
 
 ```bash
+# 수행 위치: infra-son01 또는 Cloud Shell | 수행 계정: VPC_ADMIN_ACCOUNT (예: admin@sonmap.net) | 대상: gcp-prod-edp-hub-vpchost
 gcloud compute networks subnets get-iam-policy "$MAIN_SUBNET" \
   --project="$HOST" --region="$REGION" --account="$VPC_ADMIN_ACCOUNT" --format=json
 ```
@@ -684,6 +705,7 @@ gcloud compute networks subnets get-iam-policy "$MAIN_SUBNET" \
 ##### 7-10. ALB VIP 서브넷 IAM 확인
 
 ```bash
+# 수행 위치: infra-son01 또는 Cloud Shell | 수행 계정: VPC_ADMIN_ACCOUNT (예: admin@sonmap.net) | 대상: gcp-prod-edp-hub-vpchost
 gcloud compute networks subnets get-iam-policy "$VIP_SUBNET" \
   --project="$HOST" --region="$REGION" --account="$VPC_ADMIN_ACCOUNT" --format=json
 ```
@@ -691,6 +713,7 @@ gcloud compute networks subnets get-iam-policy "$VIP_SUBNET" \
 Cloud Build Private Pool 경로를 사용하는 경우, 운영팀에서 기존 PSA 예약 범위와 피어링을 확인합니다. 예약 범위 및 연결이 모두 없는 신규 구성에서는 대역 승인과 Service Networking API 및 서비스 에이전트 준비 후 생성 명령을 실행합니다. 기존 피어링이 있으면 현재 할당 범위를 확인하고 운영팀 절차에 따라 조정합니다.
 
 ```bash
+# 수행 위치: infra-son01 또는 Cloud Shell | 수행 계정: VPC_ADMIN_ACCOUNT (예: admin@sonmap.net) | 대상: gcp-prod-edp-hub-vpchost
 export PSA_NAME="psa-prod-edp-cloudbuild"
 gcloud compute addresses describe "$PSA_NAME" --global --project="$HOST" --account="$VPC_ADMIN_ACCOUNT"
 gcloud services vpc-peerings list --project="$HOST" --network="$NETWORK" \
@@ -711,6 +734,7 @@ gcloud services vpc-peerings connect --project="$HOST" --network="$NETWORK" \
 `gcp-sbx-edp-gke01` 관리자는 1절의 프로젝트 API 활성화와 서비스 에이전트 준비를 수행합니다. 운영팀에 요청하기 전에 아래 명령으로 서비스 프로젝트 번호와 연결된 호스트를 확인합니다.
 
 ```bash
+# 수행 위치: infra-son01 또는 Cloud Shell | 수행 계정: ADMIN_ACCOUNT (son@sonmap.net) | 대상: gcp-sbx-edp-gke01
 export ADMIN_ACCOUNT="son@sonmap.net"
 export SBX_GKE_PROJECT="gcp-sbx-edp-gke01"
 export TF_MANAGER="tf-manager@gcp-sbx-edp-gke01.iam.gserviceaccount.com"
@@ -728,6 +752,9 @@ gcloud iam service-accounts describe "$TF_MANAGER" \
 운영팀 회신 후 아래 명령을 배포 주체인 `tf-manager`로 실행해 서비스 프로젝트에 사용 가능한 서브넷을 확인합니다. 실행 계정에는 1절에 따라 `tf-manager` 가장 권한이 필요합니다.
 
 ```bash
+# 수행 위치: infra-son01 또는 Cloud Shell | 로그인 계정: ADMIN_ACCOUNT (son@sonmap.net)
+# 수행 계정(가장): TF_MANAGER (tf-manager@gcp-sbx-edp-gke01.iam.gserviceaccount.com)
+# 조회 대상: gcp-prod-edp-hub-vpchost | 서비스 프로젝트: gcp-sbx-edp-gke01
 gcloud compute networks subnets list-usable --project=gcp-prod-edp-hub-vpchost \
   --service-project="$SBX_GKE_PROJECT" \
   --account="$ADMIN_ACCOUNT" --impersonate-service-account="$TF_MANAGER" --format=json
