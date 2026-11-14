@@ -14,19 +14,22 @@
 
 각 명령 위의 주석에서 대상 프로젝트와 로그인 계정을 확인합니다. `가장`은 `--impersonate-service-account`로 API를 호출하는 계정이고, `워크로드 실행`은 `--service-account`로 지정하는 Build·Cloud Run·Workflows 실행 계정입니다. `--member`에 적힌 계정은 IAM 권한을 받는 주체입니다.
 
+각 대제목 아래의 **내용 펼치기 / 접기**를 눌러 명령과 설명을 볼 수 있습니다.
+
 | 단계 | 명령과 확인 절차 |
 |---|---|
 | 준비 | [공통 변수](#0-공통-변수) |
 | 공통 인프라 | [API·IAM](#1-api와-관리자-권한) → [Shared VPC](#2-shared-vpc와-네트워크) → [서브넷 IAM](#2-1-서브넷별-iam) → [GKE·AR·ALB](#3-공통-기반) |
 | 기존 Workflows 경로 | [OAuth 설정](#4-oauth-값-등록), [그룹 권한](#5-그룹-관리-사전-설정), [Private Pool 점검](reference/cloudbuild-private-gke-vpn-design.md), [플랫폼 릴리스](#6-플랫폼-릴리스-게시) |
 | 이미지 준비 | [Helm 차트와 기본 이미지](#7-chart와-기본-이미지-미러링) → [표준 Notebook 이미지](#8-notebook-표준-이미지-빌드) |
-| 접속 검증 | [관리 VM에서 GKE 접속](#gke와-내부-https-접속-확인), [내부 HTTPS·DNS](reference/sbx03-https-certificate-runbook.md) |
-| 수동 설치 | [JupyterHub 수동 설치 및 접속 확인](#9-jupyterhub-수동-설치-및-접속-확인) |
-| 과제 배포 | [그룹 공유 Sandbox 자동 배포](../03.sandbox_deploy/README.md#배포-흐름) 또는 [기존 Workflows 배포](../03.sandbox_deploy/03.1.request/legacy-deploy.md) |
+| 수동 설치·접속 검증 | [JupyterHub 수동 설치 및 접속 확인](#9-jupyterhub-수동-설치-및-접속-확인) · [GKE 접속 준비](#gke와-내부-https-접속-확인) · [내부 HTTPS·DNS](reference/sbx03-https-certificate-runbook.md) |
+| 운영·과제 배포 | [운영 자동화 경계](#10-운영-자동화-경계) · [그룹 공유 Sandbox 자동 배포](../03.sandbox_deploy/README.md#배포-흐름) 또는 [기존 Workflows 배포](../03.sandbox_deploy/03.1.request/legacy-deploy.md) |
 
 그룹 공유 PoC만 구성하는 환경에서 공통 자원을 준비할 때는 기존 자동 배포용 Cloud Run·Workflows와 Google OAuth 구간을 구분해 적용합니다. 기존 환경에서는 자원 조회 결과를 확인한 뒤 필요한 생성·갱신 명령만 실행합니다.
 
-### Cloud Build 파일을 사용하는 시점
+<a name="cloud-build-파일을-사용하는-시점"></a>
+
+**Cloud Build 파일을 사용하는 시점**
 
 | 파일 | 사용 시점 |
 |---|---|
@@ -37,7 +40,12 @@
 
 Private Pool 접속은 [점검 절차](reference/cloudbuild-private-gke-vpn-design.md)에서 확인합니다. 표준 Notebook 이미지는 [8번 관리 VM 빌드](#8-notebook-표준-이미지-빌드)를 사용하고, 의존성 변경으로 별도 후보 이미지가 필요할 때는 [Notebook 운영 릴리스](../03.sandbox_deploy/03.3.gke/notebook-image/README.md#notebook-이미지-운영-릴리스)를 사용합니다.
 
-## 0. 공통 변수
+<a name="0-공통-변수"></a>
+
+## 🧰 0. 공통 변수
+
+<details>
+<summary>내용 펼치기 / 접기</summary>
 
 ### 프로젝트 기준과 변수명
 
@@ -104,9 +112,31 @@ gcloud projects describe "${SBX_GKE_PROJECT}" --account="${ADMIN_ACCOUNT}" \
 
 실행 순서: [1 관리자](#1-api와-관리자-권한) → [2 네트워크](#2-shared-vpc와-네트워크) → [2-1 서브넷별 IAM](#2-1-서브넷별-iam) → [3 공통 기반](#3-공통-기반).
 
-## 1. API와 관리자 권한
+</details>
 
-필요한 변수 선언을 아래 코드 블록 맨 앞에 포함했습니다. 별도 문서에서 변수를 설정할 필요 없이, 이 문서의 선언부터 같은 터미널에서 실행합니다. 아래 한 개의 코드 블록에서 `# 주석`을 보며 순서대로 실행합니다. **계정이 이미 있으면 해당 create 명령을 건너뜁니다.** Billing은 필요한 경우에만 주석을 해제합니다.
+<a name="1-api와-관리자-권한"></a>
+
+## 🔐 1. API와 관리자 권한
+
+<details>
+<summary>내용 펼치기 / 접기</summary>
+
+API 활성화 후 서비스 에이전트와 사용자 관리 서비스 계정을 준비합니다. 작업에 필요한 IAM을 프로젝트·폴더·Shared VPC 범위별로 적용합니다.
+
+```mermaid
+flowchart TD
+    A["대상 프로젝트와 관리자 계정 확인"] --> B["필요한 API 활성화"]
+    B --> C["Google 서비스 에이전트 준비"]
+    B --> D["tf-manager와 sbx-manager 준비"]
+    C --> E["작업 범위별 IAM 적용"]
+    D --> E
+    E --> F{"신규 과제에 Billing 연결이 필요한가?"}
+    F -->|필요| G["결제 계정 관리자에게 권한 요청"]
+    F -->|불필요| H["Shared VPC 준비"]
+    G --> H
+```
+
+필요한 변수 선언을 아래 코드 블록 맨 앞에 포함했습니다. 별도 문서에서 변수를 설정할 필요 없이, 이 문서의 선언부터 같은 터미널에서 실행합니다. 변수 선언을 실행한 다음 각 단계의 `# 주석`을 보며 순서대로 실행합니다. **계정이 이미 있으면 해당 create 명령을 건너뜁니다.** Billing은 필요한 경우에만 주석을 해제합니다.
 
 ```bash
 # ── 이 문서에서 사용하는 변수 선언 ──
@@ -128,7 +158,9 @@ export SBX_GKE_PROJECT_NUMBER="$(gcloud projects describe "${SBX_GKE_PROJECT}" -
 
 ```
 
-### 🔴 **1.** 필요한 API 활성화 — CI/CD · Shared VPC Host · GKE 프로젝트
+<a name="-1-필요한-api-활성화--cicd--shared-vpc-host--gke-프로젝트"></a>
+
+### 1. 필요한 API 활성화 — CI/CD · Shared VPC Host · GKE 프로젝트
 
 ```bash
 # [infra-son01] 플랫폼 운영자 · 대상 ${SBX_GKE_PROJECT}
@@ -145,7 +177,9 @@ gcloud services enable container.googleapis.com compute.googleapis.com iam.googl
 
 ```
 
-### 🔴 **2.** Google 서비스 에이전트 준비 — API별로 필요한 시스템 계정
+<a name="-2-google-서비스-에이전트-준비--api별로-필요한-시스템-계정"></a>
+
+### 2. Google 서비스 에이전트 준비 — API별로 필요한 시스템 계정
 
 ```bash
 # [infra-son01] 플랫폼 운영자 · 대상 ${SBX_GKE_PROJECT}
@@ -169,7 +203,9 @@ gcloud projects add-iam-policy-binding "${SBX_GKE_PROJECT}" \
 
 ```
 
-### 🔴 **3.** 사용자 관리 서비스 계정 — sbx-manager · tf-manager
+<a name="-3-사용자-관리-서비스-계정--sbx-manager--tf-manager"></a>
+
+### 3. 사용자 관리 서비스 계정 — sbx-manager · tf-manager
 
 ```bash
 
@@ -190,7 +226,9 @@ gcloud iam service-accounts create tf-manager --project="${SBX_GKE_PROJECT}" --d
 
 ```
 
-### 🔴 **4.** tf-manager 권한 — CI/CD 기반 구축 · Build · Infrastructure Manager
+<a name="-4-tf-manager-권한--cicd-기반-구축--build--infrastructure-manager"></a>
+
+### 4. tf-manager 권한 — CI/CD 기반 구축 · Build · Infrastructure Manager
 
 ```bash
 # 실행 위치 infra-son01 | 대상 ${SBX_GKE_PROJECT} | 계정 ${ADMIN_ACCOUNT}
@@ -234,7 +272,9 @@ gcloud projects add-iam-policy-binding "${SBX_GKE_PROJECT}" --member="serviceAcc
 
 위 역할은 모두 **GCP 프로젝트 IAM**입니다. Cloud Identity 그룹 생성 권한은 여기에 포함되지 않습니다. 그룹은 GCP가 아니라 Workspace 디렉터리에 만들어지므로 [5. 그룹 관리 사전 설정](#5-그룹-관리-사전-설정)에서 별도로 부여합니다.
 
-### 🔴 **5.** sbx-manager 권한 — 요청 처리 · Workflow · Build 제출
+<a name="-5-sbx-manager-권한--요청-처리--workflow--build-제출"></a>
+
+### 5. sbx-manager 권한 — 요청 처리 · Workflow · Build 제출
 
 ```bash
 # 실행 위치 infra-son01 | 대상 ${SBX_GKE_PROJECT} | 계정 ${ADMIN_ACCOUNT}
@@ -251,7 +291,9 @@ gcloud projects add-iam-policy-binding "${SBX_GKE_PROJECT}" --member="serviceAcc
 
 ```
 
-### 🔴 **6.** Shared VPC 운영팀 요청 및 Private Pool 초기 구성 권한 (보류)
+<a name="-6-shared-vpc-운영팀-요청-및-private-pool-초기-구성-권한-보류"></a>
+
+### 6. Shared VPC 운영팀 요청 및 Private Pool 초기 구성 권한 (보류)
 
 호스트 네트워크 조회 및 사용 권한은 [2-1절](#2-1-서브넷별-iam)의 요청 양식으로 운영팀에 전달합니다. Private Pool을 운영팀이 서비스 프로젝트에 처음 만드는 경우에만 프로젝트 관리자가 아래 명령으로 운영팀 작업 계정에 권한을 부여합니다. **이번 구축에서는 아래 권한 부여 명령을 건너뜁니다.** 추후 필요할 때 `VPC_ADMIN_ACCOUNT`를 운영팀이 지정한 계정으로 설정합니다.
 
@@ -263,7 +305,9 @@ gcloud projects add-iam-policy-binding "${SBX_GKE_PROJECT}" --member="user:${VPC
   --role=roles/serviceusage.serviceUsageConsumer --condition=None --account="${ADMIN_ACCOUNT}"
 ```
 
-### 🔴 **7.** tf-manager 권한 — GKE · 공통 로드밸런서
+<a name="-7-tf-manager-권한--gke--공통-로드밸런서"></a>
+
+### 7. tf-manager 권한 — GKE · 공통 로드밸런서
 
 ```bash
 # 실행 위치 infra-son01 | 대상 ${SBX_GKE_PROJECT} | 계정 ${ADMIN_ACCOUNT}
@@ -272,7 +316,9 @@ gcloud projects add-iam-policy-binding "${SBX_GKE_PROJECT}" --member="serviceAcc
 
 ```
 
-### 🔴 **8.** 서비스 계정 사용·위임 권한 — 운영자 · 두 계정 · 서비스 에이전트
+<a name="-8-서비스-계정-사용위임-권한--운영자--두-계정--서비스-에이전트"></a>
+
+### 8. 서비스 계정 사용·위임 권한 — 운영자 · 두 계정 · 서비스 에이전트
 
 ```bash
 # 실행 위치 infra-son01 | 대상 ${SBX_GKE_PROJECT} | 계정 ${ADMIN_ACCOUNT}
@@ -306,7 +352,9 @@ gcloud iam service-accounts add-iam-policy-binding "${TF_MANAGER}" --project="${
 
 ```
 
-### 🔴 **9.** tf-manager 권한 — 지정 Folder의 프로젝트 생성 · IAM
+<a name="-9-tf-manager-권한--지정-folder의-프로젝트-생성--iam"></a>
+
+### 9. tf-manager 권한 — 지정 Folder의 프로젝트 생성 · IAM
 
 ```bash
 # 실행 위치 infra-son01 | 대상 폴더 ${FOLDER_ID} | 계정 ${VPC_ADMIN_ACCOUNT}
@@ -319,11 +367,15 @@ gcloud resource-manager folders add-iam-policy-binding "${FOLDER_ID}" \
 
 ```
 
-### 🔴 **10.** GKE 서비스 에이전트의 Shared VPC 사용 권한
+<a name="-10-gke-서비스-에이전트의-shared-vpc-사용-권한"></a>
+
+### 10. GKE 서비스 에이전트의 Shared VPC 사용 권한
 
 2번에서 서비스 프로젝트의 서비스 에이전트를 준비한 뒤, 호스트 프로젝트의 `roles/container.hostServiceAgentUser` 부여를 [2-1절](#2-1-서브넷별-iam)에 따라 Shared VPC 운영팀에 요청합니다.
 
-### 🔴 **11.** GKE 노드 기본 계정 권한 — 노드 실행 · tf-manager의 계정 사용
+<a name="-11-gke-노드-기본-계정-권한--노드-실행--tf-manager의-계정-사용"></a>
+
+### 11. GKE 노드 기본 계정 권한 — 노드 실행 · tf-manager의 계정 사용
 
 ```bash
 # 실행 위치 infra-son01 | 대상 ${SBX_GKE_PROJECT} | 계정 ${ADMIN_ACCOUNT}
@@ -436,13 +488,37 @@ gcloud identity groups search \
 
 `The caller does not have permission`이 나오면 아직 역할이 부여되지 않은 상태입니다.
 
-## 2. Shared VPC와 네트워크
+</details>
+
+<a name="2-shared-vpc와-네트워크"></a>
+
+## 🌐 2. Shared VPC와 네트워크
+
+<details>
+<summary>내용 펼치기 / 접기</summary>
+
+2-1절은 요청할 권한의 기준입니다. 프로젝트 관리자는 2-3절의 첫 조회를 요청 전에, 사용 가능한 서브넷 조회를 운영팀 회신 후에 실행합니다.
+
+```mermaid
+sequenceDiagram
+    participant S as Sandbox 프로젝트 관리자
+    participant V as Shared VPC 운영팀
+    participant T as tf-manager
+    S->>S: 2-3절에서 프로젝트 번호와 연결 호스트 조회
+    S->>V: 서브넷 요청 양식과 2-1절 IAM 목록 전달
+    V->>V: 2-2절에서 서브넷·방화벽·IAM 확인 및 적용
+    V-->>S: 실제 서브넷·CIDR과 적용 결과 회신
+    S->>T: 2-3절에서 tf-manager로 가장
+    T-->>S: 사용 가능한 서브넷과 Pod 보조 범위 확인
+```
 
 기존 `vpc-prod-edp-hub`를 사용합니다. 호스트 `gcp-prod-edp-hub-vpchost`는 Shared VPC로 활성화되어 있고, 서비스 프로젝트 `gcp-sbx-edp-gke01`의 연결도 확인했습니다. Sandbox 프로젝트팀은 서비스 프로젝트에서 준비와 조회를 수행하고, 호스트 서브넷·방화벽·PSA·IAM 변경은 Shared VPC 운영팀에 요청합니다.
 
 프로젝트팀은 [2-3절의 확인 명령](#2-3-sandbox-프로젝트-관리자-실행-명령)으로 서비스 프로젝트 번호와 현재 연결을 조회한 뒤 아래 요청 양식을 전달합니다.
 
-### Shared VPC 운영팀 요청 양식
+<a name="shared-vpc-운영팀-요청-양식"></a>
+
+### 2-0. Shared VPC 운영팀 요청 양식
 
 **제목** · [GCP Sandbox] 기존 Shared VPC 서브넷 준비 및 사용 권한 요청
 
@@ -462,9 +538,9 @@ gcloud identity groups search \
 
 CIDR은 운영팀의 중복 검토 후 확정합니다. 완료 회신에 실제 서브넷 이름과 CIDR, Pod 보조 범위 이름, 방화벽 적용 결과, 필요한 경우 PSA 연결 상태를 포함해 주세요. 프로젝트팀은 회신값을 3절 변수와 맞춘 뒤 구축을 진행합니다.
 
-## 2-1. 서브넷별 IAM
+### 2-1. 서브넷별 IAM
 
-프로젝트팀은 2절에서 조회한 프로젝트 번호로 `NUM`을 바꿔 Shared VPC 운영팀에 전달합니다. 운영팀은 아래 범위에서 권한을 적용하고 결과를 회신합니다.
+프로젝트팀은 2-3절에서 조회한 프로젝트 번호로 `NUM`을 바꿔 Shared VPC 운영팀에 전달합니다. 운영팀은 아래 범위에서 권한을 적용하고 결과를 회신합니다.
 
 | 권한 적용 위치 | 주 구성원 | 역할 |
 |---|---|---|
@@ -481,7 +557,7 @@ Pod 보조 범위는 GKE 서브넷 IAM을 따릅니다. ALB 프록시 전용 서
 
 프로젝트팀은 운영팀 회신에서 서브넷별 사용 권한을 확인합니다. 3절의 `tf-manager` 가장 조회는 서브넷을 읽을 수 있는지 확인하는 용도입니다.
 
-## 2-2. Shared VPC 운영팀 실행 명령
+### 2-2. Shared VPC 운영팀 실행 명령
 
 아래 명령은 `gcp-prod-edp-hub-vpchost`의 네트워크 및 IAM 변경 권한을 가진 운영팀이 실행합니다. `VPC_ADMIN_ACCOUNT`에 실제 작업 계정을 적고 아래 선언을 실행합니다. 프로젝트 번호는 `gcloud`로 조회합니다. 운영팀 계정으로 서비스 프로젝트를 조회할 수 없으면 2-3절의 프로젝트팀 조회 결과를 받아 `export SBX_PROJECT_NUMBER=` 뒤에 숫자 번호를 직접 넣습니다.
 
@@ -541,113 +617,6 @@ gcloud compute networks subnets list --project="$HOST" --account="$VPC_ADMIN_ACC
 **컨트롤 플레인용 서브넷** · Shared VPC 운영팀이 5번에서 `10.253.3.16/28` 서브넷을 준비합니다. 향후 신규 클러스터에서 이 서브넷을 사용하려면 `--private-endpoint-subnetwork`로 지정합니다. 해당 서브넷의 CIDR을 `--master-ipv4-cidr` 값으로 사용하면 기존 서브넷 대역과 겹칩니다.
 
 **Kubernetes Service 대역** · `subnet-prod-sbx-svc-01`을 사용자 관리 Service 보조 범위로 쓰려면 별도 CIDR을 확정해야 합니다. `10.252.0.0/24`는 이미 노드 Primary이고, 그 안의 `10.252.0.0/28`도 노드 대역과 겹칩니다.
-
-#### 0. Private Google Access와 Private DNS (선행 필수)
-
-폐쇄망에서 Private Node GKE를 쓰려면 노드가 Google 레지스트리에 닿을 경로가 먼저 있어야 합니다. 이 단계를 건너뛰면 클러스터 생성은 성공해도 노드가 `NotReady`로 남고, 파드는 계속 `Pending`입니다. GKE 시스템 이미지(pause, cilium)는 내부 AR로 미러링할 수 없고 Autopilot은 containerd 설정도 바꿀 수 없으므로, 네트워크에서 해결해야 합니다.
-
-`restricted.googleapis.com`(199.36.153.4/30)은 인터넷에서 라우팅되지 않는 대역이며 VPC-SC 지원 API만 노출합니다. `--next-hop-gateway=default-internet-gateway`는 이름과 달리 인터넷 송신을 열지 않습니다. 노드에 외부 IP가 없으면 이 경로로는 나가지 못합니다.
-
-**0-1. 현재 상태 조회**
-
-```bash
-# 수행 위치: infra-son01 또는 Cloud Shell | 수행 계정: VPC_ADMIN_ACCOUNT | 대상: gcp-prod-edp-hub-vpchost
-gcloud dns managed-zones list --project="$HOST" --account="$VPC_ADMIN_ACCOUNT"
-gcloud dns policies list --project="$HOST" --account="$VPC_ADMIN_ACCOUNT"
-gcloud compute routes list --project="$HOST" --account="$VPC_ADMIN_ACCOUNT" \
-  --filter="destRange~199.36.153"
-gcloud compute networks subnets describe "$MAIN_SUBNET" \
-  --project="$HOST" --region="$REGION" --account="$VPC_ADMIN_ACCOUNT" \
-  --format='yaml(name,ipCidrRange,privateIpGoogleAccess)'
-```
-
-이미 zone과 route가 있으면 0-2의 서브넷 PGA만 적용합니다. DNS 정책이 조회되면 온프레미스 DNS 포워딩이 걸려 있을 수 있으므로, private zone 대신 사내 DNS에 레코드를 등록해야 하는지 담당자와 확인합니다.
-
-**0-2. 서브넷 Private Google Access 활성화**
-
-```bash
-gcloud compute networks subnets update "$MAIN_SUBNET" \
-  --project="$HOST" --region="$REGION" --account="$VPC_ADMIN_ACCOUNT" \
-  --enable-private-ip-google-access
-```
-
-**0-3. restricted VIP 라우트**
-
-```bash
-gcloud compute routes create rt-prod-edp-restricted-googleapis \
-  --project="$HOST" --network="$NETWORK" --account="$VPC_ADMIN_ACCOUNT" \
-  --destination-range=199.36.153.4/30 \
-  --next-hop-gateway=default-internet-gateway --priority=1000
-```
-
-**0-4. Private DNS 존과 레코드**
-
-`gcr.io`는 GKE 시스템 이미지, `pkg.dev`는 내부 AR(Helm 차트·Notebook 이미지), `googleapis.com`은 나머지 API 경로입니다. 셋 중 하나라도 빠지면 배포 중 다른 지점에서 같은 타임아웃이 납니다.
-
-```bash
-export PGA_IPS="199.36.153.4,199.36.153.5,199.36.153.6,199.36.153.7"
-
-for Z in googleapis.com gcr.io pkg.dev; do
-  gcloud dns managed-zones create "zone-$(echo $Z | tr '.' '-')" \
-    --project="$HOST" --account="$VPC_ADMIN_ACCOUNT" \
-    --dns-name="$Z." --visibility=private \
-    --networks="$NETWORK" --description="Private Google Access"
-done
-
-gcloud dns record-sets create restricted.googleapis.com. --project="$HOST" \
-  --zone=zone-googleapis-com --type=A --ttl=300 --rrdatas="$PGA_IPS" \
-  --account="$VPC_ADMIN_ACCOUNT"
-gcloud dns record-sets create "*.googleapis.com." --project="$HOST" \
-  --zone=zone-googleapis-com --type=CNAME --ttl=300 \
-  --rrdatas=restricted.googleapis.com. --account="$VPC_ADMIN_ACCOUNT"
-
-gcloud dns record-sets create gcr.io. --project="$HOST" --zone=zone-gcr-io \
-  --type=A --ttl=300 --rrdatas="$PGA_IPS" --account="$VPC_ADMIN_ACCOUNT"
-gcloud dns record-sets create "*.gcr.io." --project="$HOST" --zone=zone-gcr-io \
-  --type=CNAME --ttl=300 --rrdatas=gcr.io. --account="$VPC_ADMIN_ACCOUNT"
-
-gcloud dns record-sets create pkg.dev. --project="$HOST" --zone=zone-pkg-dev \
-  --type=A --ttl=300 --rrdatas="$PGA_IPS" --account="$VPC_ADMIN_ACCOUNT"
-gcloud dns record-sets create "*.pkg.dev." --project="$HOST" --zone=zone-pkg-dev \
-  --type=CNAME --ttl=300 --rrdatas=pkg.dev. --account="$VPC_ADMIN_ACCOUNT"
-```
-
-**0-5. EGRESS 방화벽 (deny-all이 있는 경우에만)**
-
-6-1의 조회에서 커스텀 EGRESS 규칙이 없으면 기본 `default-egress-allow`가 적용되므로 이 명령은 건너뜁니다.
-
-```bash
-gcloud compute firewall-rules create fw-prod-edp-egress-restricted-vip \
-  --project="$HOST" --network="$NETWORK" --account="$VPC_ADMIN_ACCOUNT" \
-  --direction=EGRESS --priority=900 --action=ALLOW --rules=tcp:443 \
-  --destination-ranges=199.36.153.4/30
-```
-
-**0-6. 확인**
-
-클러스터가 이미 있으면 노드가 2~5분 내 `Ready`로 바뀝니다. 10분이 지나도 `NotReady`면 해당 노드를 삭제해 새로 받습니다.
-
-```bash
-# 수행 위치: infra-son01 | 수행 계정: son@sonmap.net
-dig +short asia-northeast3-artifactregistry.gcr.io
-kubectl get nodes
-```
-
-`dig` 결과가 `199.36.153.x`이면 정상입니다. `infra-son01`이 다른 VPC에 있으면 공인 IP가 그대로 나올 수 있으므로 최종 판단은 `kubectl get nodes`로 합니다.
-
-**증상 대조** · 이 단계를 누락하면 다음과 같이 나타납니다.
-
-```text
-Warning  FailedCreatePodSandBox  kubelet  failed to pull image
-"asia-northeast3-artifactregistry.gcr.io/.../pause:3.8":
-dial tcp 142.251.169.82:443: i/o timeout
-
-Ready  False  KubeletNotReady  container runtime network not ready:
-NetworkReady=false reason:NetworkPluginNotReady message:Network plugin
-returns error: cni plugin not initialized
-```
-
-타임아웃 IP가 `142.x` · `172.x` · `192.178.x`이면 공인 IP로 해석되고 있다는 뜻입니다. `199.36.153.x`가 아니면 이 절이 적용되지 않은 상태입니다.
 
 #### 1. GKE 서브넷 신규 생성
 
@@ -871,7 +840,22 @@ gcloud compute networks subnets get-iam-policy "$VIP_SUBNET" \
 
 #### 8. Private Pool용 PSA (보류)
 
-이번 구축에서는 아래 명령을 건너뜁니다. Private Pool 사용이 확정되면 운영팀에서 기존 PSA 예약 범위와 피어링을 확인합니다. 예약 범위 및 연결이 모두 없는 신규 구성에서는 대역 승인과 Service Networking API 및 서비스 에이전트 준비 후 생성 명령을 실행합니다. 기존 피어링이 있으면 현재 할당 범위를 확인하고 운영팀 절차에 따라 조정합니다.
+PSA는 Cloud Build Private Pool과 Shared VPC 간 사설 연결에 사용합니다. 예약 범위 및 Service Networking 피어링의 적용 결과를 확인한 뒤 3절 17번으로 진행합니다.
+
+```mermaid
+flowchart TD
+    A{"Private Pool 사용이 확정됐는가?"}
+    A -->|보류| B["PSA 작업 건너뛰기"]
+    A -->|확정| C["운영팀이 예약 범위와 피어링 조회"]
+    C --> D{"기존 피어링이 있는가?"}
+    D -->|있음| E["할당 범위 확인 및 필요 시 조정"]
+    D -->|없음| F["승인된 예약 범위 확인 또는 생성"]
+    F --> G["Service Networking 피어링 연결"]
+    E --> H["3절 17번에서 Private Pool 확인"]
+    G --> H
+```
+
+Private Pool 구성을 보류하는 동안 아래 명령을 건너뜁니다. 사용이 확정되면 운영팀에서 기존 PSA 예약 범위와 피어링을 확인합니다. 예약 범위 및 연결이 모두 없는 신규 구성에서는 대역 승인과 Service Networking API 및 서비스 에이전트 준비 후 생성 명령을 실행합니다. 기존 피어링이 있으면 현재 할당 범위를 확인하고 운영팀 절차에 따라 조정합니다.
 
 ```bash
 # 수행 위치: infra-son01 또는 Cloud Shell | 수행 계정: VPC_ADMIN_ACCOUNT (예: admin@sonmap.net) | 대상: gcp-prod-edp-hub-vpchost
@@ -891,6 +875,17 @@ gcloud services vpc-peerings connect --project="$HOST" --network="$NETWORK" \
 ```
 
 #### 9. GKE 노드용 Private Google Access와 Restricted VIP
+
+Private DNS가 Google API와 이미지 레지스트리의 이름을 restricted VIP로 해석합니다. 노드에서 VIP로 연결하려면 서브넷 PGA, VPC 라우트, 송신 정책이 모두 맞아야 합니다.
+
+```mermaid
+flowchart TD
+    N["외부 IP가 없는 GKE 노드"] -->|DNS 조회| D["Private DNS · googleapis.com, gcr.io, pkg.dev"]
+    D -->|VIP 대역의 주소 반환| N
+    N -->|HTTPS 443| P["노드 서브넷의 Private Google Access"]
+    P --> R["VPC 라우트 · 199.36.153.4/30"]
+    R --> G["Google API 및 이미지 레지스트리"]
+```
 
 사설 GKE 노드의 Google 관리 이미지 다운로드가 TCP 443 타임아웃으로 실패할 때 사용하는 절차입니다. VPC 운영팀이 `restricted.googleapis.com` 사용을 승인한 환경을 기준으로 합니다. **PGA는 노드 서브넷에 적용되며, 라우트와 DNS는 Shared VPC 전체에 영향을 줄 수 있습니다.** 기존 중앙 DNS, 피어링·포워딩 영역, 라우트 및 보안 정책을 확인하고 승인된 구성을 재사용합니다. [Google Cloud PGA 구성](https://docs.cloud.google.com/vpc/docs/configure-private-google-access) · [GKE 레지스트리 접근](https://docs.cloud.google.com/artifact-registry/docs/gke-private-clusters)
 
@@ -993,7 +988,130 @@ kubectl get nodes
 kubectl -n sbx03-smoke get pods -o wide
 ```
 
-## 2-3. Sandbox 프로젝트 관리자 실행 명령
+<a name="0-private-google-access와-private-dns-선행-필수"></a>
+
+##### 9-7. 초기 구축 및 송신 방화벽 점검
+
+신규 구성에서는 GKE 서브넷을 준비한 뒤 9-1~9-6의 기본 경로를 적용합니다. 아래는 기존 DNS·라우트와 송신 방화벽을 함께 점검하는 절차입니다. 기존 자원에 대해서는 조회 후 필요한 명령만 실행합니다.
+
+폐쇄망에서 Private Node GKE를 쓰려면 노드가 Google 레지스트리에 닿을 경로가 먼저 있어야 합니다. 이 단계를 건너뛰면 클러스터 생성은 성공해도 노드가 `NotReady`로 남고, 파드는 계속 `Pending`입니다. GKE 시스템 이미지(pause, cilium)는 내부 AR로 미러링할 수 없고 Autopilot은 containerd 설정도 바꿀 수 없으므로, 네트워크에서 해결해야 합니다.
+
+`restricted.googleapis.com`(199.36.153.4/30)은 인터넷에서 라우팅되지 않는 대역이며 VPC-SC 지원 API만 노출합니다. `--next-hop-gateway=default-internet-gateway`는 이름과 달리 인터넷 송신을 열지 않습니다. 노드에 외부 IP가 없으면 이 경로로는 나가지 못합니다.
+
+###### 9-7-1. 현재 상태 조회
+
+```bash
+# 수행 위치: infra-son01 또는 Cloud Shell | 수행 계정: VPC_ADMIN_ACCOUNT | 대상: gcp-prod-edp-hub-vpchost
+gcloud dns managed-zones list --project="$HOST" --account="$VPC_ADMIN_ACCOUNT"
+gcloud dns policies list --project="$HOST" --account="$VPC_ADMIN_ACCOUNT"
+gcloud compute routes list --project="$HOST" --account="$VPC_ADMIN_ACCOUNT" \
+  --filter="destRange~199.36.153"
+gcloud compute networks subnets describe "$MAIN_SUBNET" \
+  --project="$HOST" --region="$REGION" --account="$VPC_ADMIN_ACCOUNT" \
+  --format='yaml(name,ipCidrRange,privateIpGoogleAccess)'
+```
+
+이미 zone과 route가 있으면 9-7-2의 서브넷 PGA만 적용합니다. DNS 정책이 조회되면 온프레미스 DNS 포워딩이 걸려 있을 수 있으므로, private zone 대신 사내 DNS에 레코드를 등록해야 하는지 담당자와 확인합니다.
+
+###### 9-7-2. 서브넷 Private Google Access 활성화
+
+```bash
+gcloud compute networks subnets update "$MAIN_SUBNET" \
+  --project="$HOST" --region="$REGION" --account="$VPC_ADMIN_ACCOUNT" \
+  --enable-private-ip-google-access
+```
+
+###### 9-7-3. restricted VIP 라우트
+
+```bash
+gcloud compute routes create rt-prod-edp-restricted-googleapis \
+  --project="$HOST" --network="$NETWORK" --account="$VPC_ADMIN_ACCOUNT" \
+  --destination-range=199.36.153.4/30 \
+  --next-hop-gateway=default-internet-gateway --priority=1000
+```
+
+###### 9-7-4. Private DNS 존과 레코드
+
+`gcr.io`는 GKE 시스템 이미지, `pkg.dev`는 내부 AR(Helm 차트·Notebook 이미지), `googleapis.com`은 나머지 API 경로입니다. 셋 중 하나라도 빠지면 배포 중 다른 지점에서 같은 타임아웃이 납니다.
+
+```bash
+export PGA_IPS="199.36.153.4,199.36.153.5,199.36.153.6,199.36.153.7"
+
+for Z in googleapis.com gcr.io pkg.dev; do
+  gcloud dns managed-zones create "zone-$(echo $Z | tr '.' '-')" \
+    --project="$HOST" --account="$VPC_ADMIN_ACCOUNT" \
+    --dns-name="$Z." --visibility=private \
+    --networks="$NETWORK" --description="Private Google Access"
+done
+
+gcloud dns record-sets create restricted.googleapis.com. --project="$HOST" \
+  --zone=zone-googleapis-com --type=A --ttl=300 --rrdatas="$PGA_IPS" \
+  --account="$VPC_ADMIN_ACCOUNT"
+gcloud dns record-sets create "*.googleapis.com." --project="$HOST" \
+  --zone=zone-googleapis-com --type=CNAME --ttl=300 \
+  --rrdatas=restricted.googleapis.com. --account="$VPC_ADMIN_ACCOUNT"
+
+gcloud dns record-sets create gcr.io. --project="$HOST" --zone=zone-gcr-io \
+  --type=A --ttl=300 --rrdatas="$PGA_IPS" --account="$VPC_ADMIN_ACCOUNT"
+gcloud dns record-sets create "*.gcr.io." --project="$HOST" --zone=zone-gcr-io \
+  --type=CNAME --ttl=300 --rrdatas=gcr.io. --account="$VPC_ADMIN_ACCOUNT"
+
+gcloud dns record-sets create pkg.dev. --project="$HOST" --zone=zone-pkg-dev \
+  --type=A --ttl=300 --rrdatas="$PGA_IPS" --account="$VPC_ADMIN_ACCOUNT"
+gcloud dns record-sets create "*.pkg.dev." --project="$HOST" --zone=zone-pkg-dev \
+  --type=CNAME --ttl=300 --rrdatas=pkg.dev. --account="$VPC_ADMIN_ACCOUNT"
+```
+
+###### 9-7-5. EGRESS 방화벽 (deny-all이 있는 경우에만)
+
+6-1의 조회에서 커스텀 EGRESS 규칙이 없으면 기본 `default-egress-allow`가 적용되므로 이 명령은 건너뜁니다.
+
+```bash
+gcloud compute firewall-rules create fw-prod-edp-egress-restricted-vip \
+  --project="$HOST" --network="$NETWORK" --account="$VPC_ADMIN_ACCOUNT" \
+  --direction=EGRESS --priority=900 --action=ALLOW --rules=tcp:443 \
+  --destination-ranges=199.36.153.4/30
+```
+
+###### 9-7-6. 확인
+
+클러스터가 이미 있으면 노드가 `Ready`인지 확인합니다. `NotReady`가 지속되면 노드 이벤트와 이미지 다운로드 경로를 확인합니다.
+
+```bash
+# 수행 위치: infra-son01 | 수행 계정: son@sonmap.net
+dig +short asia-northeast3-artifactregistry.gcr.io
+kubectl get nodes
+```
+
+`dig` 결과가 `199.36.153.x`이면 정상입니다. `infra-son01`이 다른 VPC에 있으면 공인 IP가 그대로 나올 수 있으므로 최종 판단은 `kubectl get nodes`로 합니다.
+
+**증상 대조** · 이 단계를 누락하면 다음과 같이 나타납니다.
+
+```text
+Warning  FailedCreatePodSandBox  kubelet  failed to pull image
+"asia-northeast3-artifactregistry.gcr.io/.../pause:3.8":
+dial tcp 142.251.169.82:443: i/o timeout
+
+Ready  False  KubeletNotReady  container runtime network not ready:
+NetworkReady=false reason:NetworkPluginNotReady message:Network plugin
+returns error: cni plugin not initialized
+```
+
+타임아웃 IP가 `142.x` · `172.x` · `192.178.x`이면 공인 IP로 해석되고 있다는 뜻입니다. `199.36.153.x`가 아니면 이 절이 적용되지 않은 상태입니다.
+
+### 2-3. Sandbox 프로젝트 관리자 실행 명령
+
+앞부분에서 운영팀에 전달할 서비스 프로젝트 정보를 수집합니다. 뒷부분에서는 실제 배포 계정인 `tf-manager`로 조회해 운영팀의 회신과 대조합니다.
+
+```mermaid
+flowchart TD
+    A["프로젝트 번호·호스트·tf-manager 조회"] --> B["운영팀에 요청 전달"]
+    B --> C["공유 결과 회신 받기"]
+    C --> D["tf-manager로 사용 가능한 서브넷 조회"]
+    D --> E{"GKE·ALB 서브넷과 Pod 보조 범위가 일치하는가?"}
+    E -->|일치| F["3절 공통 기반 구축"]
+    E -->|불일치| B
+```
 
 `gcp-sbx-edp-gke01` 관리자는 1절의 프로젝트 API 활성화와 서비스 에이전트 준비를 수행합니다. 운영팀에 요청하기 전에 아래 명령으로 서비스 프로젝트 번호와 연결된 호스트를 확인합니다.
 
@@ -1026,7 +1144,30 @@ gcloud compute networks subnets list-usable --project=gcp-prod-edp-hub-vpchost \
 
 응답에서 운영팀이 회신한 GKE·ALB VIP 서브넷과 GKE Pod 보조 범위를 확인합니다. 서브넷 사용 목록과 운영팀 IAM 적용 결과가 확인되면 3절의 서비스 프로젝트 구축 명령을 실행합니다.
 
-## 3. 공통 기반
+</details>
+
+<a name="3-공통-기반"></a>
+
+## 🏗️ 3. 공통 기반
+
+<details>
+<summary>내용 펼치기 / 접기</summary>
+
+GCS와 AR을 준비한 뒤 GKE와 배포 이미지를 구성합니다. 기존 Workflows 자동 배포를 사용한다면 해당 런타임 구간을 적용하고, 접속용 내부 ALB와 TLS도 준비합니다.
+
+```mermaid
+flowchart TD
+    A["Shared VPC·서브넷 IAM 확인"] --> B["1~16번 · GCS·AR·Secret 준비"]
+    B --> C{"Cloud Build Private Pool을 사용하는가?"}
+    C -->|사용| D["17번 · Pool과 GKE 접속 경로 확인"]
+    C -->|보류| E["18번 · GKE Autopilot 확인"]
+    D --> E
+    E --> F["19번 · Bootstrap 이미지 준비"]
+    F --> G["20~26번 · 기존 자동 배포용 Cloud Run·Workflows"]
+    F --> H["27~34번 · 내부 ALB·TLS 구성"]
+    G --> I["35번 · 필요 시 GitHub 트리거"]
+    H --> J["9절 · JupyterHub 기동 및 접속 확인"]
+```
 
 필요한 변수 선언을 아래 코드 블록 맨 앞에 포함했습니다. 별도 문서에서 변수를 설정할 필요 없이, 이 문서의 선언부터 같은 터미널에서 실행합니다. `# 주석`을 보며 순서대로 실행하고, **기존 자원이 있으면 해당 생성 명령을 건너뜁니다.** 403·인증·연결 오류면 중단합니다. 선택 작업은 주석을 해제한 경우에만 실행합니다.
 
@@ -1067,7 +1208,9 @@ export SBX_GKE_PROJECT_NUMBER="$(gcloud projects describe "${SBX_GKE_PROJECT}" -
 
 ```
 
-### 🔴 **1.** storage buckets create gs://gcp-sbx-edp-gke01-sbxtest01-requests
+<a name="-1-storage-buckets-create-gsgcp-sbx-edp-gke01-sbxtest01-requests"></a>
+
+### 1. storage buckets create gs://gcp-sbx-edp-gke01-sbxtest01-requests
 
 ```bash
 # 기존 자원 확인
@@ -1082,7 +1225,9 @@ gcloud storage buckets create "gs://${SBX_GKE_PROJECT}-sbxtest01-requests" \
 
 ```
 
-### 🔴 **2.** storage buckets update gs://gcp-sbx-edp-gke01-sbxtest01-requests
+<a name="-2-storage-buckets-update-gsgcp-sbx-edp-gke01-sbxtest01-requests"></a>
+
+### 2. storage buckets update gs://gcp-sbx-edp-gke01-sbxtest01-requests
 
 ```bash
 # 실행 위치 infra-son01 | 대상 ${SBX_GKE_PROJECT} | 계정 ${ADMIN_ACCOUNT} | 가장 ${TF_MANAGER}
@@ -1092,7 +1237,9 @@ gcloud storage buckets update "gs://${SBX_GKE_PROJECT}-sbxtest01-requests" --ver
 
 ```
 
-### 🔴 **3.** storage buckets create gs://gcp-sbx-edp-gke01-sbxtest01-bundles
+<a name="-3-storage-buckets-create-gsgcp-sbx-edp-gke01-sbxtest01-bundles"></a>
+
+### 3. storage buckets create gs://gcp-sbx-edp-gke01-sbxtest01-bundles
 
 ```bash
 # 기존 자원 확인
@@ -1107,7 +1254,9 @@ gcloud storage buckets create "gs://${SBX_GKE_PROJECT}-sbxtest01-bundles" \
 
 ```
 
-### 🔴 **4.** storage buckets update gs://gcp-sbx-edp-gke01-sbxtest01-bundles
+<a name="-4-storage-buckets-update-gsgcp-sbx-edp-gke01-sbxtest01-bundles"></a>
+
+### 4. storage buckets update gs://gcp-sbx-edp-gke01-sbxtest01-bundles
 
 ```bash
 # 실행 위치 infra-son01 | 대상 ${SBX_GKE_PROJECT} | 계정 ${ADMIN_ACCOUNT} | 가장 ${TF_MANAGER}
@@ -1117,7 +1266,9 @@ gcloud storage buckets update "gs://${SBX_GKE_PROJECT}-sbxtest01-bundles" --vers
 
 ```
 
-### 🔴 **5.** storage buckets create gs://gcp-sbx-edp-gke01-sbxtest01-build-source
+<a name="-5-storage-buckets-create-gsgcp-sbx-edp-gke01-sbxtest01-build-source"></a>
+
+### 5. storage buckets create gs://gcp-sbx-edp-gke01-sbxtest01-build-source
 
 ```bash
 # 기존 자원 확인
@@ -1132,7 +1283,9 @@ gcloud storage buckets create "gs://${SBX_GKE_PROJECT}-sbxtest01-build-source" \
 
 ```
 
-### 🔴 **6.** storage buckets update gs://gcp-sbx-edp-gke01-sbxtest01-build-source
+<a name="-6-storage-buckets-update-gsgcp-sbx-edp-gke01-sbxtest01-build-source"></a>
+
+### 6. storage buckets update gs://gcp-sbx-edp-gke01-sbxtest01-build-source
 
 ```bash
 # 실행 위치 infra-son01 | 대상 ${SBX_GKE_PROJECT} | 계정 ${ADMIN_ACCOUNT} | 가장 ${TF_MANAGER}
@@ -1142,7 +1295,9 @@ gcloud storage buckets update "gs://${SBX_GKE_PROJECT}-sbxtest01-build-source" -
 
 ```
 
-### 🔴 **7.** storage buckets add-iam-policy-binding gs://gcp-sbx-edp-gke01-sbxtest01-requests · roles/storage.objectAdmin
+<a name="-7-storage-buckets-add-iam-policy-binding-gsgcp-sbx-edp-gke01-sbxtest01-requests--rolesstorageobjectadmin"></a>
+
+### 7. storage buckets add-iam-policy-binding gs://gcp-sbx-edp-gke01-sbxtest01-requests · roles/storage.objectAdmin
 
 ```bash
 # 실행 위치 infra-son01 | 대상 ${SBX_GKE_PROJECT} | 계정 ${ADMIN_ACCOUNT} | 가장 ${TF_MANAGER}
@@ -1152,7 +1307,9 @@ gcloud storage buckets add-iam-policy-binding "gs://${SBX_GKE_PROJECT}-sbxtest01
 
 ```
 
-### 🔴 **8.** storage buckets add-iam-policy-binding gs://gcp-sbx-edp-gke01-sbxtest01-bundles · roles/storage.objectAdmin
+<a name="-8-storage-buckets-add-iam-policy-binding-gsgcp-sbx-edp-gke01-sbxtest01-bundles--rolesstorageobjectadmin"></a>
+
+### 8. storage buckets add-iam-policy-binding gs://gcp-sbx-edp-gke01-sbxtest01-bundles · roles/storage.objectAdmin
 
 ```bash
 # 실행 위치 infra-son01 | 대상 ${SBX_GKE_PROJECT} | 계정 ${ADMIN_ACCOUNT} | 가장 ${TF_MANAGER}
@@ -1162,7 +1319,9 @@ gcloud storage buckets add-iam-policy-binding "gs://${SBX_GKE_PROJECT}-sbxtest01
 
 ```
 
-### 🔴 **9.** storage buckets add-iam-policy-binding gs://gcp-sbx-edp-gke01-sbxtest01-bundles · roles/storage.objectViewer
+<a name="-9-storage-buckets-add-iam-policy-binding-gsgcp-sbx-edp-gke01-sbxtest01-bundles--rolesstorageobjectviewer"></a>
+
+### 9. storage buckets add-iam-policy-binding gs://gcp-sbx-edp-gke01-sbxtest01-bundles · roles/storage.objectViewer
 
 ```bash
 # 실행 위치 infra-son01 | 대상 ${SBX_GKE_PROJECT} | 계정 ${ADMIN_ACCOUNT} | 가장 ${TF_MANAGER}
@@ -1173,7 +1332,9 @@ gcloud storage buckets add-iam-policy-binding "gs://${SBX_GKE_PROJECT}-sbxtest01
 
 ```
 
-### 🔴 **10.** artifacts repositories create ar-sbxtest01-platform
+<a name="-10-artifacts-repositories-create-ar-sbxtest01-platform"></a>
+
+### 10. artifacts repositories create ar-sbxtest01-platform
 
 ```bash
 # 기존 자원 확인
@@ -1188,7 +1349,9 @@ gcloud artifacts repositories create ar-sbxtest01-platform --project="${SBX_GKE_
 
 ```
 
-### 🔴 **11.** artifacts repositories add-iam-policy-binding ar-sbxtest01-platform · roles/artifactregistry.reader
+<a name="-11-artifacts-repositories-add-iam-policy-binding-ar-sbxtest01-platform--rolesartifactregistryreader"></a>
+
+### 11. artifacts repositories add-iam-policy-binding ar-sbxtest01-platform · roles/artifactregistry.reader
 
 ```bash
 # 실행 위치 infra-son01 | 대상 ${SBX_GKE_PROJECT} | 계정 ${ADMIN_ACCOUNT} | 가장 ${TF_MANAGER}
@@ -1200,13 +1363,17 @@ gcloud artifacts repositories add-iam-policy-binding ar-sbxtest01-platform \
 
 ```
 
-### 🔴 **12.** artifacts repositories add-iam-policy-binding ar-sbxtest01-platform · roles/artifactregistry.reader
+<a name="-12-artifacts-repositories-add-iam-policy-binding-ar-sbxtest01-platform--rolesartifactregistryreader"></a>
+
+### 12. artifacts repositories add-iam-policy-binding ar-sbxtest01-platform · roles/artifactregistry.reader
 
 ```bash
 
 ```
 
-### 🔴 **13.** secrets create jupyter-oauth-client-id
+<a name="-13-secrets-create-jupyter-oauth-client-id"></a>
+
+### 13. secrets create jupyter-oauth-client-id
 
 ```bash
 # 기존 자원 확인
@@ -1220,7 +1387,9 @@ gcloud secrets create jupyter-oauth-client-id --project="${SBX_GKE_PROJECT}" \
 
 ```
 
-### 🔴 **14.** secrets add-iam-policy-binding jupyter-oauth-client-id · roles/secretmanager.secretAccessor
+<a name="-14-secrets-add-iam-policy-binding-jupyter-oauth-client-id--rolessecretmanagersecretaccessor"></a>
+
+### 14. secrets add-iam-policy-binding jupyter-oauth-client-id · roles/secretmanager.secretAccessor
 
 ```bash
 # 실행 위치 infra-son01 | 대상 ${SBX_GKE_PROJECT} | 계정 ${ADMIN_ACCOUNT} | 가장 ${TF_MANAGER}
@@ -1230,7 +1399,9 @@ gcloud secrets add-iam-policy-binding jupyter-oauth-client-id --project="${SBX_G
 
 ```
 
-### 🔴 **15.** secrets create jupyter-oauth-client-secret
+<a name="-15-secrets-create-jupyter-oauth-client-secret"></a>
+
+### 15. secrets create jupyter-oauth-client-secret
 
 ```bash
 # 기존 자원 확인
@@ -1244,7 +1415,9 @@ gcloud secrets create jupyter-oauth-client-secret --project="${SBX_GKE_PROJECT}"
 
 ```
 
-### 🔴 **16.** secrets add-iam-policy-binding jupyter-oauth-client-secret · roles/secretmanager.secretAccessor
+<a name="-16-secrets-add-iam-policy-binding-jupyter-oauth-client-secret--rolessecretmanagersecretaccessor"></a>
+
+### 16. secrets add-iam-policy-binding jupyter-oauth-client-secret · roles/secretmanager.secretAccessor
 
 ```bash
 # 실행 위치 infra-son01 | 대상 ${SBX_GKE_PROJECT} | 계정 ${ADMIN_ACCOUNT} | 가장 ${TF_MANAGER}
@@ -1254,7 +1427,9 @@ gcloud secrets add-iam-policy-binding jupyter-oauth-client-secret --project="${S
 
 ```
 
-### 🔴 **17.** Shared VPC 운영팀 작업 · Private Pool 초기 구성
+<a name="-17-shared-vpc-운영팀-작업--private-pool-초기-구성"></a>
+
+### 17. Shared VPC 운영팀 작업 · Private Pool 초기 구성
 
 `sbx03` 자동 배포에 사용할 `pool-sbxtest01`을 준비합니다. **2-2절 8번**에서 `psa-prod-edp-cloudbuild`의 `10.250.0.0/24` 예약과 Service Networking 피어링이 확인됐다면 아래 조회부터 진행합니다.
 
@@ -1288,7 +1463,9 @@ gcloud builds worker-pools create pool-sbxtest01 \
 
 17-1을 다시 실행해 `RUNNING`을 확인합니다. 이어서 `infra-son01`에서 [Private Pool의 GKE 접속 점검](reference/cloudbuild-private-gke-vpn-design.md)을 수행합니다. 점검 빌드가 성공하면 [2차 Sandbox의 Workflow 실행 전 확인](../03.sandbox_deploy/README.md#5-배포-전-확인)으로 진행합니다.
 
-### 🔴 **18.** container clusters create-auto gke-sbx-main-an3
+<a name="-18-container-clusters-create-auto-gke-sbx-main-an3"></a>
+
+### 18. container clusters create-auto gke-sbx-main-an3
 
 ```bash
 # 기존 자원 확인
@@ -1309,7 +1486,9 @@ gcloud container clusters create-auto "${MAIN_CLUSTER}" --project="${SBX_GKE_PRO
 
 ```
 
-### 🔴 **19.** Bootstrap 이미지 빌드 및 AR 게시
+<a name="-19-bootstrap-이미지-빌드-및-ar-게시"></a>
+
+### 19. Bootstrap 이미지 빌드 및 AR 게시
 
 **19-1 수동 작업** 또는 **19-2 자동 작업** 중 하나를 선택합니다. 이번 구축은 **19-1 수동 작업**으로 진행합니다. 두 경로 모두 같은 `:bootstrap` 이미지 2개를 게시한 뒤 20번으로 진행합니다.
 
@@ -1367,7 +1546,9 @@ gcloud builds submit . --project="${SBX_GKE_PROJECT}" --region="${REGION}" \
 
 ```
 
-### 🔴 **20.** run deploy run-sbxtest01-provisioner
+<a name="-20-run-deploy-run-sbxtest01-provisioner"></a>
+
+### 20. run deploy run-sbxtest01-provisioner
 
 ```bash
 # 실행 위치 infra-son01 | 대상 ${SBX_GKE_PROJECT} | 계정 ${ADMIN_ACCOUNT} | 가장 ${TF_MANAGER} | 워크로드 실행 ${SBX_MANAGER}
@@ -1379,7 +1560,9 @@ gcloud run deploy run-sbxtest01-provisioner --project="${SBX_GKE_PROJECT}" --reg
 
 ```
 
-### 🔴 **21.** run services add-iam-policy-binding run-sbxtest01-provisioner · roles/run.invoker
+<a name="-21-run-services-add-iam-policy-binding-run-sbxtest01-provisioner--rolesruninvoker"></a>
+
+### 21. run services add-iam-policy-binding run-sbxtest01-provisioner · roles/run.invoker
 
 ```bash
 # 실행 위치 infra-son01 | 대상 ${SBX_GKE_PROJECT} | 계정 ${ADMIN_ACCOUNT} | 가장 ${TF_MANAGER}
@@ -1389,7 +1572,9 @@ gcloud run services add-iam-policy-binding run-sbxtest01-provisioner --project="
 
 ```
 
-### 🔴 **22.** run services describe run-sbxtest01-provisioner
+<a name="-22-run-services-describe-run-sbxtest01-provisioner"></a>
+
+### 22. run services describe run-sbxtest01-provisioner
 
 ```bash
 # 실행 위치 infra-son01 | 대상 ${SBX_GKE_PROJECT} | 계정 ${ADMIN_ACCOUNT} | 가장 ${TF_MANAGER}
@@ -1407,7 +1592,9 @@ sed "s|__PROVISIONER_URL__|${PROVISIONER_URL}|g" 03.sandbox_deploy/03.1.request/
 
 ```
 
-### 🔴 **23.** workflows deploy workflow-sbxtest01-provision
+<a name="-23-workflows-deploy-workflow-sbxtest01-provision"></a>
+
+### 23. workflows deploy workflow-sbxtest01-provision
 
 ```bash
 # 실행 위치 infra-son01 | 대상 ${SBX_GKE_PROJECT} | 계정 ${ADMIN_ACCOUNT} | 가장 ${TF_MANAGER} | 워크로드 실행 ${SBX_MANAGER}
@@ -1417,7 +1604,9 @@ gcloud workflows deploy workflow-sbxtest01-provision --project="${SBX_GKE_PROJEC
 
 ```
 
-### 🔴 **24.** projects add-iam-policy-binding gcp-sbx-edp-gke01 · roles/workflows.invoker
+<a name="-24-projects-add-iam-policy-binding-gcp-sbx-edp-gke01--rolesworkflowsinvoker"></a>
+
+### 24. projects add-iam-policy-binding gcp-sbx-edp-gke01 · roles/workflows.invoker
 
 ```bash
 # 실행 위치 infra-son01 | 대상 ${SBX_GKE_PROJECT} | 계정 ${ADMIN_ACCOUNT} | 가장 ${TF_MANAGER}
@@ -1427,7 +1616,9 @@ gcloud projects add-iam-policy-binding "${SBX_GKE_PROJECT}" --member="${OPERATOR
 
 ```
 
-### 🔴 **25.** storage buckets add-iam-policy-binding gs://gcp-sbx-edp-gke01-sbxtest01-requests · roles/storage.objectAdmin
+<a name="-25-storage-buckets-add-iam-policy-binding-gsgcp-sbx-edp-gke01-sbxtest01-requests--rolesstorageobjectadmin"></a>
+
+### 25. storage buckets add-iam-policy-binding gs://gcp-sbx-edp-gke01-sbxtest01-requests · roles/storage.objectAdmin
 
 ```bash
 # 실행 위치 infra-son01 | 대상 ${SBX_GKE_PROJECT} | 계정 ${ADMIN_ACCOUNT} | 가장 ${TF_MANAGER}
@@ -1437,7 +1628,9 @@ gcloud storage buckets add-iam-policy-binding "gs://${SBX_GKE_PROJECT}-sbxtest01
 
 ```
 
-### 🔴 **26.** storage buckets add-iam-policy-binding gs://gcp-sbx-edp-gke01-sbxtest01-bundles · roles/storage.objectViewer
+<a name="-26-storage-buckets-add-iam-policy-binding-gsgcp-sbx-edp-gke01-sbxtest01-bundles--rolesstorageobjectviewer"></a>
+
+### 26. storage buckets add-iam-policy-binding gs://gcp-sbx-edp-gke01-sbxtest01-bundles · roles/storage.objectViewer
 
 ```bash
 # 실행 위치 infra-son01 | 대상 ${SBX_GKE_PROJECT} | 계정 ${ADMIN_ACCOUNT} | 가장 ${TF_MANAGER}
@@ -1455,7 +1648,9 @@ gcloud compute networks subnets describe "${ILB_VIP_SUBNET}" --project="${VPC_HO
 
 ```
 
-### 🔴 **27.** Regional Internal ALB: 사설 VIP 예약
+<a name="-27-regional-internal-alb-사설-vip-예약"></a>
+
+### 27. Regional Internal ALB: 사설 VIP 예약
 
 ```bash
 # 서브넷·프록시 전용 Subnet·방화벽 준비가 완료된 뒤 실행합니다.
@@ -1477,7 +1672,9 @@ export ILB_VIP_ADDRESS="$(gcloud compute addresses describe ip-alb-sbxtest01-sha
 
 ```
 
-### 🔴 **28.** 기본 Regional Health Check·Backend
+<a name="-28-기본-regional-health-checkbackend"></a>
+
+### 28. 기본 Regional Health Check·Backend
 
 ```bash
 # 실행 위치 infra-son01 | 대상 ${SBX_GKE_PROJECT} | 계정 ${ADMIN_ACCOUNT} | 가장 ${TF_MANAGER}
@@ -1499,7 +1696,9 @@ gcloud compute backend-services create bes-alb-sbxtest01-shared-default --projec
 
 ```
 
-### 🔴 **29.** Regional URL Map
+<a name="-29-regional-url-map"></a>
+
+### 29. Regional URL Map
 
 ```bash
 # 실행 위치 infra-son01 | 대상 ${SBX_GKE_PROJECT} | 계정 ${ADMIN_ACCOUNT} | 가장 ${TF_MANAGER}
@@ -1514,7 +1713,9 @@ gcloud compute url-maps create urlmap-alb-sbxtest01-shared --project="${SBX_GKE_
 
 ```
 
-### 🔴 **30.** Regional HTTP Proxy
+<a name="-30-regional-http-proxy"></a>
+
+### 30. Regional HTTP Proxy
 
 ```bash
 # 실행 위치 infra-son01 | 대상 ${SBX_GKE_PROJECT} | 계정 ${ADMIN_ACCOUNT} | 가장 ${TF_MANAGER}
@@ -1529,7 +1730,9 @@ gcloud compute target-http-proxies create http-proxy-alb-sbxtest01-shared \
 
 ```
 
-### 🔴 **31.** 내부 HTTP Forwarding Rule
+<a name="-31-내부-http-forwarding-rule"></a>
+
+### 31. 내부 HTTP Forwarding Rule
 
 ```bash
 # 실행 위치 infra-son01 | 대상 ${SBX_GKE_PROJECT} | 계정 ${ADMIN_ACCOUNT} | 가장 ${TF_MANAGER}
@@ -1548,7 +1751,9 @@ gcloud compute forwarding-rules create fr-alb-sbxtest01-shared-http --project="$
 
 ```
 
-### 🔴 **32.** Regional SSL 인증서 확인 및 등록
+<a name="-32-regional-ssl-인증서-확인-및-등록"></a>
+
+### 32. Regional SSL 인증서 확인 및 등록
 
 인증서 방식은 둘 중 하나를 고릅니다. 접속 호스트는 **그룹 단위**이므로 그룹을 추가할 때마다 인증서도 하나씩 준비합니다.
 
@@ -1674,7 +1879,9 @@ gcloud compute target-https-proxies update https-proxy-alb-sbxtest01-shared \
 
 **운영 전환 시 협의 항목** · 비용보다 "공개 DNS에 검증용 CNAME을 영구히 둔다"는 점이 보안·DNS 담당 조직의 승인 대상이 됩니다. 요청 전에 이 레코드가 내부 주소를 노출하지 않는다는 점(검증용 서브도메인일 뿐 접속용 A 레코드는 사내 DNS에만 존재)을 함께 설명합니다.
 
-### 🔴 **33.** Regional HTTPS Proxy
+<a name="-33-regional-https-proxy"></a>
+
+### 33. Regional HTTPS Proxy
 
 ```bash
 # 실행 위치 infra-son01 | 대상 ${SBX_GKE_PROJECT} | 계정 ${ADMIN_ACCOUNT} | 가장 ${TF_MANAGER}
@@ -1690,7 +1897,9 @@ gcloud compute target-https-proxies create https-proxy-alb-sbxtest01-shared \
 
 ```
 
-### 🔴 **34.** 내부 HTTPS Forwarding Rule
+<a name="-34-내부-https-forwarding-rule"></a>
+
+### 34. 내부 HTTPS Forwarding Rule
 
 ```bash
 # 실행 위치 infra-son01 | 대상 ${SBX_GKE_PROJECT} | 계정 ${ADMIN_ACCOUNT} | 가장 ${TF_MANAGER}
@@ -1709,7 +1918,9 @@ gcloud compute forwarding-rules create fr-alb-sbxtest01-shared-https --project="
 
 ```
 
-### 🔴 **35.** 선택 · builds triggers create github
+<a name="-35-선택--builds-triggers-create-github"></a>
+
+### 35. 선택 · builds triggers create github
 
 ```bash
 # 선택 작업: 필요한 경우에만 아래 명령의 주석을 해제합니다.
@@ -1732,7 +1943,14 @@ gcloud compute forwarding-rules create fr-alb-sbxtest01-shared-https --project="
 # Build 설정은 03.sandbox_deploy/03.3.gke/cloudbuild에, Cloud Run과 Workflows 설정은 03.sandbox_deploy/03.1.request에 있습니다.
 ```
 
-## 4. OAuth 값 등록
+</details>
+
+<a name="4-oauth-값-등록"></a>
+
+## 🔑 4. OAuth 값 등록
+
+<details>
+<summary>내용 펼치기 / 접기</summary>
 
 `infra-son01`에서 아래 두 변수에 발급받은 값을 넣고 실행합니다. 실제 값은 VM 터미널에서만 설정합니다. 이 블록을 실행하기 전에 `set +x`와 `set +o history`로 출력 추적과 Bash 명령 기록을 끕니다.
 
@@ -1766,7 +1984,14 @@ unset OAUTH_CLIENT_ID OAUTH_CLIENT_SECRET
 
 두 Secret에 새 버전이 생성됐는지 확인합니다. 이전에 Bash 기록을 사용하던 터미널이라면 `set -o history`로 다시 켤 수 있습니다.
 
-## 5. 그룹 관리 사전 설정
+</details>
+
+<a name="5-그룹-관리-사전-설정"></a>
+
+## 👥 5. 그룹 관리 사전 설정
+
+<details>
+<summary>내용 펼치기 / 접기</summary>
 
 **수행 주체** · Workspace 최고 관리자(디렉터리 역할) + 플랫폼 운영자(릴리스 반영)
 **수행 위치** · admin.google.com + `infra-son01`의 Test02 저장소 루트
@@ -1824,11 +2049,25 @@ git diff -- 03.sandbox_deploy/03.1.request/provisioner-env.yaml
 
 기존 그룹을 재사용하는 경우에는 승인 요청의 import 정보를 준비합니다. Jupyter 로그인용 OAuth 설정은 이 절과 별개로 유지합니다. 상세 설정은 [Cloud Identity 그룹 Terraform 설정](reference/cloud-identity-group-terraform.md)에 있습니다.
 
-## 6. 플랫폼 릴리스 게시
+</details>
+
+<a name="6-플랫폼-릴리스-게시"></a>
+
+## 📦 6. 플랫폼 릴리스 게시
+
+<details>
+<summary>내용 펼치기 / 접기</summary>
 
 실제 Sandbox 자동 배포에 사용할 릴리스는 [2차 Sandbox 사전준비](../03.sandbox_deploy/README.md#a-플랫폼-릴리스-게시)에서 게시합니다.
 
-## 7. Chart와 기본 이미지 미러링
+</details>
+
+<a name="7-chart와-기본-이미지-미러링"></a>
+
+## 🪞 7. Chart와 기본 이미지 미러링
+
+<details>
+<summary>내용 펼치기 / 접기</summary>
 
 ### infra-son01에서 Helm 차트 수동 반입
 
@@ -1973,7 +2212,14 @@ gcloud builds submit --no-source --project="${SBX_GKE_PROJECT}" --region="${REGI
 
 기본 이미지 복사 Build가 SUCCESS인지 확인합니다. 외부 다운로드가 가능한 관리형 Build에서 실행합니다.
 
-## 8. Notebook 표준 이미지 빌드
+</details>
+
+<a name="8-notebook-표준-이미지-빌드"></a>
+
+## 🐍 8. Notebook 표준 이미지 빌드
+
+<details>
+<summary>내용 펼치기 / 접기</summary>
 
 운영자는 승인된 관리 VM `infra-son01`의 Test02 저장소 루트에서 Docker BuildKit으로 표준 이미지를 빌드하고 내부 AR에 게시합니다. 표준 이미지는 공통 APT 도구와 Google Cloud CLI, Python 라이브러리, Notebook 시작 스크립트를 포함합니다. Docker 빌드 환경에서 OS APT 저장소, Google Cloud APT 저장소와 내부 AR에 접근할 수 있어야 합니다. VM에서 접근이 허용된 APT 경로를 사용하고, VM 호스트와 Docker 빌드 환경의 접속 여부를 각각 확인합니다.
 
@@ -2029,11 +2275,37 @@ docker image inspect "$IMAGE" --format='{{range .RepoDigests}}{{println .}}{{end
 
 각 명령이 성공한 뒤 다음 명령을 실행합니다. 그룹 공유 PoC는 마지막 명령의 `이미지@sha256:…` 값을 승인 과제 JSON의 `image`에 넣고 배포합니다. 개발 중 추가 패키지는 [개발자 인터넷 PC → GCS → Notebook Pod 절차](../03.sandbox_deploy/03.3.gke/notebook-image/README.md#개발자-추가-패키지-gcs-경유)를 사용합니다.
 
-## 운영 자동화 경계
+</details>
 
-공통 기반은 최초에 준비합니다. 과제마다 [2차 그룹 공유 자동 배포](../03.sandbox_deploy/README.md)를 사용합니다. 포털은 승인된 그룹 JSON을 GCS에 저장하고 Workflow를 호출합니다. 기존 과제별 Hub 경로는 [기존 Workflows 배포](../03.sandbox_deploy/03.1.request/legacy-deploy.md)를 따릅니다.
+<a name="9-jupyterhub-수동-설치-및-접속-확인"></a>
 
-## GKE와 내부 HTTPS 접속 확인
+## 📓 9. JupyterHub 수동 설치 및 접속 확인
+
+<details>
+<summary>내용 펼치기 / 접기</summary>
+
+`sbx03-smoke`에서 Hub와 Proxy 기동을 확인합니다. 실제 과제의 접속 검증은 과제용 Namespace, ALB 연결, 인증 설정을 갖춘 뒤 진행합니다.
+
+```mermaid
+flowchart TD
+    A["9-1 · 관리 VM에서 GKE DNS 접속 확인"]
+    A --> B["9-2 · 내부 AR의 차트와 이미지 확인"]
+    B --> C["9-3 · Helm으로 sbx03-smoke 기동"]
+    C --> D{"Hub·Proxy Pod가 준비됐는가?"}
+    D -->|아니요| E["Pod 이벤트·로그 확인"]
+    E --> D
+    D -->|예| F["9-4 · 실제 과제의 ALB와 HTTPS 확인"]
+    F --> G["Google 로그인·Notebook·PVC 검증"]
+```
+
+**수행 위치** · `infra-son01`의 Test02 저장소 루트  
+**수행 계정** · `son@sonmap.net`으로 GKE와 Artifact Registry에 접속
+
+이 절은 관리 VM에서 직접 Helm으로 설치하는 경로입니다. Private Pool과 2차 Sandbox의 플랫폼 릴리스 게시는 보류한 상태에서 진행할 수 있습니다.
+
+<a name="gke와-내부-https-접속-확인"></a>
+
+### 9-0. GKE와 내부 HTTPS 접속 준비
 
 관리 VM에서 DNS 엔드포인트로 Namespace 목록을 확인합니다. DNS 접속이 아직 비활성화된 클러스터에서만 첫 명령을 실행합니다.
 
@@ -2049,7 +2321,7 @@ KUBECONFIG="$HOME/.kube/config-sbx-dns" gcloud container clusters get-credential
 CLOUDSDK_CORE_ACCOUNT=son@sonmap.net kubectl --kubeconfig="$HOME/.kube/config-sbx-dns" get namespaces
 ```
 
-### DNS 엔드포인트로 kubectl과 Helm 실행
+#### DNS 엔드포인트로 kubectl과 Helm 실행
 
 `kubectl get pods -A` 실행 시 `https://10.253.3.2/api`에서 `EOF`가 발생하면 현재 터미널이 사설 IP를 가리키는 kubeconfig를 읽고 있는지 확인합니다. 위에서 만든 DNS용 kubeconfig를 같은 터미널에 지정합니다.
 
@@ -2067,14 +2339,9 @@ kubectl get pods -A
 
 기존 Workflows 경로에서 Private Pool 사용이 확정되면 [Private Pool 접속 점검](reference/cloudbuild-private-gke-vpn-design.md)도 실행합니다. DNS·인증서 담당자와 [내부 HTTPS 연결](reference/sbx03-https-certificate-runbook.md)을 확인한 뒤 [2차 Sandbox 구축](../03.sandbox_deploy/README.md)로 진행합니다.
 
-## 9. JupyterHub 수동 설치 및 접속 확인
+<a name="8-1-gke-dns-접속-확인"></a>
 
-**수행 위치** · `infra-son01`의 Test02 저장소 루트  
-**수행 계정** · `son@sonmap.net`으로 GKE와 Artifact Registry에 접속
-
-이 절은 관리 VM에서 직접 Helm으로 설치하는 경로입니다. Private Pool과 2차 Sandbox의 플랫폼 릴리스 게시는 보류한 상태에서 진행할 수 있습니다.
-
-### 8-1. GKE DNS 접속 확인
+### 9-1. GKE DNS 접속 확인
 
 ```bash
 export KUBECONFIG="$HOME/.kube/config-sbx-dns"
@@ -2086,7 +2353,9 @@ kubectl get pods -A
 
 서버 주소가 `gke.goog`이고 Pod 목록이 조회되면 진행합니다. kubeconfig 파일이 아직 없으면 [GKE와 내부 HTTPS 접속 확인](#gke와-내부-https-접속-확인)에서 생성합니다.
 
-### 8-2. 내부 AR 차트와 이미지 확인
+<a name="8-2-내부-ar-차트와-이미지-확인"></a>
+
+### 9-2. 내부 AR 차트와 이미지 확인
 
 ```bash
 export AR_REPO="asia-northeast3-docker.pkg.dev/gcp-sbx-edp-gke01/ar-sbxtest01-platform"
@@ -2108,7 +2377,9 @@ gcloud artifacts docker images list "$AR_REPO" \
 
 차트가 없거나 Helm 인증이 만료됐으면 [7절 Helm 차트 수동 반입](#infra-son01에서-helm-차트-수동-반입)을 확인합니다. 표준 Notebook 이미지가 없으면 [8절](#8-notebook-표준-이미지-빌드)에서 빌드합니다.
 
-### 8-3. 수동 기동 확인용 values 파일 생성 및 Helm 설치
+<a name="8-3-수동-기동-확인용-values-파일-생성-및-helm-설치"></a>
+
+### 9-3. 수동 기동 확인용 values 파일 생성 및 Helm 설치
 
 `infra-son01`의 Test02 저장소 루트에서 아래 명령으로 `$HOME/.config/jupyterhub/sbx03-smoke-values.yaml`을 생성합니다. 기존 과제 릴리스와 구분하기 위해 `sbx03-smoke` Namespace와 릴리스를 사용합니다. 이 파일은 Hub와 Proxy 기동 확인용입니다. 실제 로그인과 사용자 Notebook 시험은 과제용 인증·저장소 설정을 준비한 뒤 진행합니다.
 
@@ -2161,15 +2432,37 @@ helm upgrade --install "$RELEASE" "$CHART_URI" \
 kubectl -n "$NAMESPACE" get pods,svc
 ```
 
-### 8-4. 과제용 내부 HTTPS 및 로그인 확인
+<a name="8-4-과제용-내부-https-및-로그인-확인"></a>
 
-8-3의 기동 확인용 릴리스에는 내부 ALB를 연결하지 않습니다. 아래 항목은 실제 과제 Namespace에서 과제용 values와 인증 설정을 적용한 뒤 확인합니다.
+### 9-4. 과제용 내부 HTTPS 및 로그인 확인
+
+9-3의 기동 확인용 릴리스에는 내부 ALB를 연결하지 않습니다. 아래 항목은 실제 과제 Namespace에서 과제용 values와 인증 설정을 적용한 뒤 확인합니다.
 
 1. Hub와 Proxy Pod가 준비됐는지 확인합니다.
 2. 내부 ALB의 URL Map이 과제 호스트를 올바른 백엔드로 전달하고, 백엔드가 `HEALTHY`인지 확인합니다. Helm 설치 후 과제 경로가 아직 없다면 NEG와 ALB 연결을 먼저 구성합니다. [내부 HTTPS와 인증서](reference/sbx03-https-certificate-runbook.md)
 3. 테스트 PC에서 내부 DNS와 HTTPS 접속을 확인합니다. Google 로그인 후 Notebook 서버를 한 번 시작하고 `kubectl -n "$NAMESPACE" get pods,pvc`로 사용자 Pod와 PVC를 확인합니다. [Google OAuth 검증](reference/sbx03-google-oauth-runbook.md)
 
-## 부록. 기존 Host 광역 IAM 정리
+</details>
+
+<a name="10-운영-자동화-경계"></a>
+
+## ⚙️ 10. 운영 자동화 경계
+
+<details>
+<summary>내용 펼치기 / 접기</summary>
+
+<a name="운영-자동화-경계"></a>
+
+공통 기반은 최초에 준비합니다. 과제마다 [2차 그룹 공유 자동 배포](../03.sandbox_deploy/README.md)를 사용합니다. 포털은 승인된 그룹 JSON을 GCS에 저장하고 Workflow를 호출합니다. 기존 과제별 Hub 경로는 [기존 Workflows 배포](../03.sandbox_deploy/03.1.request/legacy-deploy.md)를 따릅니다.
+
+</details>
+
+<a name="부록-기존-host-광역-iam-정리"></a>
+
+## 📎 부록. 기존 Host 광역 IAM 정리
+
+<details>
+<summary>내용 펼치기 / 접기</summary>
 
 > **실행 시점** · 2차 Sandbox 배포가 최소 1회 성공한 뒤에 수행합니다. 서브넷별 권한만으로 GKE 생성·ALB Backend health·과제 배포가 모두 정상인지 확인되기 전에는 실행하지 않습니다.
 
@@ -2225,3 +2518,5 @@ gcloud resource-manager folders remove-iam-policy-binding "${FOLDER_ID}" \
 ```
 
 Host Service Agent User·Network Viewer·서비스 에이전트 본래 역할은 삭제 대상이 아닙니다. 바인딩이 없으면 실패를 무시해 일괄 실행하지 말고 실제 정책과 조건을 확인합니다. 남은 상위 상속·다른 역할까지 자동 제거하거나 최소 권한이 완성되었다고 간주하지 않습니다. 정리 후 GKE 접속·ALB 생성/Backend health·과제 Deploy를 다시 확인합니다.
+
+</details>
