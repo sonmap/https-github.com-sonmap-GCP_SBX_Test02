@@ -52,7 +52,39 @@ gcloud storage ls \
 
 사용할 릴리스가 조회되면 1번으로 진행합니다. `One or more URLs matched no objects`가 나오거나 승인된 새 버전이 필요하면 아래 게시 절차를 실행합니다.
 
-**게시 전 확인** · `03.sandbox_deploy/03.1.request/provisioner-env.yaml`의 `CLOUD_IDENTITY_CUSTOMER_ID`가 `__SET_CUSTOMER_ID__`이면 Cloud Build가 중단됩니다. [sbx03 릴리스 설정](../02.infra-setup/reference/sbx03-new-project-runbook.md#2-코드-동기화와-새-릴리스-수동)에 따라 확인한 Customer ID를 반영합니다. 아래 명령은 깨끗한 Git 작업 트리의 커밋을 게시하므로, 설정을 수정했다면 승인된 배포용 커밋에 포함한 후 실행합니다.
+**1. Customer ID 확인 및 수정**
+
+```bash
+grep '^CLOUD_IDENTITY_CUSTOMER_ID:' \
+  03.sandbox_deploy/03.1.request/provisioner-env.yaml
+```
+
+`__SET_CUSTOMER_ID__`가 남아 있으면 Cloud Build의 0번 단계에서 실패합니다. `sonmap.net`에서 확인한 Directory Customer ID `C03rw3vtp`로 바꾸고 변경 내용을 확인합니다.
+
+```bash
+sed -i 's/^CLOUD_IDENTITY_CUSTOMER_ID: __SET_CUSTOMER_ID__$/CLOUD_IDENTITY_CUSTOMER_ID: C03rw3vtp/' \
+  03.sandbox_deploy/03.1.request/provisioner-env.yaml
+
+git diff -- 03.sandbox_deploy/03.1.request/provisioner-env.yaml
+```
+
+**2. 저장소 로컬 Git 작성자 설정 및 커밋**
+
+해당 파일에 변경이 남아 있을 때 실행합니다. `Author identity unknown`이 나오면 아래처럼 이 저장소에 작성자 정보를 설정합니다. 이미 수정 커밋을 만들었다면 3번으로 진행합니다. 릴리스 빌드 제출에는 `git push`가 필요하지 않습니다.
+
+```bash
+git config --local user.name "Son"
+git config --local user.email "son@sonmap.net"
+
+git commit -m "Set Cloud Identity customer ID for platform release" -- \
+  03.sandbox_deploy/03.1.request/provisioner-env.yaml
+
+git status --porcelain
+```
+
+**3. 최신 커밋으로 릴리스 ID 재계산 및 빌드 제출**
+
+`git status --porcelain` 출력이 비어 있으면 아래 블록 전체를 실행합니다. 커밋 후에도 기존 셸 변수는 그대로이므로, 이전 실패 빌드의 ID로 조회하기 전에 새 ID를 계산하고 빌드를 제출합니다.
 
 ```bash
 export SBX_GKE_PROJECT="gcp-sbx-edp-gke01"
@@ -66,7 +98,8 @@ unset CLOUDSDK_AUTH_IMPERSONATE_SERVICE_ACCOUNT
 
 # 로컬 수정이 있으면 아래 Build 제출을 실행하지 않습니다.
 export COMMIT_SHA="$(git rev-parse HEAD)"
-export RELEASE_ID="git-$(git rev-parse HEAD | cut -c1-12)"
+export RELEASE_ID="git-$(git rev-parse --short=12 HEAD)"
+echo "$RELEASE_ID"
 if [ -z "$(git status --porcelain)" ]; then
   # 실행 위치 infra-son01 | 대상 ${SBX_GKE_PROJECT} | 계정 ${ADMIN_ACCOUNT} | 가장 ${TF_MANAGER} | 워크로드 실행 ${TF_MANAGER}
   gcloud builds submit . --project="${SBX_GKE_PROJECT}" --region="${REGION}" \
@@ -80,7 +113,9 @@ else
 fi
 ```
 
-Cloud Build가 `SUCCESS`이면 게시한 파일을 확인한 뒤 1번으로 진행합니다.
+**4. 게시 결과 확인**
+
+방금 제출한 Cloud Build가 `SUCCESS`이면, 같은 터미널에서 새 `RELEASE_ID`의 게시 결과를 확인합니다. `release_id`, `archive_uri`, `generation`, `sha256`이 조회되면 1번으로 진행합니다.
 
 ```bash
 gcloud storage cat \
