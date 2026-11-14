@@ -479,6 +479,21 @@ gcloud compute networks subnets list --project="$HOST" --account="$VPC_ADMIN_ACC
   --format='table(name,ipCidrRange,purpose,role,secondaryIpRanges)'
 ```
 
+#### GKE 서브넷 생성에 필요한 값
+
+| 항목 | 변수 | 설정값 |
+|---|---|---|
+| 작업 계정 | `VPC_ADMIN_ACCOUNT` | `admin@sonmap.net` |
+| Shared VPC 호스트 프로젝트 | `HOST` | `gcp-prod-edp-hub-vpchost` |
+| 대상 VPC | `NETWORK` | `vpc-prod-edp-hub` |
+| 리전 | `REGION` | `asia-northeast3` |
+| GKE 서브넷 이름 | `MAIN_SUBNET` | `subnet-prod-sbx-gke-01` |
+| Primary CIDR (노드 IP 대역) | `NODE_CIDR` | `10.252.0.0/24` |
+| Secondary 범위 이름 (Pod) | `POD_RANGE` | `subnet-prod-sbx-pod-01` |
+| Secondary CIDR (Pod IP 대역) | `POD_CIDR` | `100.64.128.0/19` |
+
+기존 서브넷이 있으면 먼저 3번의 조회 명령으로 표의 Primary CIDR과 Pod 보조 범위를 비교합니다. Pod 보조 범위 이름과 CIDR이 모두 일치하면 2번의 추가 명령을 건너뜁니다.
+
 #### 1. GKE 서브넷이 없는 경우 · 신규 생성
 
 앞의 조회에서 `$MAIN_SUBNET`이 없고 CIDR 승인이 완료되면 아래 생성 명령을 실행합니다. `--secondary-range`로 Pod 보조 범위도 함께 생성됩니다. **생성에 성공하면 2번을 건너뛰고 3번에서 확인합니다.**
