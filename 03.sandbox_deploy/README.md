@@ -213,16 +213,18 @@ jq '{request_id, approval, expires_on: .task.expires_on, members: .identity.memb
 
 ```bash
 jq -e '
-  .request_id == env.REQUEST_ID
-  and .approval.status == "APPROVED"
-  and (.approval.approval_id | type == "string" and . == env.APPROVAL_ID
-    and test("^[^[:space:]].{2,127}$") and . != "실제-내부-승인번호" and (startswith("EXAMPLE-") | not))
-  and (.approval.approved_at | type == "string" and . == env.APPROVED_AT
-    and test("^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?(Z|[+-][0-9]{2}:[0-9]{2})$"))
-  and (.task.expires_on | type == "string" and . == env.EXPIRES_ON and test("^[0-9]{4}-[0-9]{2}-[0-9]{2}$"))
-  and (.identity.members | . == [env.MEMBER1, env.MEMBER2]
-    and all(.[]; type == "string" and test("^[^@[:space:]]+@sonmap\\.net$")))
-  and (.source.release_id | type == "string" and . == env.RELEASE_ID and length > 0)
+  [
+    if (.request_id == env.REQUEST_ID) then empty else "REQUEST_ID" end,
+    if (.approval.status == "APPROVED") then empty else "approval.status" end,
+    if ((.approval.approval_id | type == "string" and . == env.APPROVAL_ID
+    and test("^[^[:space:]].{2,127}$") and . != "실제-내부-승인번호" and (startswith("EXAMPLE-") | not))) then empty else "APPROVAL_ID" end,
+    if ((.approval.approved_at | type == "string" and . == env.APPROVED_AT
+    and test("^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?(Z|[+-][0-9]{2}:[0-9]{2})$"))) then empty else "APPROVED_AT" end,
+    if ((.task.expires_on | type == "string" and . == env.EXPIRES_ON and test("^[0-9]{4}-[0-9]{2}-[0-9]{2}$"))) then empty else "EXPIRES_ON" end,
+    if ((.identity.members | . == [env.MEMBER1, env.MEMBER2]
+    and all(.[]; type == "string" and test("^[^@[:space:]]+@sonmap\\.net$")))) then empty else "MEMBER1 / MEMBER2" end,
+    if ((.source.release_id | type == "string" and . == env.RELEASE_ID and length > 0)) then empty else "RELEASE_ID" end
+  ] | if length == 0 then true else error("확인할 항목: " + join(", ")) end
 ' ".local/${REQUEST_ID}.json" &&
 gcloud storage cp --if-generation-match=0 \
   ".local/${REQUEST_ID}.json" \
