@@ -418,16 +418,9 @@ BILLING_ACCOUNT_ID  DISPLAY_NAME    OPEN
 
 ##### 관리자 작업 및 확인
 
-Cloud Shell에서 결제 계정 관리자 `admin@sonmap.net`으로 실행합니다.
+[결제 계정 목록](https://console.cloud.google.com/billing)에서 `sonmap_billing` 왼쪽 체크박스를 선택합니다. **Permissions → Add principal**에서 요청 양식의 서비스 계정을 입력하고 **Billing Account User → Save**를 선택합니다.
 
-```bash
-gcloud billing accounts add-iam-policy-binding 019BE7-53DD39-AF5098 \
-  --account=admin@sonmap.net \
-  --member='serviceAccount:tf-manager@gcp-sbx-edp-gke01.iam.gserviceaccount.com' \
-  --role='roles/billing.user'
-```
-
-이 결제 계정에서는 `gcloud`로 IAM을 변경하거나 조회할 때 `INVALID_ARGUMENT`가 발생한 이력이 있습니다. 권한 추가 명령에서 같은 오류가 나오면 [결제 계정 권한 화면](https://console.cloud.google.com/billing/019BE7-53DD39-AF5098/permissions)에서 **액세스 권한 부여**를 선택하고, 요청 양식의 서비스 계정과 역할을 입력해 저장합니다.
+![결제 계정 권한에서 tf-manager에 Billing Account User 역할을 추가하는 화면](images/billing-account-user.png)
 
 등록 결과는 이 환경에서 조회가 성공한 Cloud Billing REST API로 확인합니다.
 
