@@ -52,25 +52,26 @@ gcloud storage ls \
 
 사용할 릴리스가 조회되면 1번으로 진행합니다. `One or more URLs matched no objects`가 나오거나 승인된 새 버전이 필요하면 아래 게시 절차를 실행합니다.
 
-**1. Customer ID 확인 및 수정**
+**1. 배포할 커밋의 설정 확인**
 
 ```bash
-grep '^CLOUD_IDENTITY_CUSTOMER_ID:' \
-  03.sandbox_deploy/03.1.request/provisioner-env.yaml
+git show HEAD:03.sandbox_deploy/03.1.request/provisioner-env.yaml | grep '^CLOUD_IDENTITY_CUSTOMER_ID:'
+git status --porcelain
 ```
 
-`__SET_CUSTOMER_ID__`가 남아 있으면 Cloud Build의 0번 단계에서 실패합니다. `sonmap.net`에서 확인한 Directory Customer ID `C03rw3vtp`로 바꾸고 변경 내용을 확인합니다.
+`CLOUD_IDENTITY_CUSTOMER_ID: C03rw3vtp`가 표시되고 `git status --porcelain` 출력이 비어 있으면 **2번을 건너뛰고 3번**을 실행합니다. 이번 시험 VM에서 이미 수정한 커밋 `0ce39d7`을 사용하고 있다면 이 경로에 해당합니다.
+
+**2. Customer ID 수정이 필요한 경우에만 실행**
+
+현재 커밋에 `__SET_CUSTOMER_ID__`가 남아 있으면 다음과 같이 수정합니다. 이 값이 빌드 입력에 남아 있으면 Cloud Build의 0번 단계가 실패합니다.
 
 ```bash
 sed -i 's/^CLOUD_IDENTITY_CUSTOMER_ID: __SET_CUSTOMER_ID__$/CLOUD_IDENTITY_CUSTOMER_ID: C03rw3vtp/' \
   03.sandbox_deploy/03.1.request/provisioner-env.yaml
-
 git diff -- 03.sandbox_deploy/03.1.request/provisioner-env.yaml
 ```
 
-**2. 저장소 로컬 Git 작성자 설정 및 커밋**
-
-해당 파일에 변경이 남아 있을 때 실행합니다. `Author identity unknown`이 나오면 아래처럼 이 저장소에 작성자 정보를 설정합니다. 이미 수정 커밋을 만들었다면 3번으로 진행합니다. 릴리스 빌드 제출에는 `git push`가 필요하지 않습니다.
+현재 VM에서 직접 수정한 경우에만 커밋합니다. Git 작성자 정보가 설정되어 있지 않으면 아래 두 `git config` 명령을 이 저장소에서 실행합니다. 이번 VM 제출 방식에서 `git push`는 필요하지 않습니다.
 
 ```bash
 git config --local user.name "Son"
@@ -81,6 +82,8 @@ git commit -m "Set Cloud Identity customer ID for platform release" -- \
 
 git status --porcelain
 ```
+
+**SSM 전환 후** · Secure Source Manager에 배포 설정을 반영한 커밋을 사용합니다. VM에서 계속 제출한다면 승인된 SSM 커밋을 체크아웃하고 1번 확인 후 3번을 실행합니다. SSM 소스를 사용하는 빌드 연동이 구성되면 해당 빌드가 가져온 커밋 SHA를 릴리스 ID에 사용합니다. 배포 VM에서 작성자 설정이나 추가 커밋은 필요하지 않습니다.
 
 **3. 최신 커밋으로 릴리스 ID 재계산 및 빌드 제출**
 
