@@ -581,66 +581,109 @@ gcloud compute networks subnets create "$CP_SUBNET" \
   --range="$CP_SUBNET_CIDR" --account="$VPC_ADMIN_ACCOUNT"
 ```
 
+#### 6. 방화벽 조회 및 생성
+
 기존 방화벽을 조회합니다. 각 규칙이 없으면 해당 생성 명령을 실행합니다. 기존 규칙의 CIDR이나 포트가 다르면 운영팀 변경 절차에 따라 조정합니다.
+
+##### 6-1. 기존 방화벽 조회
 
 ```bash
 gcloud compute firewall-rules list --project="$HOST" --account="$VPC_ADMIN_ACCOUNT" \
   --filter='name=(fw-sbxtest01-alb-hc fw-sbxtest01-ilb-proxy)'
+```
 
+##### 6-2. ALB 헬스 체크 방화벽 생성
+
+```bash
 gcloud compute firewall-rules create fw-sbxtest01-alb-hc \
   --project="$HOST" --network="$NETWORK" --account="$VPC_ADMIN_ACCOUNT" \
   --direction=INGRESS --allow=tcp:8000 \
   --source-ranges=35.191.0.0/16,130.211.0.0/22 --destination-ranges="$POD_CIDR"
+```
 
+##### 6-3. ALB 프록시 방화벽 생성
+
+```bash
 gcloud compute firewall-rules create fw-sbxtest01-ilb-proxy \
   --project="$HOST" --network="$NETWORK" --account="$VPC_ADMIN_ACCOUNT" \
   --direction=INGRESS --allow=tcp:8000 \
   --source-ranges="$PROXY_CIDR" --destination-ranges="$POD_CIDR"
 ```
 
+#### 7. 서브넷 및 호스트 IAM 적용
+
 확인한 실제 서브넷 이름을 변수에 반영하고 2-1절 IAM을 적용합니다. 두 서비스 에이전트 주소에 들어가는 프로젝트 번호는 `gcp-sbx-edp-gke01`의 숫자 번호입니다. 위에서 출력된 프로젝트 번호가 숫자로 확인되면 아래 명령을 번호 순서대로 하나씩 실행합니다. 오류가 나오면 해당 명령의 입력값을 확인한 뒤 이어서 진행합니다.
+
+##### 7-1. 서비스 에이전트 변수 선언
 
 ```bash
 export GKE_AGENT="service-${SBX_PROJECT_NUMBER}@container-engine-robot.iam.gserviceaccount.com"
 export GOOGLE_APIS_AGENT="${SBX_PROJECT_NUMBER}@cloudservices.gserviceaccount.com"
+```
 
-# 1. GKE 서브넷 · Terraform 서비스 계정
+##### 7-2. GKE 서브넷 · Terraform 서비스 계정
+
+```bash
 gcloud compute networks subnets add-iam-policy-binding "$MAIN_SUBNET" \
   --project="$HOST" --region="$REGION" --account="$VPC_ADMIN_ACCOUNT" \
   --member="serviceAccount:$TF_MANAGER" --role=roles/compute.networkUser
+```
 
-# 2. GKE 서브넷 · GKE 서비스 에이전트
+##### 7-3. GKE 서브넷 · GKE 서비스 에이전트
+
+```bash
 gcloud compute networks subnets add-iam-policy-binding "$MAIN_SUBNET" \
   --project="$HOST" --region="$REGION" --account="$VPC_ADMIN_ACCOUNT" \
   --member="serviceAccount:$GKE_AGENT" --role=roles/compute.networkUser
+```
 
-# 3. GKE 서브넷 · Google APIs 서비스 에이전트
+##### 7-4. GKE 서브넷 · Google APIs 서비스 에이전트
+
+```bash
 gcloud compute networks subnets add-iam-policy-binding "$MAIN_SUBNET" \
   --project="$HOST" --region="$REGION" --account="$VPC_ADMIN_ACCOUNT" \
   --member="serviceAccount:$GOOGLE_APIS_AGENT" --role=roles/compute.networkUser
+```
 
-# 4. ALB VIP 서브넷 · Terraform 서비스 계정
+##### 7-5. ALB VIP 서브넷 · Terraform 서비스 계정
+
+```bash
 gcloud compute networks subnets add-iam-policy-binding "$VIP_SUBNET" \
   --project="$HOST" --region="$REGION" --account="$VPC_ADMIN_ACCOUNT" \
   --member="serviceAccount:$TF_MANAGER" --role=roles/compute.networkUser
+```
 
-# 5. 호스트 프로젝트 · GKE 서비스 에이전트
+##### 7-6. 호스트 프로젝트 · GKE 서비스 에이전트
+
+```bash
 gcloud projects add-iam-policy-binding "$HOST" --account="$VPC_ADMIN_ACCOUNT" \
   --member="serviceAccount:$GKE_AGENT" --role=roles/container.hostServiceAgentUser --condition=None
+```
 
-# 6. 호스트 프로젝트 · Terraform 네트워크 조회 권한
+##### 7-7. 호스트 프로젝트 · Terraform 네트워크 조회 권한
+
+```bash
 gcloud projects add-iam-policy-binding "$HOST" --account="$VPC_ADMIN_ACCOUNT" \
   --member="serviceAccount:$TF_MANAGER" --role=roles/compute.networkViewer --condition=None
+```
 
-# 7. 호스트 프로젝트 · Terraform 서비스 사용 권한
+##### 7-8. 호스트 프로젝트 · Terraform 서비스 사용 권한
+
+```bash
 gcloud projects add-iam-policy-binding "$HOST" --account="$VPC_ADMIN_ACCOUNT" \
   --member="serviceAccount:$TF_MANAGER" --role=roles/serviceusage.serviceUsageConsumer --condition=None
+```
 
-# 8. GKE 서브넷 IAM 확인
+##### 7-9. GKE 서브넷 IAM 확인
+
+```bash
 gcloud compute networks subnets get-iam-policy "$MAIN_SUBNET" \
   --project="$HOST" --region="$REGION" --account="$VPC_ADMIN_ACCOUNT" --format=json
+```
 
-# 9. ALB VIP 서브넷 IAM 확인
+##### 7-10. ALB VIP 서브넷 IAM 확인
+
+```bash
 gcloud compute networks subnets get-iam-policy "$VIP_SUBNET" \
   --project="$HOST" --region="$REGION" --account="$VPC_ADMIN_ACCOUNT" --format=json
 ```
