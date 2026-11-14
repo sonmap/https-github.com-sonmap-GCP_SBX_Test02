@@ -2,6 +2,10 @@
 
 [1차 인프라 구축](../02.infra-setup/infra-setup-commend.md)을 완료한 후 진행합니다.
 
+## sbx03 승인 JSON 직접 작성
+
+포털에서 요청을 게시할 수 없으면 `infra-son01`에서 [운영자용 sbx03 승인 JSON 작성 및 게시](03.1.request/legacy-deploy.md#0-운영자가-sbx03-승인-json-작성-및-게시)를 따릅니다. **릴리스 조회 → JSON 작성 → GCS 게시 → 승인 요청 검증** 순서입니다. 기존 과제별 Workflow 실행은 Private Pool 준비 후 진행합니다.
+
 | 폴더 | 용도 |
 |---|---|
 | [03.1.request](03.1.request/) | 승인 JSON, Workflows와 요청 API |
