@@ -127,14 +127,18 @@ export SBX_GKE_PROJECT_NUMBER="$(gcloud projects describe "${SBX_GKE_PROJECT}" -
 # 프로젝트 번호는 자동 조회합니다. 조회 실패 또는 숫자가 아닌 결과이면 이후 명령을 중단합니다.
 
 # ── 1. 필요한 API 활성화 — CI/CD · Shared VPC Host · GKE 프로젝트 ──
+# [infra-son01] 플랫폼 운영자 · 대상 ${SBX_GKE_PROJECT}
 # 실행 위치 infra-son01 | 대상 ${SBX_GKE_PROJECT} | 계정 ${ADMIN_ACCOUNT}
 gcloud services enable servicenetworking.googleapis.com serviceusage.googleapis.com iam.googleapis.com iamcredentials.googleapis.com compute.googleapis.com container.googleapis.com cloudbuild.googleapis.com config.googleapis.com run.googleapis.com workflows.googleapis.com artifactregistry.googleapis.com secretmanager.googleapis.com storage.googleapis.com logging.googleapis.com cloudresourcemanager.googleapis.com cloudbilling.googleapis.com cloudidentity.googleapis.com --project="${SBX_GKE_PROJECT}" --account="${ADMIN_ACCOUNT}"
-# 실행 위치 infra-son01 | 대상 ${VPC_HOST_PROJECT} | 계정 ${VPC_ADMIN_ACCOUNT}
-gcloud services enable compute.googleapis.com container.googleapis.com servicenetworking.googleapis.com --project="${VPC_HOST_PROJECT}" --account="${VPC_ADMIN_ACCOUNT}"
 # 실행 위치 infra-son01 | 대상 ${SBX_GKE_PROJECT} | 계정 ${ADMIN_ACCOUNT}
 gcloud services enable container.googleapis.com compute.googleapis.com iam.googleapis.com iamcredentials.googleapis.com cloudresourcemanager.googleapis.com orgpolicy.googleapis.com --project="${SBX_GKE_PROJECT}" --account="${ADMIN_ACCOUNT}"
 
+# [infra-son01] VPC 관리자 · 대상 ${VPC_HOST_PROJECT}
+# 실행 위치 infra-son01 | 대상 ${VPC_HOST_PROJECT} | 계정 ${VPC_ADMIN_ACCOUNT}
+gcloud services enable compute.googleapis.com container.googleapis.com servicenetworking.googleapis.com --project="${VPC_HOST_PROJECT}" --account="${VPC_ADMIN_ACCOUNT}"
+
 # ── 2. Google 서비스 에이전트 준비 — API별로 필요한 시스템 계정 ──
+# [infra-son01] 플랫폼 운영자 · 대상 ${SBX_GKE_PROJECT}
 # 실행 위치 infra-son01 | 대상 ${SBX_GKE_PROJECT} | 계정 ${ADMIN_ACCOUNT}
 gcloud beta services identity create --service=cloudbuild.googleapis.com --project="${SBX_GKE_PROJECT}" --account="${ADMIN_ACCOUNT}"
 # 실행 위치 infra-son01 | 대상 ${SBX_GKE_PROJECT} | 계정 ${ADMIN_ACCOUNT}
@@ -147,6 +151,11 @@ gcloud beta services identity create --service=run.googleapis.com --project="${S
 gcloud beta services identity create --service=workflows.googleapis.com --project="${SBX_GKE_PROJECT}" --account="${ADMIN_ACCOUNT}"
 # 실행 위치 infra-son01 | 대상 ${SBX_GKE_PROJECT} | 계정 ${ADMIN_ACCOUNT}
 gcloud beta services identity create --service=container.googleapis.com --project="${SBX_GKE_PROJECT}" --account="${ADMIN_ACCOUNT}"
+# Service Networking 시스템 계정의 역할은 사용자 계정에 부여하지 않습니다.
+# 실행 위치 infra-son01 | 대상 ${SBX_GKE_PROJECT} | 계정 ${ADMIN_ACCOUNT}
+gcloud projects add-iam-policy-binding "${SBX_GKE_PROJECT}" --member="serviceAccount:service-${SBX_GKE_PROJECT_NUMBER}@service-networking.iam.gserviceaccount.com" --role=roles/servicenetworking.serviceAgent --condition=None --account="${ADMIN_ACCOUNT}"
+
+# [infra-son01] VPC 관리자 · 대상 ${VPC_HOST_PROJECT}
 # 실행 위치 infra-son01 | 대상 ${VPC_HOST_PROJECT} | 계정 ${VPC_ADMIN_ACCOUNT}
 gcloud beta services identity create --service=container.googleapis.com --project="${VPC_HOST_PROJECT}" --account="${VPC_ADMIN_ACCOUNT}"
 # 호스트 PSA 조회 오류 시 Service Networking 에이전트 역할도 확인합니다.
@@ -156,10 +165,6 @@ gcloud beta services identity create --service=servicenetworking.googleapis.com 
 export VPC_HOST_PROJECT_NUMBER="$(gcloud projects describe "${VPC_HOST_PROJECT}" --account="${VPC_ADMIN_ACCOUNT}" --format='value(projectNumber)')"
 # 실행 위치 infra-son01 | 대상 ${VPC_HOST_PROJECT} | 계정 ${VPC_ADMIN_ACCOUNT}
 gcloud projects add-iam-policy-binding "${VPC_HOST_PROJECT}" --member="serviceAccount:service-${VPC_HOST_PROJECT_NUMBER}@service-networking.iam.gserviceaccount.com" --role=roles/servicenetworking.serviceAgent --condition=None --account="${VPC_ADMIN_ACCOUNT}"
-
-# Service Networking 시스템 계정의 역할은 사용자 계정에 부여하지 않습니다.
-# 실행 위치 infra-son01 | 대상 ${SBX_GKE_PROJECT} | 계정 ${ADMIN_ACCOUNT}
-gcloud projects add-iam-policy-binding "${SBX_GKE_PROJECT}" --member="serviceAccount:service-${SBX_GKE_PROJECT_NUMBER}@service-networking.iam.gserviceaccount.com" --role=roles/servicenetworking.serviceAgent --condition=None --account="${ADMIN_ACCOUNT}"
 
 # ── 3. 사용자 관리 서비스 계정 — sbx-manager · tf-manager ──
 
