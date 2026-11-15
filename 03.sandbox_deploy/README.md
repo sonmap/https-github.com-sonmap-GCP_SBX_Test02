@@ -697,7 +697,7 @@ flowchart LR
 ```mermaid
 flowchart LR
     N0["중지 1<br/>notebook 0"] --> HP0["중지 2<br/>hub · proxy 0"]
-    HP0 -.PVC · ALB · DNS 유지<br/>과금 계속.-> P1["재개 1<br/>proxy 1"]
+    HP0 -.PVC · ALB · DNS 유지.-> P1["재개 1<br/>proxy 1"]
     P1 --> H1["재개 2<br/>hub 1"]
     H1 --> N1["재개 3<br/>notebook 1"]
 ```
