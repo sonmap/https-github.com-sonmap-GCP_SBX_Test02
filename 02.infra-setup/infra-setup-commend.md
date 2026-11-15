@@ -2020,6 +2020,54 @@ gcloud certificate-manager dns-authorizations describe "${DNS_AUTH}" \
 
 Google은 공개 CNAME을 발급 및 자동 갱신 검증에 사용합니다. 인증서를 사용하는 동안 CNAME을 유지합니다. 사용자는 사내 DNS에서 내부 ALB IP를 확인해 접속합니다. [리전 Google 관리형 인증서 가이드](https://docs.cloud.google.com/certificate-manager/docs/deploy-google-managed-regional)
 
+##### 3-32-2-1. 외부 DNS 요청서 · 공개 CNAME 등록
+
+아래 값은 `sonmap.net` PoC에서 발급받은 DNS 승인 값입니다. 운영 도메인은 3-32-4절에서 새로 조회한 값으로 작성합니다.
+
+```text
+1.작업대상(외부DNS or 내부DNS) :
+외부DNS
+
+2.작업내용
+[등록]
+도메인명 : _acme-challenge_5zozaksz6rlqjhyf.jupyter-group01.sonmap.net
+IP 정보 : cce5034d-0b78-4be0-b365-ec97883d176a.2.asia-northeast3.authorize.certificatemanager.goog
+TYPE : CNAME
+
+3.등록/변경/삭제 목적
+GCP Sandbox JupyterHub 전환으로 SSL 인증서 프로비저닝을 위한 DNS 승인(CNAME) 등록이 필요합니다.
+
+4.완료희망일자
+[DNS 반영과 인증서 검증 시간을 고려해 기입]
+
+5.기타
+본 CNAME은 인증서 자동 갱신 때마다 재검증에 사용되므로,
+작업 완료 후에도 삭제하지 말고 영구 유지 바랍니다.
+```
+
+요청서의 `IP 정보` 칸에는 CNAME 대상의 전체 도메인명을 입력합니다. 위 양식에서는 출력 끝의 점을 뺐습니다. DNS 운영 도구가 절대 이름을 요구하면 끝의 점을 포함하고, DNS 영역 접미사가 중복으로 붙지 않았는지 확인합니다.
+
+##### 3-32-2-2. 내부 DNS 요청서 · 접속용 A 레코드 등록
+
+```text
+1.작업대상(외부DNS or 내부DNS) :
+내부DNS
+
+2.작업내용
+[등록]
+도메인명 : jupyter-group01.sonmap.net
+IP 정보 : 172.31.96.2
+TYPE : A
+
+3.등록/변경/삭제 목적
+GCP Sandbox JupyterHub 전환으로 내부도메인 등록이 필요합니다.
+
+4.완료희망일자
+[사내 접속 검증 일정에 맞춰 기입]
+```
+
+내부 ALB의 HTTP·HTTPS 전달 규칙은 PoC에서 모두 `172.31.96.2`를 사용했습니다. 실제 등록 전 같은 VIP를 사용할지 [HTTPS 전달 규칙](#3-34-내부-https-forwarding-rule) 조회 결과로 확인합니다. 외부 CNAME과 내부 A 레코드는 각각 발급 승인과 사용자 접속에 쓰이므로 두 요청서는 동시에 제출할 수 있습니다.
+
 #### 3-32-3. 인증서 발급 및 상태 확인
 
 인증서 리소스가 이미 있으면 조회 명령만 실행합니다.
@@ -2037,6 +2085,74 @@ gcloud certificate-manager certificates describe "${MANAGED_CERT}" \
 ```
 
 `managed.domains`에 접속 호스트가 있고 `managed.state`가 `ACTIVE`이면 3-33절로 진행합니다.
+
+##### 3-32-3-1. PoC 수행 기록 및 DNS 완료 후 점검
+
+`cert-jupyter-group01-managed` 생성은 완료됐습니다. 생성 직후 `describe`에서 다음 상태를 확인했습니다.
+
+```yaml
+managed:
+  authorizationAttemptInfo:
+  - domain: jupyter-group01.sonmap.net
+    state: AUTHORIZING
+  state: PROVISIONING
+```
+
+이 수행 기록은 인증서 리소스 생성과 DNS 승인 대기까지입니다. 신규 구축에서는 DNS 승인 리소스를 만든 뒤 외부 DNS 요청과 병행해 인증서 생성 명령을 실행할 수 있습니다. DNS 완료 회신을 받으면 3-32-2절의 DNS 승인 조회 결과와 공개 DNS의 CNAME을 비교하고, 사내 DNS에서 A 레코드가 실제 ALB VIP로 해석되는지 확인한 뒤 위 인증서 조회 명령을 다시 실행합니다.
+
+```bash
+# 외부 DNS를 조회할 수 있는 환경에서 실행
+CNAME_NAME="$(gcloud certificate-manager dns-authorizations describe "${DNS_AUTH}" \
+  --project="${SBX_GKE_PROJECT}" --location="${REGION}" \
+  --account="${ADMIN_ACCOUNT}" --impersonate-service-account="${TF_MANAGER}" \
+  --format='value(dnsResourceRecord.name)')" &&
+test -n "${CNAME_NAME}" && dig +short CNAME "${CNAME_NAME}"
+```
+
+```text
+# 사내 DNS를 사용하는 PC에서 실행하며 운영 전환 시 호스트를 확정값으로 교체
+nslookup jupyter-group01.sonmap.net
+```
+
+| 조회 결과 | 다음 작업 |
+|---|---|
+| `managed.state: ACTIVE` | `managed.domains`에 대상 호스트가 포함됐는지 확인하고 3-33절 프록시 연결로 진행합니다. |
+| `PROVISIONING`, `AUTHORIZING` | CNAME의 이름과 대상, 공개 DNS 전파 상태를 확인합니다. |
+| `authorizationAttemptInfo.state: FAILED` | `failureReason`, `details`, `troubleshooting`을 확인합니다. CNAME 불일치와 CAA 정책 오류는 각 원인에 맞춰 조치합니다. |
+
+[Certificate Manager 인증 오류 점검](https://docs.cloud.google.com/certificate-manager/docs/troubleshooting)
+
+#### 3-32-4. 운영 도메인 전환 · `uplus.co.kr`
+
+운영 DNS 담당자와 전체 호스트 이름을 먼저 확정합니다. 호스트가 달라지면 해당 이름으로 리전 DNS 승인과 인증서를 새로 생성합니다. PoC CNAME은 `sonmap.net`용이며, 운영 요청서에는 새 DNS 승인 조회 결과를 사용합니다. 내부 VIP를 재사용하는 경우 운영 A 레코드의 값은 `172.31.96.2`입니다.
+
+```mermaid
+flowchart TD
+    H["uplus.co.kr 운영 호스트 확정"]
+    H --> D["리전 DNS 승인과 인증서 생성"]
+    H --> I["내부 DNS · 운영 호스트 A 등록"]
+    D --> P["외부 DNS · 새 검증 CNAME 등록"]
+    P --> A["인증서 ACTIVE 확인"]
+    A --> T["공유 HTTPS 프록시 인증서 목록 갱신"]
+    I --> V["사내 PC에서 운영 호스트 검증"]
+    T --> U["그룹 JSON 게시 · URL Map 갱신"]
+    U --> V
+    V --> N["브라우저 로그인 · Notebook 검증"]
+```
+
+1. **운영 값 설정** · 3-32-1절의 공통 변수를 선언한 뒤, 아래 `DOMAIN`을 승인된 운영 FQDN으로 바꿉니다. 예시는 `jupyter-group01.uplus.co.kr`입니다. 조직 표준에 중간 도메인이 있으면 전체 이름을 입력합니다.
+
+   ```bash
+   export DOMAIN="jupyter-group01.uplus.co.kr"
+   export DNS_AUTH="dns-auth-jupyter-group01-uplus"
+   export MANAGED_CERT="cert-jupyter-group01-uplus"
+   ```
+
+2. **DNS와 인증서 준비** · 3-32-2절에서 새 DNS 승인 생성·조회 명령을 실행합니다. 외부 요청서에는 새 CNAME 이름·대상을, 내부 요청서에는 새 FQDN과 확인된 ALB VIP를 입력합니다. 3-32-3절에서 새 인증서를 만들고 `ACTIVE`를 확인합니다.
+3. **프록시와 그룹 라우팅 반영** · 3-33-2절에서 새 인증서를 적용합니다. 공유 프록시가 함께 서비스하는 모든 호스트의 인증서를 `CERT_REFS`에 포함합니다. 승인된 `group.json`의 `domain`만 새 FQDN으로 바꾸고, 기존 `tasks`를 포함한 전체 그룹 JSON으로 [2차 배포 문서 7-2절](../03.sandbox_deploy/README.md#7-2-그룹-json-게시와-실행)을 다시 실행합니다. URL Map의 새 호스트 규칙과 그룹 백엔드 상태를 확인합니다.
+4. **접속 재검증** · 사내 PC에서 운영 호스트의 DNS 응답과 HTTPS 인증서를 확인하고 [4-5절](#4-5-과제용-내부-https-및-로그인-검증)에 따라 로그인과 Notebook 실행을 검증합니다. 기존 과제별 Google OAuth 경로를 사용하면 새 HTTPS 콜백 URL도 등록하고 로그인까지 확인합니다.
+
+전환 때문에 Shared VPC, GKE, 과제 프로젝트 또는 그룹을 새로 구축할 필요는 없습니다. 새 호스트의 **공개 CNAME 승인, 내부 A 레코드, 인증서, URL Map, 로그인**을 확인합니다. PoC용 인증서와 DNS 승인은 참조하는 프록시와 사용자 경로가 사라진 것을 확인한 뒤 정리합니다.
 
 <a name="-33-regional-https-proxy"></a>
 
