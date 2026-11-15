@@ -158,6 +158,25 @@ export SBX_GKE_PROJECT_NUMBER="$(gcloud projects describe "${SBX_GKE_PROJECT}" -
 
 ### 1-1. 필요한 API 활성화 — CI/CD · Shared VPC Host · GKE 프로젝트
 
+두 활성화 명령의 대상은 플랫폼 프로젝트 `gcp-sbx-edp-gke01`입니다. 도식의 짧은 이름은 명령에 나오는 `*.googleapis.com` 서비스 ID의 앞부분입니다.
+
+```mermaid
+flowchart TD
+    P["플랫폼 프로젝트 · gcp-sbx-edp-gke01"]
+    P --> A["사용 설정·권한 관리"]
+    P --> B["네트워크·GKE"]
+    P --> C["빌드·자동 배포"]
+    P --> D["저장·비밀·로그"]
+    P --> E["조직·결제·그룹"]
+    A --> A1["serviceusage · iam · iamcredentials"]
+    B --> B1["servicenetworking · compute · container"]
+    C --> C1["cloudbuild · config · run · workflows"]
+    D --> D1["artifactregistry · storage · secretmanager · logging"]
+    E --> E1["cloudresourcemanager · orgpolicy · cloudbilling · cloudidentity"]
+```
+
+`config`는 Infrastructure Manager에 사용합니다. Shared VPC 호스트의 네트워크·DNS 준비는 [2절](#2-shared-vpc와-네트워크)에서 진행합니다. `certificatemanager.googleapis.com`은 [3-32절 인증서 준비](#3-32-regional-ssl-인증서-확인-및-등록)에서 별도로 활성화합니다.
+
 ```bash
 # [infra-son01] 플랫폼 운영자 · 대상 ${SBX_GKE_PROJECT}
 # 실행 위치 infra-son01 | 대상 ${SBX_GKE_PROJECT} | 계정 ${ADMIN_ACCOUNT}
@@ -1244,6 +1263,23 @@ flowchart TD
     G --> I["3-35절 · 필요 시 GitHub 트리거"]
     H --> J["4절 · JupyterHub 기동 및 접속 확인"]
 ```
+
+**3-1~3-9절 · Cloud Storage 버킷 구성**
+
+세 버킷은 `gcp-sbx-edp-gke01`의 `asia-northeast3`에 생성합니다. 도식의 이름은 공통 접두사 `gcp-sbx-edp-gke01-sbxtest01-` 뒤에 붙습니다. 생성 시 균일한 버킷 수준 액세스와 공개 액세스 방지를 설정하고, 후속 명령에서 객체 버전 관리를 활성화합니다.
+
+```mermaid
+flowchart TD
+    P["포털 또는 운영자"] -->|승인된 request.json 또는 group.json 저장| R["requests · 3-1~3-2"]
+    R -->|승인 요청 읽기| W["Workflow가 실행하는 배포 구성요소"]
+    S["플랫폼 릴리스 Cloud Build"] -->|release.json과 소스 ZIP 게시| B["bundles · 3-3~3-4"]
+    V["Provisioner"] -->|요청별 배포 번들 저장| B
+    B -->|Terraform ZIP 읽기| I["Infrastructure Manager"]
+    M["관리 VM의 gcloud builds submit"] -->|빌드 소스 업로드| U["build-source · 3-5~3-6"]
+    U -->|빌드 소스 읽기| C["Cloud Build"]
+```
+
+3-7~3-8절은 `sbx-manager`에 두 버킷(`requests`, `bundles`)의 객체 관리 권한을 부여합니다. 3-9절은 Infrastructure Manager 서비스 에이전트에 `bundles`의 객체 읽기 권한을 부여합니다.
 
 필요한 변수 선언을 아래 코드 블록 맨 앞에 포함했습니다. 별도 문서에서 변수를 설정할 필요 없이, 이 문서의 선언부터 같은 터미널에서 실행합니다. `# 주석`을 보며 순서대로 실행하고, **기존 자원이 있으면 해당 생성 명령을 건너뜁니다.** 403·인증·연결 오류면 중단합니다. 선택 작업은 주석을 해제한 경우에만 실행합니다.
 
