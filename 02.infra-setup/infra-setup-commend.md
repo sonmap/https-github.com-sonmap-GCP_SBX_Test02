@@ -91,7 +91,6 @@ export MAIN_CP_CIDR=10.253.3.0/28
 export PSA_NAME=psa-prod-edp-cloudbuild
 export PSA_CIDR=10.250.0.0/24
 export ADMIN_CIDR=172.31.10.0/24
-export SSL_CERTIFICATE=cert-jupyter-group01-self
 export BILLING_ACCOUNT=""
 export TF_MANAGER="tf-manager@${SBX_GKE_PROJECT}.iam.gserviceaccount.com"
 export SBX_MANAGER="sbx-manager@${SBX_GKE_PROJECT}.iam.gserviceaccount.com"
@@ -280,7 +279,7 @@ gcloud projects add-iam-policy-binding "${SBX_GKE_PROJECT}" --member="serviceAcc
   --role=roles/logging.logWriter --condition=None --account="${ADMIN_ACCOUNT}"
 gcloud projects add-iam-policy-binding "${SBX_GKE_PROJECT}" --member="serviceAccount:${TF_MANAGER}" \
   --role=roles/serviceusage.serviceUsageConsumer --condition=None --account="${ADMIN_ACCOUNT}"
-# Google 관리형 인증서를 쓰는 경우에만 필요합니다. 자체 서명 인증서만 쓰면 생략할 수 있습니다.
+# 리전 Google 관리형 인증서와 DNS 승인을 관리하는 권한입니다.
 gcloud projects add-iam-policy-binding "${SBX_GKE_PROJECT}" --member="serviceAccount:${TF_MANAGER}" \
   --role=roles/certificatemanager.editor --condition=None --account="${ADMIN_ACCOUNT}"
 
@@ -1317,7 +1316,6 @@ export MAIN_POD_RANGE=subnet-prod-sbx-pod-01
 export MAIN_CP_CIDR=10.253.3.0/28
 export PSA_CIDR=10.250.0.0/24
 export ADMIN_CIDR=172.31.10.0/24
-export SSL_CERTIFICATE=cert-jupyter-group01-self
 export TF_MANAGER="tf-manager@${SBX_GKE_PROJECT}.iam.gserviceaccount.com"
 export SBX_MANAGER="sbx-manager@${SBX_GKE_PROJECT}.iam.gserviceaccount.com"
 # 실행 위치 infra-son01 | 대상 ${SBX_GKE_PROJECT} | 계정 ${ADMIN_ACCOUNT}
@@ -1951,95 +1949,36 @@ gcloud compute forwarding-rules create fr-alb-sbxtest01-shared-http --project="$
 
 ### 3-32. Regional SSL 인증서 확인 및 등록
 
-인증서 방식은 둘 중 하나를 고릅니다. 접속 호스트는 **그룹 단위**이므로 그룹을 추가할 때마다 인증서도 하나씩 준비합니다.
-
-| 방식 | 절 | 갱신 | 브라우저 경고 | 전제 |
-|---|---|---|---|---|
-| 자체 서명 | [3-32-2](#3-32-2-테스트용-자체-서명-인증서-생성) · [3-32-3](#3-32-3-regional-ssl-인증서-등록-및-확인) | 수동(90일) | 있음 | 없음 |
-| Google 관리형 | [3-32-4](#3-32-4-google-관리형-인증서-자동-갱신) | 자동 | 없음 | 공개 도메인 + 공개 DNS에 검증용 CNAME 영구 유지 |
-
-<a name="32-1-인증서-조회"></a>
-
-#### 3-32-1. 인증서 조회
-
-```bash
-# 수행 위치: infra-son01 | 대상: gcp-sbx-edp-gke01 / asia-northeast3
-# 로그인 계정: ADMIN_ACCOUNT | 수행 계정(가장): TF_MANAGER
-gcloud compute ssl-certificates describe "${SSL_CERTIFICATE}" \
-  --project="${SBX_GKE_PROJECT}" --region="${REGION}" \
-  --account="${ADMIN_ACCOUNT}" --impersonate-service-account="${TF_MANAGER}" \
-  --format='yaml(name,region,type,subjectAlternativeNames,expireTime)'
-```
-
-- 인증서가 조회되고 실제 접속 호스트가 SAN에 포함되어 있으면 3-33절으로 진행합니다.
-- `was not found`이면 3-32-2에서 테스트 인증서를 준비한 뒤 3-32-3에서 등록합니다. 운영용으로 발급받은 인증서가 있다면 해당 PEM 인증서와 개인키 경로를 3-32-3에 지정합니다.
-- 권한 오류가 발생하면 프로젝트와 수행 계정을 확인합니다.
-
-<a name="32-2-테스트용-자체-서명-인증서-생성"></a>
-
-#### 3-32-2. 테스트용 자체 서명 인증서 생성
-
-`HTTPS_FQDN`을 브라우저에서 실제 사용할 호스트 이름으로 바꿉니다. 파일은 저장소 밖의 임시 디렉터리에 생성합니다.
-
-2차 배포는 그룹 공유 경로를 사용하므로 호스트는 **그룹 단위**입니다. 과제가 여러 개여도 접속 호스트는 그룹당 하나이며, 그룹 JSON의 `domain` 값과 같아야 합니다. 과제별 호스트(`jupyter-sbx03`, `jupyter-sbx04` 등)는 사용하지 않습니다. 그룹을 추가하면 그룹마다 호스트와 인증서를 따로 준비합니다.
-
-```bash
-# 수행 위치: infra-son01 | 수행 계정: VM 로그인 사용자
-export HTTPS_FQDN="jupyter-group01.sonmap.net"
-export CERT_DIR="$(mktemp -d)"
-
-openssl req -x509 -newkey rsa:2048 -sha256 -nodes -days 90 \
-  -keyout "${CERT_DIR}/jupyter.key" -out "${CERT_DIR}/jupyter.crt" \
-  -subj "/CN=${HTTPS_FQDN}" -addext "subjectAltName=DNS:${HTTPS_FQDN}"
-```
-
-<a name="32-3-regional-ssl-인증서-등록-및-확인"></a>
-
-#### 3-32-3. Regional SSL 인증서 등록 및 확인
-
-```bash
-# 수행 위치: infra-son01, 32-2와 같은 터미널 | 대상: gcp-sbx-edp-gke01 / asia-northeast3
-# 로그인 계정: ADMIN_ACCOUNT | 수행 계정(가장): TF_MANAGER
-gcloud compute ssl-certificates create "${SSL_CERTIFICATE}" \
-  --project="${SBX_GKE_PROJECT}" --region="${REGION}" \
-  --certificate="${CERT_DIR}/jupyter.crt" --private-key="${CERT_DIR}/jupyter.key" \
-  --account="${ADMIN_ACCOUNT}" --impersonate-service-account="${TF_MANAGER}"
-```
-
-등록이 성공하면 3-32-1을 다시 실행합니다. 리전과 SAN을 확인한 뒤 3-33절 Regional HTTPS Proxy를 생성합니다. 자체 서명 인증서를 테스트 PC에서 신뢰하도록 설정할 때는 공개 인증서 `jupyter.crt`만 복사합니다.
+공유 내부 ALB에는 **Certificate Manager의 리전 Google 관리형 인증서만 적용**합니다. 그룹을 추가할 때는 그룹 JSON의 `domain`과 일치하는 호스트에 대해 DNS 승인과 인증서를 준비합니다. 아래 명령은 `jupyter-group01.sonmap.net` 기준입니다.
 
 <a name="32-4-google-관리형-인증서-자동-갱신"></a>
 
-#### 3-32-4. Google 관리형 인증서 자동 갱신
+<a name="3-32-4-google-관리형-인증서-자동-갱신"></a>
 
-자체 서명 인증서는 브라우저 경고가 뜨고 만료 때마다 수동으로 교체해야 합니다. Certificate Manager의 **리전 Google 관리형 인증서**를 쓰면 Google이 자동 갱신하고 경고도 사라집니다. 기능 확인만 할 때는 3-32-2로 충분하며, 운영과 장기 시험에는 이 절을 권장합니다.
+#### 3-32-1. 대상 및 권한 확인
 
-##### 3-32-4-1. 전제 조건
+**실행 위치** `infra-son01` · **로그인 계정** `son@sonmap.net` · **가장 계정** `tf-manager`
 
-- `sonmap.net`이 실제 보유한 **공개 도메인**이고, 권한 있는 DNS에 레코드를 추가할 수 있어야 합니다. 사내 전용 도메인이면 DNS 승인이 불가능하므로 3-32-2 또는 사내 CA 발급 인증서를 사용합니다.
-- 1-4절에서 `tf-manager`에 `roles/certificatemanager.editor`를 부여하고 API를 활성화해야 합니다.
+1-4절에서 `tf-manager`에 Certificate Manager 권한을 적용했는지 확인합니다. `sonmap.net` 공개 DNS에 검증 레코드를 추가할 권한이 있는 담당자와 협의합니다.
 
 ```bash
-# 수행 위치: infra-son01 | 수행 계정: ADMIN_ACCOUNT
+export SBX_GKE_PROJECT="gcp-sbx-edp-gke01"
+export REGION="asia-northeast3"
+export ADMIN_ACCOUNT="son@sonmap.net"
+export TF_MANAGER="tf-manager@${SBX_GKE_PROJECT}.iam.gserviceaccount.com"
+export DOMAIN="jupyter-group01.sonmap.net"
+export DNS_AUTH="dns-auth-jupyter-group01"
+export MANAGED_CERT="cert-jupyter-group01-managed"
+
 gcloud services enable certificatemanager.googleapis.com \
   --project="${SBX_GKE_PROJECT}" --account="${ADMIN_ACCOUNT}"
 ```
 
-**DNS 분리** · 폐쇄망에서도 쓸 수 있는 이유는 DNS 승인이 로드밸런서의 인터넷 노출을 요구하지 않기 때문입니다. 공개로 해석돼야 하는 것은 검증용 서브도메인 하나뿐입니다.
+#### 3-32-2. DNS 승인과 레코드 등록
 
-| 레코드 | 등록 위치 | 값 |
-|---|---|---|
-| 검증용 CNAME | **공개 DNS** | 아래 `dnsResourceRecord` 출력 |
-| 접속용 A | **사내 DNS** | 내부 ALB VIP(예: `172.31.96.2`) |
-
-##### 3-32-4-2. DNS 승인 생성과 레코드 확인
+DNS 승인 리소스가 이미 있으면 조회 명령만 실행합니다. 출력된 `dnsResourceRecord.name`과 `dnsResourceRecord.data`를 공개 CNAME에 그대로 사용합니다.
 
 ```bash
-# 수행 위치: infra-son01 | 로그인 계정: ADMIN_ACCOUNT | 가장: TF_MANAGER
-export DOMAIN="${HTTPS_FQDN}"
-export DNS_AUTH="dns-auth-jupyter-group01"
-export MANAGED_CERT="cert-jupyter-group01-managed"
-
 gcloud certificate-manager dns-authorizations create "${DNS_AUTH}" \
   --project="${SBX_GKE_PROJECT}" --location="${REGION}" --domain="${DOMAIN}" \
   --account="${ADMIN_ACCOUNT}" --impersonate-service-account="${TF_MANAGER}"
@@ -2050,9 +1989,16 @@ gcloud certificate-manager dns-authorizations describe "${DNS_AUTH}" \
   --format='yaml(dnsResourceRecord)'
 ```
 
-출력된 이름과 값을 공개 DNS에 CNAME으로 등록합니다. **이 레코드는 영구히 유지해야 합니다.** 최초 발급용이 아니라 갱신할 때마다 다시 검증하므로, 삭제하면 그 시점에 자동 갱신 권한이 사라집니다.
+| 등록 위치 | 유형 | 이름 | 값 |
+|---|---|---|---|
+| `sonmap.net` 공개 DNS | CNAME | `dnsResourceRecord.name` | `dnsResourceRecord.data` |
+| 사내 DNS | A | `jupyter-group01.sonmap.net` | 실제 내부 ALB VIP (`172.31.96.2`) |
 
-##### 3-32-4-3. 인증서 생성
+Google은 공개 CNAME을 발급 및 자동 갱신 검증에 사용합니다. 인증서를 사용하는 동안 CNAME을 유지합니다. 사용자는 사내 DNS에서 내부 ALB IP를 확인해 접속합니다. [리전 Google 관리형 인증서 가이드](https://docs.cloud.google.com/certificate-manager/docs/deploy-google-managed-regional)
+
+#### 3-32-3. 인증서 발급 및 상태 확인
+
+인증서 리소스가 이미 있으면 조회 명령만 실행합니다.
 
 ```bash
 gcloud certificate-manager certificates create "${MANAGED_CERT}" \
@@ -2063,25 +2009,10 @@ gcloud certificate-manager certificates create "${MANAGED_CERT}" \
 gcloud certificate-manager certificates describe "${MANAGED_CERT}" \
   --project="${SBX_GKE_PROJECT}" --location="${REGION}" \
   --account="${ADMIN_ACCOUNT}" --impersonate-service-account="${TF_MANAGER}" \
-  --format='yaml(managed.state,managed.authorizationAttemptInfo)'
+  --format='yaml(managed.domains,managed.state,managed.authorizationAttemptInfo)'
 ```
 
-`state: ACTIVE`가 될 때까지 기다립니다. CNAME 전파에 따라 수 분에서 수십 분 걸립니다.
-
-##### 3-32-4-4. HTTPS Proxy에 연결
-
-Certificate Manager 인증서는 `--ssl-certificates`가 아니라 **`--certificate-manager-certificates`** 로 붙입니다. 리전 인증서는 인증서 맵 없이 리전 Target HTTPS Proxy에 직접 연결합니다. 아래 명령은 기존 인증서를 교체합니다.
-
-```bash
-gcloud compute target-https-proxies update https-proxy-alb-sbxtest01-shared \
-  --project="${SBX_GKE_PROJECT}" --region="${REGION}" \
-  --certificate-manager-certificates="${MANAGED_CERT}" \
-  --account="${ADMIN_ACCOUNT}" --impersonate-service-account="${TF_MANAGER}"
-```
-
-**비용** · Certificate Manager는 프로젝트당 인증서 100개까지 무료이며, RSA-2048·ECDSA 키는 연결당 과금도 없습니다. Cloud DNS에는 무료 등급이 없어 공개 영역을 새로 만들면 영역당 월 약 $0.20이 듭니다. 도메인을 이미 다른 DNS에서 운영 중이면 그쪽에 CNAME 한 줄만 추가하면 되므로 추가 비용은 없습니다.
-
-**운영 전환 시 협의 항목** · 비용보다 "공개 DNS에 검증용 CNAME을 영구히 둔다"는 점이 보안·DNS 담당 조직의 승인 대상이 됩니다. 요청 전에 이 레코드가 내부 주소를 노출하지 않는다는 점(검증용 서브도메인일 뿐 접속용 A 레코드는 사내 DNS에만 존재)을 함께 설명합니다.
+`managed.domains`에 접속 호스트가 있고 `managed.state`가 `ACTIVE`이면 3-33절로 진행합니다.
 
 <a name="-33-regional-https-proxy"></a>
 
@@ -2089,19 +2020,52 @@ gcloud compute target-https-proxies update https-proxy-alb-sbxtest01-shared \
 
 ### 3-33. Regional HTTPS Proxy
 
+**실행 위치** `infra-son01` · **로그인 계정** `son@sonmap.net` · **가장 계정** `tf-manager`
+
+공유 프록시와 URL Map을 조회해 호스트와 인증서 연결 상태를 확인합니다.
+
 ```bash
-# 실행 위치 infra-son01 | 대상 ${SBX_GKE_PROJECT} | 계정 ${ADMIN_ACCOUNT} | 가장 ${TF_MANAGER}
 gcloud compute target-https-proxies describe https-proxy-alb-sbxtest01-shared \
-  --project="${SBX_GKE_PROJECT}" --region="${REGION}" --format=json --account="${ADMIN_ACCOUNT}" \
-  --impersonate-service-account="${TF_MANAGER}"
-# 명시적 Not Found이고 Regional 인증서가 준비된 경우에만 생성합니다.
+  --project="${SBX_GKE_PROJECT}" --region="${REGION}" \
+  --account="${ADMIN_ACCOUNT}" --impersonate-service-account="${TF_MANAGER}" \
+  --format='yaml(name,urlMap,sslCertificates)'
+
+gcloud compute url-maps describe urlmap-alb-sbxtest01-shared \
+  --project="${SBX_GKE_PROJECT}" --region="${REGION}" \
+  --account="${ADMIN_ACCOUNT}" --impersonate-service-account="${TF_MANAGER}" \
+  --format='yaml(hostRules)'
+```
+
+아래 `CERT_REFS`는 `group01`만 연결하는 예시입니다. 공유 프록시가 다른 그룹도 서비스한다면 모든 호스트의 리전 Google 관리형 인증서를 `ACTIVE`로 준비하고, 해당 리소스 이름을 쉼표로 이어 붙입니다. 프록시 변경 시 전달한 목록 전체가 적용됩니다. [Google Cloud 인증서 연결 규칙](https://docs.cloud.google.com/load-balancing/docs/ssl-certificates#configuration_method_rules)
+
+```bash
+export CERT_REFS="projects/${SBX_GKE_PROJECT}/locations/${REGION}/certificates/${MANAGED_CERT}"
+```
+
+#### 3-33-1. 신규 프록시 생성
+
+프록시 조회에서 `NOT_FOUND`가 확인되면 실행합니다.
+
+```bash
 gcloud compute target-https-proxies create https-proxy-alb-sbxtest01-shared \
   --project="${SBX_GKE_PROJECT}" --region="${REGION}" \
   --url-map="projects/${SBX_GKE_PROJECT}/regions/${REGION}/urlMaps/urlmap-alb-sbxtest01-shared" \
-  --ssl-certificates="${SSL_CERTIFICATE}" --ssl-certificates-region="${REGION}" \
+  --certificate-manager-certificates="${CERT_REFS}" \
   --account="${ADMIN_ACCOUNT}" --impersonate-service-account="${TF_MANAGER}"
-
 ```
+
+#### 3-33-2. 기존 프록시 갱신
+
+프록시가 이미 있으면 준비된 인증서 전체 목록으로 갱신합니다.
+
+```bash
+gcloud compute target-https-proxies update https-proxy-alb-sbxtest01-shared \
+  --project="${SBX_GKE_PROJECT}" --region="${REGION}" \
+  --certificate-manager-certificates="${CERT_REFS}" \
+  --account="${ADMIN_ACCOUNT}" --impersonate-service-account="${TF_MANAGER}"
+```
+
+프록시 조회를 다시 실행해 인증서 연결을 확인합니다. 3-34절에서 HTTPS Forwarding Rule을 확인한 뒤 사내 PC에서 그룹 URL에 접속합니다.
 
 <a name="-34-내부-https-forwarding-rule"></a>
 
