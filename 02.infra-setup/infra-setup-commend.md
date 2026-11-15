@@ -20,25 +20,12 @@
 |---|---|
 | 준비 | [공통 변수](#0-공통-변수) |
 | 공통 인프라 | [API·IAM](#1-api와-관리자-권한) → [Shared VPC](#2-shared-vpc와-네트워크) → [서브넷 IAM](#2-2-서브넷별-iam) → [GKE·AR·ALB](#3-공통-기반) |
-| 기존 Workflows 경로 | [OAuth 설정](#4-oauth-값-등록), [그룹 권한](#5-그룹-관리-사전-설정), [Private Pool 점검](reference/cloudbuild-private-gke-vpn-design.md), [플랫폼 릴리스](#6-플랫폼-릴리스-게시) |
-| 이미지 준비 | [Helm 차트와 기본 이미지](#7-chart와-기본-이미지-미러링) → [표준 Notebook 이미지](#8-notebook-표준-이미지-빌드) |
-| 수동 설치·접속 검증 | [JupyterHub 수동 설치 및 접속 확인](#9-jupyterhub-수동-설치-및-접속-확인) · [GKE 접속 준비](#gke와-내부-https-접속-확인) · [내부 HTTPS·DNS](reference/sbx03-https-certificate-runbook.md) |
-| 운영·과제 배포 | [운영 자동화 경계](#10-운영-자동화-경계) · [그룹 공유 Sandbox 자동 배포](../03.sandbox_deploy/README.md#배포-흐름) 또는 [기존 Workflows 배포](../03.sandbox_deploy/03.1.request/legacy-deploy.md) |
+| JupyterHub 구축·검증 | [차트 반입과 이미지 준비](#4-jupyterhub-이미지-준비와-수동-설치) → [수동 기동 확인](#4-4-jupyterhub-수동-설치와-기동-확인) → [과제 HTTPS·로그인 검증](#4-5-과제용-내부-https-및-로그인-검증) |
+| 기존 과제별 자동 배포 준비 | [Workspace 그룹 자동 생성 준비](#5-기존-과제별-자동-배포용-workspace-설정) · [Private Pool 점검](reference/cloudbuild-private-gke-vpn-design.md) |
+| 2차 배포 | [공유 그룹 및 과제 배포](../03.sandbox_deploy/README.md#배포-흐름) · [기존 과제별 Workflows](../03.sandbox_deploy/03.1.request/legacy-deploy.md) |
+| 참고 | [배포 경로와 Cloud Build 참고](#부록-a-배포-경로와-cloud-build-참고) |
 
 그룹 공유 PoC만 구성하는 환경에서 공통 자원을 준비할 때는 기존 자동 배포용 Cloud Run·Workflows와 Google OAuth 구간을 구분해 적용합니다. 기존 환경에서는 자원 조회 결과를 확인한 뒤 필요한 생성·갱신 명령만 실행합니다.
-
-<a name="cloud-build-파일을-사용하는-시점"></a>
-
-**Cloud Build 파일을 사용하는 시점**
-
-| 파일 | 사용 시점 |
-|---|---|
-| [bootstrap-build.yaml](../03.sandbox_deploy/03.3.gke/cloudbuild/bootstrap-build.yaml) | 3-19-2 자동 경로에서 요청 API와 배포 Runner의 `:bootstrap` 이미지를 게시합니다. |
-| [mirror-jupyterhub-images.yaml](../03.sandbox_deploy/03.3.gke/cloudbuild/mirror-jupyterhub-images.yaml) | Hub·Proxy·Notebook 베이스 이미지가 내부 AR에 없거나 버전을 올릴 때 사용합니다. |
-| [platform-release.yaml](../03.sandbox_deploy/03.3.gke/cloudbuild/platform-release.yaml) | 승인된 플랫폼 버전을 게시할 때 API·Runner 이미지를 만들고 Cloud Run을 갱신합니다. |
-| [publish-sandbox-source.sh](../03.sandbox_deploy/03.3.gke/cloudbuild/publish-sandbox-source.sh) | 플랫폼 릴리스가 자동 호출해 Terraform ZIP을 GCS에 게시합니다. |
-
-Private Pool 접속은 [점검 절차](reference/cloudbuild-private-gke-vpn-design.md)에서 확인합니다. 표준 Notebook 이미지는 [8번 관리 VM 빌드](#8-notebook-표준-이미지-빌드)를 사용하고, 의존성 변경으로 별도 후보 이미지가 필요할 때는 [Notebook 운영 릴리스](../03.sandbox_deploy/03.3.gke/notebook-image/README.md#notebook-이미지-운영-릴리스)를 사용합니다.
 
 <a name="0-공통-변수"></a>
 
@@ -285,7 +272,7 @@ gcloud projects add-iam-policy-binding "${SBX_GKE_PROJECT}" --member="serviceAcc
 
 ```
 
-위 역할은 모두 **GCP 프로젝트 IAM**입니다. Cloud Identity 그룹 생성 권한은 여기에 포함되지 않습니다. 그룹은 GCP가 아니라 Workspace 디렉터리에 만들어지므로 [5. 그룹 관리 사전 설정](#5-그룹-관리-사전-설정)에서 별도로 부여합니다.
+위 역할은 모두 **GCP 프로젝트 IAM**입니다. Cloud Identity 그룹 생성 권한은 여기에 포함되지 않습니다. 그룹은 GCP가 아니라 Workspace 디렉터리에 만들어지므로 [5절 Workspace 그룹 자동 생성 준비](#5-기존-과제별-자동-배포용-workspace-설정)에서 별도로 부여합니다.
 
 <a name="-5-sbx-manager-권한--요청-처리--workflow--build-제출"></a>
 
@@ -491,39 +478,7 @@ BILLING_ACCOUNT_ID  DISPLAY_NAME    OPEN
 
 현재 서비스 계정의 `serviceAccount:tf-manager@...` 항목이 출력되면 등록 완료입니다. `deleted:serviceAccount:tf-manager@...?uid=...` 항목은 삭제된 이전 서비스 계정의 바인딩입니다.
 
-```bash
-# ── Cloud Identity 그룹 관리자 역할 직접 부여에 사용할 서비스 계정 Unique ID ──
-# 출력값은 tf-manager 서비스 계정의 숫자형 고유 ID입니다.
-# Workspace 최고 관리자는 이 ID로 tf-manager에 Groups Administrator 역할을 직접 부여합니다.
-# GCP IAM 역할과 별개이며 사용자 대신 실행하는 Domain-wide Delegation은 사용하지 않습니다.
-# 실행 위치 infra-son01 | 대상 ${SBX_GKE_PROJECT} | 계정 ${ADMIN_ACCOUNT}
-gcloud iam service-accounts describe "${TF_MANAGER}" --project="${SBX_GKE_PROJECT}" \
-  --account="${ADMIN_ACCOUNT}" --format='value(uniqueId)'
-```
-
-**이 ID로 수행할 작업 (gcloud 불가)** · Workspace 최고 관리자가 [admin.google.com](https://admin.google.com)에서 **계정 → 관리자 역할 → 그룹 관리자 → 서비스 계정 탭**에 위 uniqueId를 할당합니다. 자세한 절차는 [5. 그룹 관리 사전 설정](#5-그룹-관리-사전-설정)에 있습니다.
-
-GCP 프로젝트 IAM 역할로는 대체되지 않습니다. Cloud Identity 그룹은 GCP가 아니라 Workspace 디렉터리에 생성되므로, `roles/iam.serviceAccountAdmin`이나 `roles/resourcemanager.projectIamAdmin`을 부여해도 디렉터리 권한은 생기지 않습니다.
-
-누락 시 2차 배포에서 다음과 같이 실패합니다.
-
-```text
-google_cloud_identity_group.sandbox: Creation errored after 20m1s
-Error: Error waiting to create Group: got pending status "not found"
-```
-
-**부여 확인** · 반영에 몇 분 걸립니다. 권한 오류 없이 목록이 반환되면 완료입니다.
-
-```bash
-gcloud identity groups search \
-  --organization=51654893849 \
-  --labels=cloudidentity.googleapis.com/groups.discussion_forum \
-  --account=son@sonmap.net \
-  --impersonate-service-account=tf-manager@gcp-sbx-edp-gke01.iam.gserviceaccount.com \
-  --format='table(groupKey.id)'
-```
-
-`The caller does not have permission`이 나오면 아직 역할이 부여되지 않은 상태입니다.
+Workspace 그룹 자동 생성 권한이 필요한 배포는 [5절](#5-기존-과제별-자동-배포용-workspace-설정)의 절차를 따릅니다.
 
 </details>
 
@@ -1287,7 +1242,7 @@ flowchart TD
     F --> G["3-20~3-26 · 기존 자동 배포용 Cloud Run·Workflows"]
     F --> H["3-27~3-34 · 내부 ALB·TLS 구성"]
     G --> I["3-35절 · 필요 시 GitHub 트리거"]
-    H --> J["9절 · JupyterHub 기동 및 접속 확인"]
+    H --> J["4절 · JupyterHub 기동 및 접속 확인"]
 ```
 
 필요한 변수 선언을 아래 코드 블록 맨 앞에 포함했습니다. 별도 문서에서 변수를 설정할 필요 없이, 이 문서의 선언부터 같은 터미널에서 실행합니다. `# 주석`을 보며 순서대로 실행하고, **기존 자원이 있으면 해당 생성 명령을 건너뜁니다.** 403·인증·연결 오류면 중단합니다. 선택 작업은 주석을 해제한 경우에만 실행합니다.
@@ -1521,6 +1476,8 @@ gcloud artifacts repositories add-iam-policy-binding ar-sbxtest01-platform \
 
 ### 3-13. secrets create jupyter-oauth-client-id
 
+3-13~3-16절은 기존 과제별 Hub에서 Google OAuth를 사용할 때 실행합니다. 실제 클라이언트 값은 [4-5-1절](#4-5-1-google-oauth-값-등록--기존-과제별-로그인-사용-시)에서 등록합니다.
+
 ```bash
 # 기존 자원 확인
 # 실행 위치 infra-son01 | 대상 ${SBX_GKE_PROJECT} | 계정 ${ADMIN_ACCOUNT} | 가장 ${TF_MANAGER}
@@ -1660,7 +1617,7 @@ gcloud container clusters create-auto "${MAIN_CLUSTER}" --project="${SBX_GKE_PRO
 
 #### 3-19-1. 수동 작업 · infra-son01에서 Helm 차트 반입 및 이미지 빌드
 
-**1. Helm 차트 반입** · [7절의 Helm 차트 수동 반입](#7-1-infra-son01에서-helm-차트-수동-반입) 명령을 먼저 실행합니다. `infra-son01`에서 `son@sonmap.net`으로 AR에 로그인하고, 공식 저장소에서 JupyterHub `4.2.0`을 내려받아 `helm push`로 게시합니다. `helm show chart`에서 이미 확인되는 버전은 재사용합니다.
+**1. Helm 차트 반입** · [4-1절 Helm 차트 수동 반입](#4-1-infra-son01에서-helm-차트-수동-반입) 명령을 먼저 실행합니다. `infra-son01`에서 `son@sonmap.net`으로 AR에 로그인하고, 공식 저장소에서 JupyterHub `4.2.0`을 내려받아 `helm push`로 게시합니다. `helm show chart`에서 이미 확인되는 버전은 재사용합니다.
 
 **2. AR 로그인 및 이미지 빌드** · `infra-son01`의 Test02 저장소 루트에서 실행합니다. Docker가 설치되어 있고, `son@sonmap.net`에 AR 업로드 권한이 있어야 합니다.
 
@@ -1696,13 +1653,13 @@ gcloud artifacts docker images list "$AR_REPO" \
   --include-tags --account="$AR_ACCOUNT"
 ```
 
-두 이미지에 `bootstrap` 태그가 표시되면 3-20절으로 진행합니다. 7절로 돌아왔을 때 차트 버전이 이미 확인되면 차트 업로드를 건너뜁니다.
+두 이미지에 `bootstrap` 태그가 표시되면 3-20절으로 진행합니다. 4-1절을 실행할 때 차트 버전이 이미 확인되면 차트 업로드를 건너뜁니다.
 
 <a name="19-2-자동-작업--cloud-build로-bootstrap-이미지-빌드-및-게시"></a>
 
 #### 3-19-2. 자동 작업 · Cloud Build로 bootstrap 이미지 빌드 및 게시
 
-`infra-son01`의 Test02 저장소 루트에서 기존 Cloud Build 명령을 실행합니다. 이 명령은 bootstrap 이미지 2개를 게시합니다. JupyterHub Helm 차트는 [7절의 수동 반입](#7-1-infra-son01에서-helm-차트-수동-반입)으로 준비합니다. 빌드가 `SUCCESS`이고 두 이미지의 `bootstrap` 태그가 확인되면 3-20절으로 진행합니다.
+`infra-son01`의 Test02 저장소 루트에서 기존 Cloud Build 명령을 실행합니다. 이 명령은 bootstrap 이미지 2개를 게시합니다. JupyterHub Helm 차트는 [4-1절 Helm 차트 수동 반입](#4-1-infra-son01에서-helm-차트-수동-반입)으로 준비합니다. 빌드가 `SUCCESS`이고 두 이미지의 `bootstrap` 태그가 확인되면 3-20절으로 진행합니다.
 
 ```bash
 # 실행 위치 infra-son01 | 대상 ${SBX_GKE_PROJECT} | 계정 ${ADMIN_ACCOUNT} | 가장 ${TF_MANAGER} | 워크로드 실행 ${TF_MANAGER}
@@ -2113,165 +2070,34 @@ gcloud compute forwarding-rules create fr-alb-sbxtest01-shared-https --project="
 #   '--substitutions=_RELEASE_ID=git-$SHORT_SHA,_COMMIT_SHA=$COMMIT_SHA' --account="${ADMIN_ACCOUNT}" \
 #   --impersonate-service-account="${TF_MANAGER}"
 
-# 다음: OAuth Secret 값 등록 → Workspace tf-manager 그룹 관리자 역할 부여 → 릴리스 → 이미지 미러링 → 과제 요청
+# 다음: 4절 JupyterHub 준비·검증 → 기존 과제별 자동 배포라면 5절 Workspace 설정 → 2차 배포
 # Build 설정은 03.sandbox_deploy/03.3.gke/cloudbuild에, Cloud Run과 Workflows 설정은 03.sandbox_deploy/03.1.request에 있습니다.
 ```
 
 </details>
 
-<a name="4-oauth-값-등록"></a>
-
-<a name="-4-oauth-값-등록"></a>
-
-## 4. OAuth 값 등록
+## 4. JupyterHub 이미지 준비와 수동 설치
 
 <details>
 <summary>내용 펼치기 / 접기</summary>
-
-`infra-son01`에서 아래 두 변수에 발급받은 값을 넣고 실행합니다. 실제 값은 VM 터미널에서만 설정합니다. 이 블록을 실행하기 전에 `set +x`와 `set +o history`로 출력 추적과 Bash 명령 기록을 끕니다.
-
-```bash
-# 수행 위치: infra-son01 | 로그인 계정: son@sonmap.net
-# 수행 계정(가장): tf-manager@gcp-sbx-edp-gke01.iam.gserviceaccount.com
-# 대상 프로젝트: gcp-sbx-edp-gke01
-set +x
-set +o history
-```
-
-```bash
-export SBX_GKE_PROJECT="gcp-sbx-edp-gke01"
-export ADMIN_ACCOUNT="son@sonmap.net"
-export TF_MANAGER="tf-manager@${SBX_GKE_PROJECT}.iam.gserviceaccount.com"
-
-# 아래 두 값을 발급받은 OAuth 값으로 바꾼 뒤 실행합니다.
-export OAUTH_CLIENT_ID='발급받은 OAuth Client ID'
-export OAUTH_CLIENT_SECRET='발급받은 OAuth Client Secret'
-
-printf '%s' "$OAUTH_CLIENT_ID" | gcloud secrets versions add jupyter-oauth-client-id \
-  --project="$SBX_GKE_PROJECT" --account="$ADMIN_ACCOUNT" \
-  --impersonate-service-account="$TF_MANAGER" --data-file=-
-
-printf '%s' "$OAUTH_CLIENT_SECRET" | gcloud secrets versions add jupyter-oauth-client-secret \
-  --project="$SBX_GKE_PROJECT" --account="$ADMIN_ACCOUNT" \
-  --impersonate-service-account="$TF_MANAGER" --data-file=-
-
-unset OAUTH_CLIENT_ID OAUTH_CLIENT_SECRET
-```
-
-두 Secret에 새 버전이 생성됐는지 확인합니다. 이전에 Bash 기록을 사용하던 터미널이라면 `set -o history`로 다시 켤 수 있습니다.
-
-</details>
-
-<a name="5-그룹-관리-사전-설정"></a>
-
-<a name="-5-그룹-관리-사전-설정"></a>
-
-## 5. 그룹 관리 사전 설정
-
-<details>
-<summary>내용 펼치기 / 접기</summary>
-
-**수행 주체** · Workspace 최고 관리자(디렉터리 역할) + 플랫폼 운영자(릴리스 반영)
-**수행 위치** · admin.google.com + `infra-son01`의 Test02 저장소 루트
-
-2차 배포에서 Provisioner가 Cloud Identity 그룹을 생성하려면 아래 두 가지가 모두 준비되어야 합니다. 하나라도 빠지면 그룹 생성이 20분 타임아웃 후 `got pending status "not found"`로 실패합니다. **다음 절의 플랫폼 릴리스보다 먼저 끝나야 합니다.** 5-2절의 customer ID 수정이 릴리스에 포함되어야 하기 때문입니다.
-
-### 5-1. tf-manager에 그룹스 관리자 역할 부여
-
-**Workspace 관리 콘솔에서만 가능합니다.** gcloud와 GCP 콘솔로는 수행할 수 없으며, 1-4절의 GCP 프로젝트 IAM 역할로도 대체되지 않습니다. Cloud Identity 그룹은 GCP가 아니라 Workspace 디렉터리에 생성되기 때문입니다.
-
-Workspace 최고 관리자로 [admin.google.com/ac/roles](https://admin.google.com/ac/roles)에 접속합니다.
-
-| 순서 | 화면 |
-|---|---|
-| 1 | **계정 → 관리자 역할** |
-| 2 | **그룹스 관리자**(Groups Administrator) 선택 — `그룹스 리더`·`그룹스 편집자`는 생성 권한이 없습니다 |
-| 3 | **Admins** 카드 → **서비스 계정** 탭 → **서비스 계정 할당** |
-| 4 | `tf-manager@gcp-sbx-edp-gke01.iam.gserviceaccount.com` 입력 후 **추가** |
-| 5 | 조직 단위 `모든 조직 단위`, 만료 `사용 안함` 확인 후 **역할 지정** |
-
-입력란은 **이메일 주소**를 받습니다. 서비스 계정의 uniqueId(숫자)를 넣으면 `올바른 이메일 주소를 입력하세요`로 거부됩니다. 4번에서 목록에 추가하는 것만으로는 저장되지 않으므로 **5번의 `역할 지정`을 반드시 누릅니다.**
-
-**API로 처리할 수 없는 이유** · 같은 작업을 Admin SDK(`admin.googleapis.com`)로 호출하려면 두 가지에 막힙니다. 첫째, 이 API는 VPC Service Controls 미지원이라 PGA를 적용한 VM에서는 `The service you are trying to access is not available on Google's Restricted VIPs`로 거부됩니다. 둘째, VPC 밖(Cloud Shell)에서 시도해도 gcloud의 OAuth 클라이언트가 디렉터리 민감 범위를 요청할 때 조직 정책에 의해 `차단된 앱`으로 막히는 경우가 많습니다. 자체 OAuth 클라이언트를 만들어 허용 목록에 등록하면 우회할 수 있으나, 1회성 설정에는 과도합니다.
-
-**부여 확인** · 반영에 몇 분 걸립니다. 조회는 **Cloud Shell**에서 수행합니다. `cloudidentity.googleapis.com`은 VPC-SC 지원 API라 VM에서도 동작하지만, 권한이 없을 때와 그룹이 없을 때 모두 `There is no such a group`으로 응답해 구분이 되지 않습니다.
-
-```bash
-# 수행 위치: Cloud Shell | 수행 계정: admin@sonmap.net
-gcloud identity groups describe <이미 존재하는 그룹 이메일> \
-  --account=admin@sonmap.net \
-  --impersonate-service-account=tf-manager@gcp-sbx-edp-gke01.iam.gserviceaccount.com \
-  --format='yaml(name,groupKey.id,createTime)'
-```
-
-`createTime`이 조회되면 완료입니다. 조회할 그룹이 아직 없으면 2차 배포를 실행해 Terraform 로그에서 판정합니다. `google_cloud_identity_group.sandbox: Creation complete`가 나오면 역할이 적용된 것이고, `Still creating...`이 쌓이다 20분 뒤 `got pending status "not found"`로 끝나면 아직 적용되지 않은 상태입니다.
-
-> `gcloud identity groups search --organization=<조직 ID>`는 이 확인에 쓰지 않습니다. 해당 명령은 **GCP 조직 리소스** 조회 권한을 검사하므로, 디렉터리 역할이 정상이어도 `does not have permission to access organizations instance`가 납니다.
-
-### 5-2. CLOUD_IDENTITY_CUSTOMER_ID 확인 및 커밋
-
-Provisioner는 이 값으로 디렉터리를 찾습니다. 실제 Workspace customer ID와 다르면 생성 요청은 접수되고 조회만 실패해, 5-1절과 동일한 `not found` 증상이 납니다.
-
-```bash
-# 수행 위치: infra-son01의 Test02 저장소 루트
-git show HEAD:03.sandbox_deploy/03.1.request/provisioner-env.yaml | grep '^CLOUD_IDENTITY_CUSTOMER_ID:'
-```
-
-`__SET_CUSTOMER_ID__`가 남아 있으면 실제 값으로 수정하고 커밋합니다. 값은 admin.google.com의 **계정 → 계정 설정**에서 확인합니다.
-
-```bash
-sed -i 's/^CLOUD_IDENTITY_CUSTOMER_ID: __SET_CUSTOMER_ID__$/CLOUD_IDENTITY_CUSTOMER_ID: C03rw3vtp/' \
-  03.sandbox_deploy/03.1.request/provisioner-env.yaml
-git diff -- 03.sandbox_deploy/03.1.request/provisioner-env.yaml
-```
-
-기존 그룹을 재사용하는 경우에는 승인 요청의 import 정보를 준비합니다. Jupyter 로그인용 OAuth 설정은 이 절과 별개로 유지합니다. 상세 설정은 [Cloud Identity 그룹 Terraform 설정](reference/cloud-identity-group-terraform.md)에 있습니다.
-
-</details>
-
-<a name="6-플랫폼-릴리스-게시"></a>
-
-<a name="-6-플랫폼-릴리스-게시"></a>
-
-## 6. 플랫폼 릴리스 게시
-
-<details>
-<summary>내용 펼치기 / 접기</summary>
-
-실제 Sandbox 자동 배포에 사용할 릴리스는 [2차 Sandbox 사전준비](../03.sandbox_deploy/README.md#a-플랫폼-릴리스-게시)에서 게시합니다.
-
-</details>
 
 <a name="7-chart와-기본-이미지-미러링"></a>
 
 <a name="-7-chart와-기본-이미지-미러링"></a>
 
-## 7. Chart와 기본 이미지 미러링
-
-<details>
-<summary>내용 펼치기 / 접기</summary>
-
 <a name="infra-son01에서-helm-차트-수동-반입"></a>
 
-### 7-1. infra-son01에서 Helm 차트 수동 반입
+<a name="7-1-infra-son01에서-helm-차트-수동-반입"></a>
+
+### 4-1. infra-son01에서 Helm 차트 수동 반입
+
+AR에 승인된 차트 버전이 있는지 먼저 확인합니다. 해당 버전이 없거나 갱신이 필요할 때만 다운로드와 업로드를 실행합니다.
 
 승인된 관리 VM `infra-son01`에 로그인한 뒤, 같은 Bash 창에서 다음 명령을 순서대로 실행합니다. VM에는 Helm 3과 gcloud가 필요하며, 공식 Helm 저장소와 AR에 HTTPS로 접근할 수 있어야 합니다. AR은 Docker 형식 저장소를 사용합니다. `AR_ACCOUNT`는 대상 저장소에서 읽기·업로드 권한이 있는 gcloud 계정으로 지정합니다. 차트 반입은 관리 VM에서 완료하므로 GKE 접속과 Cloud Build 제출이 필요 없습니다.
 
-```mermaid
-sequenceDiagram
-    participant V as 관리 VM infra-son01
-    participant H as 공식 JupyterHub Helm 저장소
-    participant A as 내부 Artifact Registry
-    V->>A: AR 로그인 및 4.2.0 등록 여부 확인
-    alt 차트 버전 미등록
-        V->>H: helm pull jupyterhub 4.2.0
-        H-->>V: jupyterhub-4.2.0.tgz
-        V->>A: helm push
-    end
-    V->>A: helm show chart로 등록 확인
-```
+<a name="7-1-1-대상-설정-및-ar-로그인"></a>
 
-#### 7-1-1. 대상 설정 및 AR 로그인
+#### 4-1-1. 대상 설정 및 AR 로그인
 
 ```bash
 CHART_VERSION=4.2.0
@@ -2294,7 +2120,9 @@ helm show chart "$JUPYTER_CHART_URI" --version "$CHART_VERSION"
 
 `name: jupyterhub`와 `version: 4.2.0`이 보이면 게시된 버전을 사용합니다. `Login Succeeded` 이후 `FetchReference` 오류에 `jupyterhub:4.2.0: not found`가 표시되면, 같은 `infra-son01` 터미널에서 7-1-2절 다운로드와 7-1-3절 업로드를 실행합니다. 인증·권한·네트워크 오류는 먼저 해결합니다.
 
-#### 7-1-2. 공식 Helm 저장소에서 패키지 다운로드
+<a name="7-1-2-공식-helm-저장소에서-패키지-다운로드"></a>
+
+#### 4-1-2. 공식 Helm 저장소에서 패키지 다운로드
 
 ```bash
 # 실행 위치 infra-son01 | 대상 공식 Helm 저장소 및 VM 로컬 | 계정 VM 로그인 사용자
@@ -2311,7 +2139,9 @@ helm show chart "$CHART_PACKAGE"
 
 다운로드한 패키지의 `name: jupyterhub`와 `version: 4.2.0`을 확인합니다.
 
-#### 7-1-3. 내부 AR 업로드 및 검증
+<a name="7-1-3-내부-ar-업로드-및-검증"></a>
+
+#### 4-1-3. 내부 AR 업로드 및 검증
 
 ```bash
 # 실행 위치 infra-son01 | 대상 ${SBX_GKE_PROJECT}의 AR ar-sbxtest01-platform | 계정 $AR_ACCOUNT의 AR 인증
@@ -2325,11 +2155,17 @@ helm show chart "$JUPYTER_CHART_URI" --version "$CHART_VERSION"
 
 <a name="hubproxynotebook-기본-이미지-복사"></a>
 
-### 7-2. Hub·Proxy·Notebook 기본 이미지 복사
+<a name="7-2-hubproxynotebook-기본-이미지-복사"></a>
+
+### 4-2. Hub·Proxy·Notebook 기본 이미지 복사
+
+배포에서 참조하는 이미지와 태그가 내부 AR에 없을 때 반입합니다. 수작업과 Cloud Build 중 환경에 맞는 한 경로를 실행합니다. 필요한 버전이 이미 게시돼 있으면 4-3절에서 표준 Notebook 이미지 상태를 확인합니다.
 
 <a name="1-수작업-진행--infra-son01에서-내부-ar로-복사"></a>
 
-#### 7-2-1. 수작업 진행 · infra-son01에서 내부 AR로 복사
+<a name="7-2-1-수작업-진행--infra-son01에서-내부-ar로-복사"></a>
+
+#### 4-2-1. 수작업 진행 · infra-son01에서 내부 AR로 복사
 
 **수행 위치** · `infra-son01`  
 **수행 계정** · VM 로그인 사용자, AR 인증은 `son@sonmap.net`
@@ -2371,13 +2207,15 @@ gcloud artifacts docker images list "$IMAGE_AR" \
   --include-tags --account="$AR_ACCOUNT"
 ```
 
-세 이미지의 태그가 확인되면 8절 Notebook 표준 이미지 빌드로 진행합니다.
+세 이미지의 태그가 확인되면 4-3절의 표준 Notebook 이미지 확인으로 진행합니다.
 
 <a name="2-자동-작업--관리형-cloud-build에서-복사"></a>
 
-#### 7-2-2. 자동 작업 · 관리형 Cloud Build에서 복사
+<a name="7-2-2-자동-작업--관리형-cloud-build에서-복사"></a>
 
-수작업 대신 관리형 Cloud Build로 반입할 때 아래 명령을 실행합니다. 자동 작업을 이미 시작했다면 완료 후 AR 태그를 확인하고 8절로 진행합니다.
+#### 4-2-2. 자동 작업 · 관리형 Cloud Build에서 복사
+
+수작업 대신 관리형 Cloud Build로 반입할 때 아래 명령을 실행합니다. 자동 작업을 이미 시작했다면 완료 후 AR 태그를 확인하고 4-3절로 진행합니다.
 
 ```bash
 export SBX_GKE_PROJECT="gcp-sbx-edp-gke01"
@@ -2402,16 +2240,13 @@ gcloud builds submit --no-source --project="${SBX_GKE_PROJECT}" --region="${REGI
 
 기본 이미지 복사 Build가 SUCCESS인지 확인합니다. 외부 다운로드가 가능한 관리형 Build에서 실행합니다.
 
-</details>
-
 <a name="8-notebook-표준-이미지-빌드"></a>
 
 <a name="-8-notebook-표준-이미지-빌드"></a>
 
-## 8. Notebook 표준 이미지 빌드
+### 4-3. Notebook 표준 이미지 빌드
 
-<details>
-<summary>내용 펼치기 / 접기</summary>
+배포에서 사용할 승인 이미지가 AR에 있으면 해당 이미지를 사용합니다. 첫 게시 또는 승인된 이미지 변경 시 아래 명령으로 빌드합니다.
 
 운영자는 승인된 관리 VM `infra-son01`의 Test02 저장소 루트에서 Docker BuildKit으로 표준 이미지를 빌드하고 내부 AR에 게시합니다. 표준 이미지는 공통 APT 도구와 Google Cloud CLI, Python 라이브러리, Notebook 시작 스크립트를 포함합니다. Docker 빌드 환경에서 OS APT 저장소, Google Cloud APT 저장소와 내부 AR에 접근할 수 있어야 합니다. VM에서 접근이 허용된 APT 경로를 사용하고, VM 호스트와 Docker 빌드 환경의 접속 여부를 각각 확인합니다.
 
@@ -2428,7 +2263,9 @@ NOTEBOOK_PIP_MODE=index
 
 `TARGET_PLATFORM`은 GKE 대상 노드에 맞춥니다. 예제 태그가 이미 게시되어 있으면 기존 이미지를 사용하거나, 변경 버전에 새로운 승인 태그를 지정합니다. 기존 과제별 배포에서 새 태그를 사용할 경우 사용자 홈 설정도 함께 적용합니다. [이미지 적용 절차](../03.sandbox_deploy/03.3.gke/notebook-image/README.md)
 
-### 8-1. Docker를 내부 AR에 인증하고 베이스 이미지를 확인
+<a name="8-1-docker를-내부-ar에-인증하고-베이스-이미지를-확인"></a>
+
+#### 4-3-1. Docker를 내부 AR에 인증하고 베이스 이미지를 확인
 
 ```bash
 # 실행 위치 infra-son01 | 대상 ${SBX_GKE_PROJECT}의 AR ar-sbxtest01-platform | 계정 $AR_ACCOUNT
@@ -2437,7 +2274,9 @@ NOTEBOOK_PIP_MODE=index
 docker pull --platform="$TARGET_PLATFORM" "$BASE_IMAGE"
 ```
 
-### 8-2. Python 패키지 설치 경로를 선택
+<a name="8-2-python-패키지-설치-경로를-선택"></a>
+
+#### 4-3-2. Python 패키지 설치 경로를 선택
 
 - `index`는 Docker 빌드 안에서 필요한 Python 패키지와 의존성을 모두 받을 수 있을 때 사용합니다.
 - 일부만 받을 수 있으면 [표준 이미지 wheel 반입 절차](../03.sandbox_deploy/03.3.gke/notebook-image/README.md#표준-이미지-wheel-반입)를 따라 완전한 wheel 모음을 `03.sandbox_deploy/03.3.gke/notebook-image/wheelhouse/`에 준비하고 아래 설정을 적용합니다. Dockerfile은 이 모드에서 Python 인덱스에 접속하지 않습니다. APT 설치에는 승인된 APT 접근 경로가 계속 필요합니다.
@@ -2446,7 +2285,9 @@ docker pull --platform="$TARGET_PLATFORM" "$BASE_IMAGE"
 NOTEBOOK_PIP_MODE=wheelhouse
 ```
 
-### 8-3. VM에서 빌드하고 확인 후 AR에 게시
+<a name="8-3-vm에서-빌드하고-확인-후-ar에-게시"></a>
+
+#### 4-3-3. VM에서 빌드하고 확인 후 AR에 게시
 
 ```bash
 # 실행 위치 infra-son01 | 대상 VM 로컬 Docker | 계정 VM 로그인 사용자
@@ -2467,29 +2308,24 @@ docker image inspect "$IMAGE" --format='{{range .RepoDigests}}{{println .}}{{end
 
 각 명령이 성공한 뒤 다음 명령을 실행합니다. 그룹 공유 PoC는 마지막 명령의 `이미지@sha256:…` 값을 승인 과제 JSON의 `image`에 넣고 배포합니다. 개발 중 추가 패키지는 [개발자 인터넷 PC → GCS → Notebook Pod 절차](../03.sandbox_deploy/03.3.gke/notebook-image/README.md#개발자-추가-패키지-gcs-경유)를 사용합니다.
 
-</details>
-
 <a name="9-jupyterhub-수동-설치-및-접속-확인"></a>
 
 <a name="-9-jupyterhub-수동-설치-및-접속-확인"></a>
 
-## 9. JupyterHub 수동 설치 및 접속 확인
-
-<details>
-<summary>내용 펼치기 / 접기</summary>
+### 4-4. JupyterHub 수동 설치와 기동 확인
 
 `sbx03-smoke`에서 Hub와 Proxy 기동을 확인합니다. 실제 과제의 접속 검증은 과제용 Namespace, ALB 연결, 인증 설정을 갖춘 뒤 진행합니다.
 
 ```mermaid
 flowchart TD
-    A["9-2 · 관리 VM에서 GKE DNS 접속 확인"]
-    A --> B["9-3 · 내부 AR의 차트와 이미지 확인"]
-    B --> C["9-4 · Helm으로 sbx03-smoke 기동"]
+    A["4-4-1~2 · 관리 VM에서 GKE DNS 접속 확인"]
+    A --> B["4-4-3 · 내부 AR의 차트와 이미지 확인"]
+    B --> C["4-4-4 · Helm으로 sbx03-smoke 기동"]
     C --> D{"Hub·Proxy Pod가 준비됐는가?"}
     D -->|아니요| E["Pod 이벤트·로그 확인"]
     E --> D
-    D -->|예| F["9-5 · 실제 과제의 ALB와 HTTPS 확인"]
-    F --> G["Google 로그인·Notebook·PVC 검증"]
+    D -->|예| F["4-5 · 실제 과제의 ALB와 HTTPS 확인"]
+    F --> G["배포 경로별 로그인·Notebook·PVC 검증"]
 ```
 
 **수행 위치** · `infra-son01`의 Test02 저장소 루트  
@@ -2501,7 +2337,9 @@ flowchart TD
 
 <a name="9-0-gke와-내부-https-접속-준비"></a>
 
-### 9-1. GKE와 내부 HTTPS 접속 준비
+<a name="9-1-gke와-내부-https-접속-준비"></a>
+
+#### 4-4-1. GKE와 내부 HTTPS 접속 준비
 
 관리 VM에서 DNS 엔드포인트로 Namespace 목록을 확인합니다. DNS 접속이 아직 비활성화된 클러스터에서만 첫 명령을 실행합니다.
 
@@ -2519,7 +2357,9 @@ CLOUDSDK_CORE_ACCOUNT=son@sonmap.net kubectl --kubeconfig="$HOME/.kube/config-sb
 
 <a name="dns-엔드포인트로-kubectl과-helm-실행"></a>
 
-#### 9-1-1. DNS 엔드포인트로 kubectl과 Helm 실행
+<a name="9-1-1-dns-엔드포인트로-kubectl과-helm-실행"></a>
+
+##### 4-4-1-1. DNS 엔드포인트로 kubectl과 Helm 실행
 
 `kubectl get pods -A` 실행 시 `https://10.253.3.2/api`에서 `EOF`가 발생하면 현재 터미널이 사설 IP를 가리키는 kubeconfig를 읽고 있는지 확인합니다. 위에서 만든 DNS용 kubeconfig를 같은 터미널에 지정합니다.
 
@@ -2541,7 +2381,9 @@ kubectl get pods -A
 
 <a name="9-1-gke-dns-접속-확인"></a>
 
-### 9-2. GKE DNS 접속 확인
+<a name="9-2-gke-dns-접속-확인"></a>
+
+#### 4-4-2. GKE DNS 접속 확인
 
 ```bash
 export KUBECONFIG="$HOME/.kube/config-sbx-dns"
@@ -2557,7 +2399,9 @@ kubectl get pods -A
 
 <a name="9-2-내부-ar-차트와-이미지-확인"></a>
 
-### 9-3. 내부 AR 차트와 이미지 확인
+<a name="9-3-내부-ar-차트와-이미지-확인"></a>
+
+#### 4-4-3. 내부 AR 차트와 이미지 확인
 
 ```bash
 export AR_REPO="asia-northeast3-docker.pkg.dev/gcp-sbx-edp-gke01/ar-sbxtest01-platform"
@@ -2577,13 +2421,15 @@ gcloud artifacts docker images list "$AR_REPO" \
 | Proxy 이미지 | `jupyterhub-configurable-http-proxy:4.6.3` |
 | 표준 Notebook 이미지 | `jupyterhub-k8s-singleuser-standard:4.2.0-r2-home` 또는 승인된 이미지 |
 
-차트가 없거나 Helm 인증이 만료됐으면 [7절 Helm 차트 수동 반입](#7-1-infra-son01에서-helm-차트-수동-반입)을 확인합니다. 표준 Notebook 이미지가 없으면 [8절](#8-notebook-표준-이미지-빌드)에서 빌드합니다.
+차트가 없거나 Helm 인증이 만료됐으면 [4-1절 Helm 차트 수동 반입](#4-1-infra-son01에서-helm-차트-수동-반입)을 확인합니다. 표준 Notebook 이미지가 없으면 [4-3절](#4-3-notebook-표준-이미지-빌드)에서 빌드합니다.
 
 <a name="8-3-수동-기동-확인용-values-파일-생성-및-helm-설치"></a>
 
 <a name="9-3-수동-기동-확인용-values-파일-생성-및-helm-설치"></a>
 
-### 9-4. 수동 기동 확인용 values 파일 생성 및 Helm 설치
+<a name="9-4-수동-기동-확인용-values-파일-생성-및-helm-설치"></a>
+
+#### 4-4-4. 수동 기동 확인용 values 파일 생성 및 Helm 설치
 
 `infra-son01`의 Test02 저장소 루트에서 아래 명령으로 `$HOME/.config/jupyterhub/sbx03-smoke-values.yaml`을 생성합니다. 기존 과제 릴리스와 구분하기 위해 `sbx03-smoke` Namespace와 릴리스를 사용합니다. 이 파일은 Hub와 Proxy 기동 확인용입니다. 실제 로그인과 사용자 Notebook 시험은 과제용 인증·저장소 설정을 준비한 뒤 진행합니다.
 
@@ -2640,28 +2486,203 @@ kubectl -n "$NAMESPACE" get pods,svc
 
 <a name="9-4-과제용-내부-https-및-로그인-확인"></a>
 
-### 9-5. 과제용 내부 HTTPS 및 로그인 확인
+<a name="9-5-과제용-내부-https-및-로그인-확인"></a>
 
-9-4의 기동 확인용 릴리스에는 내부 ALB를 연결하지 않습니다. 아래 항목은 실제 과제 Namespace에서 과제용 values와 인증 설정을 적용한 뒤 확인합니다.
+### 4-5. 과제용 내부 HTTPS 및 로그인 검증
+
+4-4절의 `sbx03-smoke`는 Hub와 Proxy 기동을 확인하는 릴리스입니다. 아래 절차는 과제용 values와 인증 설정이 적용된 실제 배포에 사용합니다. 내부 ALB TLS 인증서는 [3-32절](#3-32-regional-ssl-인증서-확인-및-등록)에서 관리하고, 이 절에서 브라우저 접속과 사용자 로그인을 확인합니다.
+
+<a name="4-oauth-값-등록"></a>
+
+<a name="-4-oauth-값-등록"></a>
+
+#### 4-5-1. Google OAuth 값 등록 · 기존 과제별 로그인 사용 시
+
+Google OAuth는 사용자가 Google 계정으로 로그인하도록 하는 설정입니다. 내부 ALB의 TLS 인증서는 브라우저와 ALB 사이의 HTTPS 연결에 사용됩니다. Google 로그인 경로를 사용할 때만 OAuth 클라이언트와 두 개의 Secret Manager 값이 필요합니다. 공유 그룹 PoC는 승인된 이메일과 테스트 비밀번호로 Hub에 로그인합니다.
+
+```mermaid
+sequenceDiagram
+    participant B as 브라우저
+    participant A as 내부 ALB
+    participant H as JupyterHub
+    participant G as Google OAuth
+    B->>A: HTTPS로 과제 URL 접속
+    A->>H: 요청 전달
+    H-->>B: Google 로그인 화면으로 이동
+    B->>G: Google 계정으로 인증
+    G-->>B: 등록된 콜백 URL로 리디렉션
+    B->>A: HTTPS로 콜백 요청
+    A->>H: 콜백 전달
+    H->>G: 클라이언트 자격 증명으로 인증 코드 교환
+    H-->>B: Hub 로그인 완료
+```
+
+OAuth 클라이언트에 실제 과제의 HTTPS 콜백 URL을 먼저 등록합니다. 3-13~3-16절에서 Secret과 접근 권한을 준비한 뒤, 처음 연결하거나 클라이언트 값을 변경할 때 아래 명령을 실행합니다. [Google OAuth 콜백 등록](reference/sbx03-google-oauth-runbook.md)
+
+`infra-son01`에서 아래 두 변수에 발급받은 값을 넣고 실행합니다. 실제 값은 VM 터미널에서만 설정합니다. 이 블록을 실행하기 전에 `set +x`와 `set +o history`로 출력 추적과 Bash 명령 기록을 끕니다.
+
+```bash
+# 수행 위치: infra-son01 | 로그인 계정: son@sonmap.net
+# 수행 계정(가장): tf-manager@gcp-sbx-edp-gke01.iam.gserviceaccount.com
+# 대상 프로젝트: gcp-sbx-edp-gke01
+set +x
+set +o history
+```
+
+```bash
+export SBX_GKE_PROJECT="gcp-sbx-edp-gke01"
+export ADMIN_ACCOUNT="son@sonmap.net"
+export TF_MANAGER="tf-manager@${SBX_GKE_PROJECT}.iam.gserviceaccount.com"
+
+# 아래 두 값을 발급받은 OAuth 값으로 바꾼 뒤 실행합니다.
+export OAUTH_CLIENT_ID='발급받은 OAuth Client ID'
+export OAUTH_CLIENT_SECRET='발급받은 OAuth Client Secret'
+
+printf '%s' "$OAUTH_CLIENT_ID" | gcloud secrets versions add jupyter-oauth-client-id \
+  --project="$SBX_GKE_PROJECT" --account="$ADMIN_ACCOUNT" \
+  --impersonate-service-account="$TF_MANAGER" --data-file=-
+
+printf '%s' "$OAUTH_CLIENT_SECRET" | gcloud secrets versions add jupyter-oauth-client-secret \
+  --project="$SBX_GKE_PROJECT" --account="$ADMIN_ACCOUNT" \
+  --impersonate-service-account="$TF_MANAGER" --data-file=-
+
+unset OAUTH_CLIENT_ID OAUTH_CLIENT_SECRET
+```
+
+두 Secret에 새 버전이 생성됐는지 확인합니다. 이전에 Bash 기록을 사용하던 터미널이라면 `set -o history`로 다시 켤 수 있습니다.
+
+#### 4-5-2. 과제 접속 및 Notebook 확인
 
 1. Hub와 Proxy Pod가 준비됐는지 확인합니다.
-2. 내부 ALB의 URL Map이 과제 호스트를 올바른 백엔드로 전달하고, 백엔드가 `HEALTHY`인지 확인합니다. Helm 설치 후 과제 경로가 아직 없다면 NEG와 ALB 연결을 먼저 구성합니다. [내부 HTTPS와 인증서](reference/sbx03-https-certificate-runbook.md)
-3. 테스트 PC에서 내부 DNS와 HTTPS 접속을 확인합니다. Google 로그인 후 Notebook 서버를 한 번 시작하고 `kubectl -n "$NAMESPACE" get pods,pvc`로 사용자 Pod와 PVC를 확인합니다. [Google OAuth 검증](reference/sbx03-google-oauth-runbook.md)
+2. 내부 ALB URL Map의 호스트 규칙과 백엔드 `HEALTHY` 상태를 확인합니다. [내부 HTTPS와 인증서](reference/sbx03-https-certificate-runbook.md)
+3. 사내 테스트 PC에서 내부 DNS와 HTTPS 접속을 확인합니다. 공유 그룹은 Hub 로컬 계정으로, 기존 Google OAuth 경로는 등록한 Google 계정으로 로그인합니다.
+4. Notebook을 시작하고 `kubectl -n "$NAMESPACE" get pods,pvc`로 사용자 Pod와 PVC를 확인합니다.
 
 </details>
+
+<a name="5-그룹-관리-사전-설정"></a>
+
+<a name="-5-그룹-관리-사전-설정"></a>
+
+## 5. 기존 과제별 자동 배포용 Workspace 설정
+
+<details>
+<summary>내용 펼치기 / 접기</summary>
+
+**수행 주체** · Workspace 최고 관리자(디렉터리 역할) + 플랫폼 운영자(릴리스 반영)
+**수행 위치** · admin.google.com + `infra-son01`의 Test02 저장소 루트
+
+기존 과제별 자동 배포에서 Provisioner가 Google Workspace 그룹을 새로 만들 때 필요한 1회성 설정입니다. Workspace 최고 관리자가 그룹 생성 권한을 부여하고, 플랫폼 운영자가 Customer ID를 확인합니다. 이후 [2차 배포 문서의 플랫폼 릴리스 게시](../03.sandbox_deploy/README.md#a-플랫폼-릴리스-게시)로 진행합니다. 공유 그룹의 Hub 로컬 로그인과 수동 기동 확인에는 적용하지 않습니다.
+
+### 5-1. tf-manager에 그룹스 관리자 역할 부여
+
+이 절에서는 Workspace 관리 콘솔에서 디렉터리 관리자 역할을 지정합니다. 1-4절의 GCP 프로젝트 IAM은 프로젝트 리소스 권한에 적용됩니다.
+
+Workspace 최고 관리자로 [admin.google.com/ac/roles](https://admin.google.com/ac/roles)에 접속합니다.
+
+| 순서 | 화면 |
+|---|---|
+| 1 | **계정 → 관리자 역할** |
+| 2 | **그룹스 관리자**(Groups Administrator) 선택 — `그룹스 리더`·`그룹스 편집자`는 생성 권한이 없습니다 |
+| 3 | **Admins** 카드 → **서비스 계정** 탭 → **서비스 계정 할당** |
+| 4 | `tf-manager@gcp-sbx-edp-gke01.iam.gserviceaccount.com` 입력 후 **추가** |
+| 5 | 조직 단위 `모든 조직 단위`, 만료 `사용 안함` 확인 후 **역할 지정** |
+
+입력란은 **이메일 주소**를 받습니다. 서비스 계정의 uniqueId(숫자)를 넣으면 `올바른 이메일 주소를 입력하세요`로 거부됩니다. 4번에서 목록에 추가하는 것만으로는 저장되지 않으므로 **5번의 `역할 지정`을 반드시 누릅니다.**
+
+**부여 확인** · Workspace 고객 ID로 기존 그룹을 조회합니다. 아래 명령은 목록 조회 가능 여부를 확인합니다. 실제 그룹 생성 성공 여부는 2차 배포 실행 결과에서 확인합니다.
+
+```bash
+# 수행 위치: Cloud Shell | 로그인 계정: son@sonmap.net | 가장: tf-manager
+gcloud identity groups search \
+  --customer=C03rw3vtp \
+  --labels=cloudidentity.googleapis.com/groups.discussion_forum \
+  --account=son@sonmap.net \
+  --impersonate-service-account=tf-manager@gcp-sbx-edp-gke01.iam.gserviceaccount.com \
+  --format='table(name,groupKey.id)'
+```
+
+조회에 실패하면 Workspace 고객 ID와 `tf-manager`의 역할 할당을 확인합니다.
+
+### 5-2. CLOUD_IDENTITY_CUSTOMER_ID 확인 및 커밋
+
+Provisioner는 이 값으로 대상 Workspace 디렉터리를 지정합니다. 5-1절에서 사용한 실제 고객 ID와 일치하는지 확인합니다.
+
+```bash
+# 수행 위치: infra-son01의 Test02 저장소 루트
+git show HEAD:03.sandbox_deploy/03.1.request/provisioner-env.yaml | grep '^CLOUD_IDENTITY_CUSTOMER_ID:'
+```
+
+`__SET_CUSTOMER_ID__`가 남아 있으면 실제 값으로 수정하고 커밋합니다. 값은 admin.google.com의 **계정 → 계정 설정**에서 확인합니다.
+
+```bash
+sed -i 's/^CLOUD_IDENTITY_CUSTOMER_ID: __SET_CUSTOMER_ID__$/CLOUD_IDENTITY_CUSTOMER_ID: C03rw3vtp/' \
+  03.sandbox_deploy/03.1.request/provisioner-env.yaml
+git diff -- 03.sandbox_deploy/03.1.request/provisioner-env.yaml
+```
+
+변경 내용을 확인한 뒤 파일을 커밋합니다.
+
+```bash
+git commit --only -m 'Set Workspace customer ID for sandbox provisioning' -- \
+  03.sandbox_deploy/03.1.request/provisioner-env.yaml
+```
+
+기존 그룹을 재사용하는 경우에는 승인 요청의 import 정보를 준비합니다. 상세 설정은 [Cloud Identity 그룹 Terraform 설정](reference/cloud-identity-group-terraform.md)에 있습니다.
+
+</details>
+
+## 부록 A. 배포 경로와 Cloud Build 참고
+
+<details>
+<summary>내용 펼치기 / 접기</summary>
+
+<a name="6-플랫폼-릴리스-게시"></a>
+
+<a name="-6-플랫폼-릴리스-게시"></a>
+
+### A-1. 플랫폼 릴리스 게시 시점
+
+플랫폼 릴리스는 2차 자동 배포가 사용할 Terraform ZIP과 Runner·Provisioner 이미지를 승인한 Git 커밋 기준으로 게시하는 작업입니다. 기존 과제별 자동 배포를 처음 준비하거나 게시할 소스가 변경됐을 때 실행합니다. 수동 Helm 기동 확인에는 필요하지 않습니다. 변수 선언, Cloud Build 제출, 게시 결과 확인 명령은 [2차 배포 문서 최초 1회 · A. 플랫폼 릴리스 게시](../03.sandbox_deploy/README.md#a-플랫폼-릴리스-게시)에서 실행합니다.
 
 <a name="10-운영-자동화-경계"></a>
 
 <a name="-10-운영-자동화-경계"></a>
 
-## 10. 운영 자동화 경계
-
-<details>
-<summary>내용 펼치기 / 접기</summary>
+### A-2. 공통 인프라와 2차 배포의 작업 범위
 
 <a name="운영-자동화-경계"></a>
 
 공통 기반은 최초에 준비합니다. 과제마다 [2차 그룹 공유 자동 배포](../03.sandbox_deploy/README.md)를 사용합니다. 포털은 승인된 그룹 JSON을 GCS에 저장하고 Workflow를 호출합니다. 기존 과제별 Hub 경로는 [기존 Workflows 배포](../03.sandbox_deploy/03.1.request/legacy-deploy.md)를 따릅니다.
+
+### A-3. Cloud Build 파일별 용도
+
+<a name="cloud-build-파일을-사용하는-시점"></a>
+
+| 파일 | 사용 시점 |
+|---|---|
+| [bootstrap-build.yaml](../03.sandbox_deploy/03.3.gke/cloudbuild/bootstrap-build.yaml) | 3-19-2 자동 경로에서 요청 API와 배포 Runner의 `:bootstrap` 이미지를 게시합니다. |
+| [mirror-jupyterhub-images.yaml](../03.sandbox_deploy/03.3.gke/cloudbuild/mirror-jupyterhub-images.yaml) | Hub·Proxy·Notebook 베이스 이미지가 내부 AR에 없거나 버전을 올릴 때 사용합니다. |
+| [platform-release.yaml](../03.sandbox_deploy/03.3.gke/cloudbuild/platform-release.yaml) | 승인된 플랫폼 버전을 게시할 때 API·Runner 이미지를 만들고 Cloud Run을 갱신합니다. |
+| [publish-sandbox-source.sh](../03.sandbox_deploy/03.3.gke/cloudbuild/publish-sandbox-source.sh) | 플랫폼 릴리스가 자동 호출해 Terraform ZIP을 GCS에 게시합니다. |
+
+Private Pool 접속은 [점검 절차](reference/cloudbuild-private-gke-vpn-design.md)에서 확인합니다. 표준 Notebook 이미지는 [4-3절 관리 VM 빌드](#4-3-notebook-표준-이미지-빌드)를 사용하고, 의존성 변경으로 별도 후보 이미지가 필요할 때는 [Notebook 운영 릴리스](../03.sandbox_deploy/03.3.gke/notebook-image/README.md#notebook-이미지-운영-릴리스)를 사용합니다.
+
+### A-4. 관리 VM에서 Helm 차트를 반입하는 흐름
+
+```mermaid
+sequenceDiagram
+    participant V as 관리 VM infra-son01
+    participant H as 공식 JupyterHub Helm 저장소
+    participant A as 내부 Artifact Registry
+    V->>A: AR 로그인 및 4.2.0 등록 여부 확인
+    alt 차트 버전 미등록
+        V->>H: helm pull jupyterhub 4.2.0
+        H-->>V: jupyterhub-4.2.0.tgz
+        V->>A: helm push
+    end
+    V->>A: helm show chart로 등록 확인
+```
 
 </details>
 
@@ -2669,7 +2690,7 @@ kubectl -n "$NAMESPACE" get pods,svc
 
 <a name="-부록-기존-host-광역-iam-정리"></a>
 
-## 부록. 기존 Host 광역 IAM 정리
+## 부록 B. 기존 Host 광역 IAM 정리
 
 <details>
 <summary>내용 펼치기 / 접기</summary>
