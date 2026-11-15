@@ -2576,7 +2576,7 @@ kubectl config view --minify -o jsonpath='{.clusters[0].cluster.server}{"\n"}'
 kubectl get pods -A
 ```
 
-서버 주소가 `gke.goog`이고 Pod 목록이 조회되면 진행합니다. kubeconfig 파일이 아직 없으면 [GKE와 내부 HTTPS 접속 확인](#gke와-내부-https-접속-확인)에서 생성합니다.
+서버 주소가 `gke.goog`이고 Pod 목록이 조회되면 진행합니다. kubeconfig 파일이 아직 없으면 [4-4-1절](#4-4-1-gke와-내부-https-접속-준비)에서 생성합니다.
 
 <a name="8-2-내부-ar-차트와-이미지-확인"></a>
 
