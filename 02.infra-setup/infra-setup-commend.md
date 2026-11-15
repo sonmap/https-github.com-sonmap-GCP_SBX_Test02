@@ -21,9 +21,8 @@
 | 준비 | [공통 변수](#0-공통-변수) |
 | 공통 인프라 | [API·IAM](#1-api와-관리자-권한) → [Shared VPC](#2-shared-vpc와-네트워크) → [서브넷 IAM](#2-2-서브넷별-iam) → [GKE·AR·ALB](#3-공통-기반) |
 | JupyterHub 구축·검증 | [차트 반입과 이미지 준비](#4-jupyterhub-이미지-준비와-수동-설치) → [수동 기동 확인](#4-4-jupyterhub-수동-설치와-기동-확인) → [과제 HTTPS·로그인 검증](#4-5-과제용-내부-https-및-로그인-검증) |
-| 기존 과제별 자동 배포 준비 | [Workspace 그룹 자동 생성 준비](#5-기존-과제별-자동-배포용-workspace-설정) · [Private Pool 점검](reference/cloudbuild-private-gke-vpn-design.md) |
+| 기존 과제별 자동 배포 준비 | [Workspace 그룹스 관리자 역할](#1-4-2-google-workspace-그룹스-관리자-역할-부여) · [Workspace 고객 ID](#5-기존-과제별-자동-배포용-workspace-설정) · [Private Pool 점검](reference/cloudbuild-private-gke-vpn-design.md) |
 | 2차 배포 | [공유 그룹 및 과제 배포](../03.sandbox_deploy/README.md#배포-흐름) · [기존 과제별 Workflows](../03.sandbox_deploy/03.1.request/legacy-deploy.md) |
-| 참고 | [배포 경로와 Cloud Build 참고](#부록-a-배포-경로와-cloud-build-참고) |
 
 그룹 공유 PoC만 구성하는 환경에서 공통 자원을 준비할 때는 기존 자동 배포용 Cloud Run·Workflows와 Google OAuth 구간을 구분해 적용합니다. 기존 환경에서는 자원 조회 결과를 확인한 뒤 필요한 생성·갱신 명령만 실행합니다.
 
@@ -251,6 +250,8 @@ gcloud iam service-accounts create tf-manager --project="${SBX_GKE_PROJECT}" --d
 
 ### 1-4. tf-manager 권한 — CI/CD 기반 구축 · Build · Infrastructure Manager
 
+#### 1-4-1. GCP 프로젝트 IAM 역할 부여
+
 ```bash
 # 실행 위치 infra-son01 | 대상 ${SBX_GKE_PROJECT} | 계정 ${ADMIN_ACCOUNT}
 gcloud projects add-iam-policy-binding "${SBX_GKE_PROJECT}" --member="serviceAccount:${TF_MANAGER}" \
@@ -291,7 +292,37 @@ gcloud projects add-iam-policy-binding "${SBX_GKE_PROJECT}" --member="serviceAcc
 
 ```
 
-위 역할은 모두 **GCP 프로젝트 IAM**입니다. Cloud Identity 그룹 생성 권한은 여기에 포함되지 않습니다. 그룹은 GCP가 아니라 Workspace 디렉터리에 만들어지므로 [5절 Workspace 그룹 자동 생성 준비](#5-기존-과제별-자동-배포용-workspace-설정)에서 별도로 부여합니다.
+<a name="5-1-tf-manager에-그룹스-관리자-역할-부여"></a>
+
+#### 1-4-2. Google Workspace 그룹스 관리자 역할 부여
+
+기존 과제별 자동 배포에서 `tf-manager`가 Workspace 그룹을 생성해야 할 때 1회 수행합니다. 1-4-1절은 **GCP 프로젝트 IAM**, 이 절은 **Google Workspace 디렉터리 관리자 역할**을 설정합니다.
+
+Workspace 최고 관리자로 [admin.google.com/ac/roles](https://admin.google.com/ac/roles)에 접속합니다.
+
+| 순서 | 화면 |
+|---|---|
+| 1 | **계정 → 관리자 역할** |
+| 2 | **그룹스 관리자**(Groups Administrator) 선택 — `그룹스 리더`·`그룹스 편집자`는 생성 권한이 없습니다 |
+| 3 | **Admins** 카드 → **서비스 계정** 탭 → **서비스 계정 할당** → **서비스 계정 추가** 화면 |
+| 4 | `tf-manager@gcp-sbx-edp-gke01.iam.gserviceaccount.com` 입력 후 **추가** |
+| 5 | 조직 단위 `모든 조직 단위`, 만료 `사용 안함` 확인 후 **역할 지정** |
+
+입력란은 **이메일 주소**를 받습니다. 서비스 계정의 uniqueId(숫자)를 넣으면 `올바른 이메일 주소를 입력하세요`로 거부됩니다. 목록에 계정이 표시되면 우측 하단 **역할 지정**을 눌러 저장합니다.
+
+**부여 확인** · Workspace 고객 ID로 기존 그룹을 조회합니다. 아래 명령은 목록 조회 가능 여부를 확인합니다. 실제 그룹 생성 성공 여부는 2차 배포 실행 결과에서 확인합니다.
+
+```bash
+# 수행 위치: Cloud Shell | 로그인 계정: son@sonmap.net | 가장: tf-manager
+gcloud identity groups search \
+  --customer=C03rw3vtp \
+  --labels=cloudidentity.googleapis.com/groups.discussion_forum \
+  --account=son@sonmap.net \
+  --impersonate-service-account=tf-manager@gcp-sbx-edp-gke01.iam.gserviceaccount.com \
+  --format='table(name,groupKey.id)'
+```
+
+조회에 실패하면 Workspace 고객 ID와 `tf-manager`의 역할 할당을 확인합니다.
 
 <a name="-5-sbx-manager-권한--요청-처리--workflow--build-제출"></a>
 
@@ -497,7 +528,7 @@ BILLING_ACCOUNT_ID  DISPLAY_NAME    OPEN
 
 현재 서비스 계정의 `serviceAccount:tf-manager@...` 항목이 출력되면 등록 완료입니다. `deleted:serviceAccount:tf-manager@...?uid=...` 항목은 삭제된 이전 서비스 계정의 바인딩입니다.
 
-Workspace 그룹 자동 생성 권한이 필요한 배포는 [5절](#5-기존-과제별-자동-배포용-workspace-설정)의 절차를 따릅니다.
+Workspace 그룹 자동 생성 권한이 필요한 배포는 [1-4-2절](#1-4-2-google-workspace-그룹스-관리자-역할-부여)의 절차를 따릅니다.
 
 </details>
 
@@ -2608,41 +2639,13 @@ unset OAUTH_CLIENT_ID OAUTH_CLIENT_SECRET
 **수행 주체** · Workspace 최고 관리자(디렉터리 역할) + 플랫폼 운영자(릴리스 반영)
 **수행 위치** · admin.google.com + `infra-son01`의 Test02 저장소 루트
 
-기존 과제별 자동 배포에서 Provisioner가 Google Workspace 그룹을 새로 만들 때 필요한 1회성 설정입니다. Workspace 최고 관리자가 그룹 생성 권한을 부여하고, 플랫폼 운영자가 Customer ID를 확인합니다. 이후 [2차 배포 문서의 플랫폼 릴리스 게시](../03.sandbox_deploy/README.md#a-플랫폼-릴리스-게시)로 진행합니다. 공유 그룹의 Hub 로컬 로그인과 수동 기동 확인에는 적용하지 않습니다.
+기존 과제별 자동 배포에서 Provisioner가 Google Workspace 그룹을 새로 만들 때 필요한 1회성 설정입니다. Workspace 최고 관리자가 [1-4-2절에서 그룹 생성 권한을 부여](#1-4-2-google-workspace-그룹스-관리자-역할-부여)한 뒤 플랫폼 운영자가 이 절에서 Customer ID를 확인합니다. 이후 [2차 배포 문서의 플랫폼 릴리스 게시](../03.sandbox_deploy/README.md#a-플랫폼-릴리스-게시)로 진행합니다. 공유 그룹의 Hub 로컬 로그인과 수동 기동 확인에는 적용하지 않습니다.
 
-### 5-1. tf-manager에 그룹스 관리자 역할 부여
+<a name="5-2-cloud_identity_customer_id-확인-및-커밋"></a>
 
-이 절에서는 Workspace 관리 콘솔에서 디렉터리 관리자 역할을 지정합니다. 1-4절의 GCP 프로젝트 IAM은 프로젝트 리소스 권한에 적용됩니다.
+### 5-1. CLOUD_IDENTITY_CUSTOMER_ID 확인 및 커밋
 
-Workspace 최고 관리자로 [admin.google.com/ac/roles](https://admin.google.com/ac/roles)에 접속합니다.
-
-| 순서 | 화면 |
-|---|---|
-| 1 | **계정 → 관리자 역할** |
-| 2 | **그룹스 관리자**(Groups Administrator) 선택 — `그룹스 리더`·`그룹스 편집자`는 생성 권한이 없습니다 |
-| 3 | **Admins** 카드 → **서비스 계정** 탭 → **서비스 계정 할당** |
-| 4 | `tf-manager@gcp-sbx-edp-gke01.iam.gserviceaccount.com` 입력 후 **추가** |
-| 5 | 조직 단위 `모든 조직 단위`, 만료 `사용 안함` 확인 후 **역할 지정** |
-
-입력란은 **이메일 주소**를 받습니다. 서비스 계정의 uniqueId(숫자)를 넣으면 `올바른 이메일 주소를 입력하세요`로 거부됩니다. 4번에서 목록에 추가하는 것만으로는 저장되지 않으므로 **5번의 `역할 지정`을 반드시 누릅니다.**
-
-**부여 확인** · Workspace 고객 ID로 기존 그룹을 조회합니다. 아래 명령은 목록 조회 가능 여부를 확인합니다. 실제 그룹 생성 성공 여부는 2차 배포 실행 결과에서 확인합니다.
-
-```bash
-# 수행 위치: Cloud Shell | 로그인 계정: son@sonmap.net | 가장: tf-manager
-gcloud identity groups search \
-  --customer=C03rw3vtp \
-  --labels=cloudidentity.googleapis.com/groups.discussion_forum \
-  --account=son@sonmap.net \
-  --impersonate-service-account=tf-manager@gcp-sbx-edp-gke01.iam.gserviceaccount.com \
-  --format='table(name,groupKey.id)'
-```
-
-조회에 실패하면 Workspace 고객 ID와 `tf-manager`의 역할 할당을 확인합니다.
-
-### 5-2. CLOUD_IDENTITY_CUSTOMER_ID 확인 및 커밋
-
-Provisioner는 이 값으로 대상 Workspace 디렉터리를 지정합니다. 5-1절에서 사용한 실제 고객 ID와 일치하는지 확인합니다.
+Provisioner는 이 값으로 대상 Workspace 디렉터리를 지정합니다. 1-4-2절에서 사용한 실제 고객 ID와 일치하는지 확인합니다.
 
 ```bash
 # 수행 위치: infra-son01의 Test02 저장소 루트
@@ -2665,125 +2668,5 @@ git commit --only -m 'Set Workspace customer ID for sandbox provisioning' -- \
 ```
 
 기존 그룹을 재사용하는 경우에는 승인 요청의 import 정보를 준비합니다. 상세 설정은 [Cloud Identity 그룹 Terraform 설정](reference/cloud-identity-group-terraform.md)에 있습니다.
-
-</details>
-
-## 부록 A. 배포 경로와 Cloud Build 참고
-
-<details>
-<summary>내용 펼치기 / 접기</summary>
-
-<a name="6-플랫폼-릴리스-게시"></a>
-
-<a name="-6-플랫폼-릴리스-게시"></a>
-
-### A-1. 플랫폼 릴리스 게시 시점
-
-플랫폼 릴리스는 2차 자동 배포가 사용할 Terraform ZIP과 Runner·Provisioner 이미지를 승인한 Git 커밋 기준으로 게시하는 작업입니다. 기존 과제별 자동 배포를 처음 준비하거나 게시할 소스가 변경됐을 때 실행합니다. 수동 Helm 기동 확인에는 필요하지 않습니다. 변수 선언, Cloud Build 제출, 게시 결과 확인 명령은 [2차 배포 문서 최초 1회 · A. 플랫폼 릴리스 게시](../03.sandbox_deploy/README.md#a-플랫폼-릴리스-게시)에서 실행합니다.
-
-<a name="10-운영-자동화-경계"></a>
-
-<a name="-10-운영-자동화-경계"></a>
-
-### A-2. 공통 인프라와 2차 배포의 작업 범위
-
-<a name="운영-자동화-경계"></a>
-
-공통 기반은 최초에 준비합니다. 과제마다 [2차 그룹 공유 자동 배포](../03.sandbox_deploy/README.md)를 사용합니다. 포털은 승인된 그룹 JSON을 GCS에 저장하고 Workflow를 호출합니다. 기존 과제별 Hub 경로는 [기존 Workflows 배포](../03.sandbox_deploy/03.1.request/legacy-deploy.md)를 따릅니다.
-
-### A-3. Cloud Build 파일별 용도
-
-<a name="cloud-build-파일을-사용하는-시점"></a>
-
-| 파일 | 사용 시점 |
-|---|---|
-| [bootstrap-build.yaml](../03.sandbox_deploy/03.3.gke/cloudbuild/bootstrap-build.yaml) | 3-19-2 자동 경로에서 요청 API와 배포 Runner의 `:bootstrap` 이미지를 게시합니다. |
-| [mirror-jupyterhub-images.yaml](../03.sandbox_deploy/03.3.gke/cloudbuild/mirror-jupyterhub-images.yaml) | Hub·Proxy·Notebook 베이스 이미지가 내부 AR에 없거나 버전을 올릴 때 사용합니다. |
-| [platform-release.yaml](../03.sandbox_deploy/03.3.gke/cloudbuild/platform-release.yaml) | 승인된 플랫폼 버전을 게시할 때 API·Runner 이미지를 만들고 Cloud Run을 갱신합니다. |
-| [publish-sandbox-source.sh](../03.sandbox_deploy/03.3.gke/cloudbuild/publish-sandbox-source.sh) | 플랫폼 릴리스가 자동 호출해 Terraform ZIP을 GCS에 게시합니다. |
-
-Private Pool 접속은 [점검 절차](reference/cloudbuild-private-gke-vpn-design.md)에서 확인합니다. 표준 Notebook 이미지는 [4-3절 관리 VM 빌드](#4-3-notebook-표준-이미지-빌드)를 사용하고, 의존성 변경으로 별도 후보 이미지가 필요할 때는 [Notebook 운영 릴리스](../03.sandbox_deploy/03.3.gke/notebook-image/README.md#notebook-이미지-운영-릴리스)를 사용합니다.
-
-### A-4. 관리 VM에서 Helm 차트를 반입하는 흐름
-
-```mermaid
-sequenceDiagram
-    participant V as 관리 VM infra-son01
-    participant H as 공식 JupyterHub Helm 저장소
-    participant A as 내부 Artifact Registry
-    V->>A: AR 로그인 및 4.2.0 등록 여부 확인
-    alt 차트 버전 미등록
-        V->>H: helm pull jupyterhub 4.2.0
-        H-->>V: jupyterhub-4.2.0.tgz
-        V->>A: helm push
-    end
-    V->>A: helm show chart로 등록 확인
-```
-
-</details>
-
-<a name="부록-기존-host-광역-iam-정리"></a>
-
-<a name="-부록-기존-host-광역-iam-정리"></a>
-
-## 부록 B. 기존 Host 광역 IAM 정리
-
-<details>
-<summary>내용 펼치기 / 접기</summary>
-
-> **실행 시점** · 2차 Sandbox 배포가 최소 1회 성공한 뒤에 수행합니다. 서브넷별 권한만으로 GKE 생성·ALB Backend health·과제 배포가 모두 정상인지 확인되기 전에는 실행하지 않습니다.
-
-신규 설치의 필수 단계가 아닙니다. 이전 저장소의 명령으로 부여한 **동일한 무조건부 바인딩**만 정리합니다. 현재 권한이 다른 시스템에도 사용되는지, 조직·Folder·그룹 상속이나 조건부 정책이 있는지 먼저 확인합니다. 서브넷별 권한을 먼저 추가하고 VPC Admin이 네트워크·PSA·Pool 준비를 맡은 뒤 실제 GKE·내부 ALB·배포가 정상인지 확인해야 합니다. 실제 IAM을 이 소스 수정 과정에서 변경하지 않았습니다.
-
-```bash
-export ADMIN_ACCOUNT="son@sonmap.net"
-export VPC_ADMIN_ACCOUNT="${VPC_ADMIN_ACCOUNT:-admin@sonmap.net}"
-export VPC_HOST_PROJECT="gcp-prod-edp-hub-vpchost"
-export SBX_GKE_PROJECT="gcp-sbx-edp-gke01"
-export FOLDER_ID="154455658682"
-export TF_MANAGER="tf-manager@${SBX_GKE_PROJECT}.iam.gserviceaccount.com"
-# 실행 위치 infra-son01 | 대상 ${SBX_GKE_PROJECT} | 계정 ${VPC_ADMIN_ACCOUNT}
-export SBX_GKE_PROJECT_NUMBER="$(gcloud projects describe "${SBX_GKE_PROJECT}" --account="${VPC_ADMIN_ACCOUNT}" --format='value(projectNumber)')"
-
-# 조회·권한 출처 확인 후 아래 정리 명령을 개별 실행합니다.
-# 실행 위치 infra-son01 | 대상 ${VPC_HOST_PROJECT} | 계정 ${VPC_ADMIN_ACCOUNT}
-gcloud projects get-iam-policy "${VPC_HOST_PROJECT}" --account="${VPC_ADMIN_ACCOUNT}" --format=json
-
-# 새 Subnet별 Network User 바인딩이 실제 적용된 경우에만 기존 Host 전체 바인딩을 제거합니다.
-gcloud projects remove-iam-policy-binding "${VPC_HOST_PROJECT}" \
-  --member="serviceAccount:${TF_MANAGER}" --role=roles/compute.networkUser \
-  --account="${VPC_ADMIN_ACCOUNT}"
-gcloud projects remove-iam-policy-binding "${VPC_HOST_PROJECT}" \
-  --member="serviceAccount:service-${SBX_GKE_PROJECT_NUMBER}@container-engine-robot.iam.gserviceaccount.com" \
-  --role=roles/compute.networkUser --account="${VPC_ADMIN_ACCOUNT}"
-gcloud projects remove-iam-policy-binding "${VPC_HOST_PROJECT}" \
-  --member="serviceAccount:${SBX_GKE_PROJECT_NUMBER}@cloudservices.gserviceaccount.com" \
-  --role=roles/compute.networkUser --account="${VPC_ADMIN_ACCOUNT}"
-
-# Host 관리 작업을 VPC Admin으로 이전하고, tf-manager의 기존 관리 권한을 정리합니다.
-gcloud projects remove-iam-policy-binding "${VPC_HOST_PROJECT}" \
-  --member="serviceAccount:${TF_MANAGER}" --role=roles/compute.networkAdmin --condition=None \
-  --account="${VPC_ADMIN_ACCOUNT}"
-gcloud projects remove-iam-policy-binding "${VPC_HOST_PROJECT}" \
-  --member="serviceAccount:${TF_MANAGER}" --role=roles/compute.securityAdmin --condition=None \
-  --account="${VPC_ADMIN_ACCOUNT}"
-gcloud projects remove-iam-policy-binding "${VPC_HOST_PROJECT}" \
-  --member="serviceAccount:${TF_MANAGER}" --role=roles/servicenetworking.networksAdmin \
-  --condition=None --account="${VPC_ADMIN_ACCOUNT}"
-
-# Pool 초기 관리 권한을 VPC Admin에게 이전한 뒤 기존 tf-manager의 Pool Owner를 정리합니다.
-# 실행 위치 infra-son01 | 대상 ${SBX_GKE_PROJECT} | 계정 ${ADMIN_ACCOUNT}
-gcloud projects remove-iam-policy-binding "${SBX_GKE_PROJECT}" --member="serviceAccount:${TF_MANAGER}" \
-  --role=roles/cloudbuild.workerPoolOwner --condition=None --account="${ADMIN_ACCOUNT}"
-
-# 이전 단계에서 tf-manager에 아래 Folder 역할도 부여했다면, 다른 업무 의존성 확인 후에만 정리합니다.
-# 실행 위치 infra-son01 | 대상 폴더 ${FOLDER_ID} | 계정 ${ADMIN_ACCOUNT}
-gcloud resource-manager folders get-iam-policy "${FOLDER_ID}" --account="${ADMIN_ACCOUNT}" --format=json
-gcloud resource-manager folders remove-iam-policy-binding "${FOLDER_ID}" \
-  --member="serviceAccount:${TF_MANAGER}" --role=roles/compute.xpnAdmin --condition=None \
-  --account="${ADMIN_ACCOUNT}"
-```
-
-Host Service Agent User·Network Viewer·서비스 에이전트 본래 역할은 삭제 대상이 아닙니다. 바인딩이 없으면 실패를 무시해 일괄 실행하지 말고 실제 정책과 조건을 확인합니다. 남은 상위 상속·다른 역할까지 자동 제거하거나 최소 권한이 완성되었다고 간주하지 않습니다. 정리 후 GKE 접속·ALB 생성/Backend health·과제 Deploy를 다시 확인합니다.
 
 </details>
